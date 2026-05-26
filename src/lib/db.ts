@@ -27,9 +27,16 @@ export async function initDb(): Promise<void> {
       bio TEXT DEFAULT '',
       created_at BIGINT NOT NULL,
       total_likes INT DEFAULT 0,
-      total_listings INT DEFAULT 0
+      total_listings INT DEFAULT 0,
+      is_premium BOOLEAN DEFAULT FALSE,
+      premium_until BIGINT,
+      stripe_customer_id TEXT
     )
   `;
+  // Migration: add premium columns to existing tables
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until BIGINT`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`;
   await db`
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY,
@@ -247,15 +254,32 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
   const rows = await db`SELECT * FROM users WHERE id = ${userId}`;
   if (rows[0]) {
     const r = rows[0];
-    return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number };
+    const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
+    const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
+    return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil };
   }
   const user: UserProfile = {
     id: userId, name: displayName || 'SwipeFit User',
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
-    bio: '', createdAt: Date.now(), totalLikes: 0, totalListings: 0,
+    bio: '', createdAt: Date.now(), totalLikes: 0, totalListings: 0, isPremium: false,
   };
-  await db`INSERT INTO users VALUES (${user.id}, ${user.name}, ${user.avatar}, ${user.bio}, ${user.createdAt}, 0, 0) ON CONFLICT (id) DO NOTHING`;
+  await db`INSERT INTO users (id, name, avatar, bio, created_at, total_likes, total_listings, is_premium) VALUES (${user.id}, ${user.name}, ${user.avatar}, ${user.bio}, ${user.createdAt}, 0, 0, false) ON CONFLICT (id) DO NOTHING`;
   return user;
+}
+
+export async function setPremium(userId: string, isPremium: boolean, premiumUntil?: number, stripeCustomerId?: string): Promise<void> {
+  const db = sql();
+  await db`UPDATE users SET is_premium = ${isPremium}, premium_until = ${premiumUntil ?? null}, stripe_customer_id = COALESCE(${stripeCustomerId ?? null}, stripe_customer_id) WHERE id = ${userId}`;
+}
+
+export async function getUserByStripeCustomer(stripeCustomerId: string): Promise<UserProfile | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM users WHERE stripe_customer_id = ${stripeCustomerId}`;
+  if (!rows[0]) return null;
+  const r = rows[0];
+  const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
+  const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
+  return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil };
 }
 
 export async function updateUser(userId: string, data: { name?: string; bio?: string; avatar?: string }): Promise<void> {

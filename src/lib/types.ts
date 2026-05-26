@@ -37,6 +37,8 @@ export interface UserProfile {
   createdAt: number;
   totalLikes: number;
   totalListings: number;
+  isPremium: boolean;
+  premiumUntil?: number;
 }
 
 export interface UserPreferences {
