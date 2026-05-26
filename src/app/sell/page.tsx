@@ -3,27 +3,27 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
-import { ImagePlus, CheckCircle, Loader, X, ChevronRight } from 'lucide-react';
+import { Camera, X, Loader2, CheckCircle2, ChevronLeft } from 'lucide-react';
 
 const CATEGORIES = [
-  { value: 'tops', label: 'Tops' },
-  { value: 'bottoms', label: 'Bottoms' },
-  { value: 'dresses', label: 'Dresses' },
-  { value: 'outerwear', label: 'Outerwear' },
-  { value: 'shoes', label: 'Shoes' },
-  { value: 'accessories', label: 'Accessories' },
-];
-
-const STYLES = [
-  'streetwear', 'minimal', 'vintage', 'preppy', 'casual', 'avant garde',
-  'y2k', 'techwear', 'workwear', 'bohemian', 'luxury', 'athletic',
+  { value: 'tops',        label: 'Tops',        emoji: '👕' },
+  { value: 'bottoms',     label: 'Bottoms',      emoji: '👖' },
+  { value: 'dresses',     label: 'Dresses',      emoji: '👗' },
+  { value: 'outerwear',   label: 'Outerwear',    emoji: '🧥' },
+  { value: 'shoes',       label: 'Shoes',        emoji: '👟' },
+  { value: 'accessories', label: 'Accessories',  emoji: '🕶️' },
 ];
 
 const CONDITIONS = [
-  { value: 'new', label: 'New with tags' },
-  { value: 'like_new', label: 'Like new' },
-  { value: 'good', label: 'Good' },
-  { value: 'fair', label: 'Fair' },
+  { value: 'new',       label: 'New with tags',  sub: 'Never worn, tags on' },
+  { value: 'like_new',  label: 'Like new',       sub: 'Worn once or twice' },
+  { value: 'good',      label: 'Good',           sub: 'Gently used, no flaws' },
+  { value: 'fair',      label: 'Fair',           sub: 'Visible wear, still great' },
+];
+
+const STYLES = [
+  'streetwear','minimal','vintage','preppy','casual',
+  'avant garde','y2k','techwear','workwear','bohemian','luxury','athletic',
 ];
 
 export default function SellPage() {
@@ -34,7 +34,7 @@ export default function SellPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [form, setForm] = useState({
     title: '', description: '', price: '', originalPrice: '',
-    category: '', subcategory: '', brand: '', size: '', condition: 'good',
+    category: '', brand: '', size: '', condition: '',
     styles: [] as string[], colors: '',
   });
   const [loading, setLoading] = useState(false);
@@ -44,297 +44,323 @@ export default function SellPage() {
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
-    setUploadProgress(0);
     setError('');
-
     try {
-      const urls: string[] = [];
       const count = Math.min(files.length, 4 - images.length);
+      const urls: string[] = [];
       for (let i = 0; i < count; i++) {
-        const file = files[i];
         setUploadProgress(Math.round(((i) / count) * 80));
         const fd = new FormData();
-        fd.append('file', file);
+        fd.append('file', files[i]);
         const res = await fetch('/api/upload', { method: 'POST', body: fd });
         if (!res.ok) throw new Error((await res.json()).error || 'Upload failed');
-        const data = await res.json();
-        urls.push(data.url);
+        urls.push((await res.json()).url);
         setUploadProgress(Math.round(((i + 1) / count) * 100));
       }
       setImages(prev => [...prev, ...urls].slice(0, 4));
     } catch (err) {
-      setError((err as Error).message || 'Upload failed. Make sure Blob storage is connected in Vercel.');
+      setError((err as Error).message);
     } finally {
       setUploading(false);
       setUploadProgress(0);
     }
   };
 
-  const removeImage = (idx: number) => setImages(prev => prev.filter((_, i) => i !== idx));
-
-  const toggleStyle = (style: string) => {
+  const toggleStyle = (s: string) =>
     setForm(f => ({
       ...f,
-      styles: f.styles.includes(style)
-        ? f.styles.filter(s => s !== style)
-        : [...f.styles, style].slice(0, 4),
+      styles: f.styles.includes(s) ? f.styles.filter(x => x !== s) : [...f.styles, s].slice(0, 4),
     }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.price || !form.category || images.length === 0) return;
     setLoading(true);
     setError('');
-
     const res = await fetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: form.title,
-        description: form.description,
+        ...form,
         price: form.price,
         originalPrice: form.originalPrice || undefined,
         images,
-        category: form.category,
-        subcategory: form.subcategory || form.category,
-        styles: form.styles,
+        subcategory: form.category,
         colors: form.colors.split(',').map(c => c.trim()).filter(Boolean),
-        size: form.size,
-        brand: form.brand,
-        condition: form.condition,
       }),
     });
-
     if (res.ok) {
       setSuccess(true);
-      setTimeout(() => router.push('/feed'), 2000);
+      setTimeout(() => router.push('/profile'), 2200);
     } else {
-      setError('Failed to list item. Make sure the database is connected.');
+      setError('Something went wrong. Check your connection and try again.');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
+  const canSubmit = !loading && !uploading && form.title && form.price && form.category && images.length > 0;
+  const discount = form.price && form.originalPrice
+    ? Math.round((1 - parseFloat(form.price) / parseFloat(form.originalPrice)) * 100)
+    : null;
+
+  /* ── Success screen ── */
   if (success) {
     return (
-      <div className="flex flex-col h-screen bg-[#F5F4F0] items-center justify-center">
-        <CheckCircle size={56} className="text-green-500 mb-4" />
-        <h2 className="text-2xl font-black text-[#0A0A0A]">Listed!</h2>
-        <p className="text-[#5A5A5A] mt-1 text-sm">Your item is live on the feed.</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F4F0] px-8">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-5">
+          <CheckCircle2 size={36} className="text-green-600" />
+        </div>
+        <h2 className="text-2xl font-black text-[#0A0A0A] mb-2">You're live!</h2>
+        <p className="text-[#AAAAAA] text-sm text-center">Your item is now on the feed. Taking you to your profile…</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
-      <header className="bg-white border-b border-[#EBEBEB] px-5 pt-12 pb-4">
-        <h1 className="text-2xl font-black text-[#0A0A0A] tracking-tight">List an Item</h1>
-        <p className="text-xs text-[#5A5A5A] mt-0.5 uppercase tracking-wide font-medium">Turn your closet into cash</p>
-      </header>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pb-28 px-5 pt-5 space-y-6">
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-[#EBEBEB] px-5 pt-12 pb-4 flex items-center gap-3">
+        <button onClick={() => router.back()}
+          className="w-9 h-9 bg-[#F5F4F0] rounded-xl flex items-center justify-center flex-shrink-0">
+          <ChevronLeft size={18} className="text-[#5A5A5A]" />
+        </button>
+        <div>
+          <h1 className="text-lg font-black text-[#0A0A0A] leading-none">List an Item</h1>
+          <p className="text-xs text-[#AAAAAA] mt-0.5 font-medium">Turn your closet into cash</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pb-32 space-y-3 pt-3 px-4">
 
         {/* ── Photos ── */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#0A0A0A] mb-2">
-            Photos <span className="text-[#E63946]">*</span>
-          </label>
-
-          <div className="grid grid-cols-4 gap-2">
-            {images.map((url, idx) => (
-              <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-[#EBEBEB]">
-                <img src={url} alt="" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(idx)}
-                  className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                >
-                  <X size={10} className="text-white" />
-                </button>
-              </div>
-            ))}
-            {images.length < 4 && (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
+        <Section label="Photos" required>
+          {/* Hero upload / first image */}
+          <div className="mb-2">
+            {images.length === 0 ? (
+              <button type="button" onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className={`aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-colors ${
-                  uploading ? 'border-[#E63946] bg-red-50' : 'border-[#CCCCCC] bg-white hover:border-[#0A0A0A]'
-                }`}
-              >
+                className="w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-[#DDDDDD] bg-white flex flex-col items-center justify-center gap-3 active:bg-[#F5F4F0] transition-colors">
                 {uploading ? (
                   <>
-                    <Loader size={18} className="text-[#E63946] animate-spin" />
-                    <span className="text-[9px] font-bold text-[#E63946]">{uploadProgress}%</span>
+                    <div className="w-10 h-10 rounded-full border-[3px] border-[#E63946] border-t-transparent animate-spin" />
+                    <span className="text-sm font-bold text-[#E63946]">{uploadProgress}%</span>
                   </>
                 ) : (
                   <>
-                    <ImagePlus size={18} className="text-[#5A5A5A]" />
-                    <span className="text-[9px] font-bold text-[#5A5A5A] uppercase tracking-wide">Add Photo</span>
+                    <div className="w-14 h-14 bg-[#F5F4F0] rounded-2xl flex items-center justify-center">
+                      <Camera size={22} className="text-[#AAAAAA]" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-bold text-[#0A0A0A] text-sm">Add photos</p>
+                      <p className="text-xs text-[#AAAAAA] mt-0.5">Up to 4 · JPG, PNG, WEBP</p>
+                    </div>
                   </>
                 )}
               </button>
+            ) : (
+              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#0A0A0A]">
+                <img src={images[0]} alt="" className="w-full h-full object-cover" />
+                <button type="button" onClick={() => setImages(p => p.filter((_, i) => i !== 0))}
+                  className="absolute top-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center">
+                  <X size={14} className="text-white" />
+                </button>
+                <div className="absolute bottom-3 left-3 bg-black/50 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide">
+                  Cover photo
+                </div>
+              </div>
             )}
           </div>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={e => handleFiles(e.target.files)}
-          />
-          <p className="text-[10px] text-[#999] mt-1.5">Up to 4 photos · Max 10 MB each · JPG, PNG, WEBP</p>
-          {error && <p className="text-[11px] text-[#E63946] mt-1 font-medium">{error}</p>}
-        </div>
+          {/* Thumbnail row */}
+          {images.length > 0 && (
+            <div className="flex gap-2">
+              {images.slice(1).map((url, i) => (
+                <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#F5F4F0] flex-shrink-0">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => setImages(p => p.filter((_, idx) => idx !== i + 1))}
+                    className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                    <X size={9} className="text-white" />
+                  </button>
+                </div>
+              ))}
+              {images.length < 4 && (
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                  className="w-20 h-20 rounded-xl border-2 border-dashed border-[#DDDDDD] bg-white flex items-center justify-center flex-shrink-0">
+                  {uploading
+                    ? <Loader2 size={16} className="text-[#E63946] animate-spin" />
+                    : <Camera size={16} className="text-[#AAAAAA]" />}
+                </button>
+              )}
+            </div>
+          )}
 
-        {/* ── Title ── */}
-        <Field label="Title" required>
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
+            onChange={e => handleFiles(e.target.files)} />
+          {error && <p className="text-xs text-[#E63946] font-semibold mt-1">{error}</p>}
+        </Section>
+
+        {/* ── Title & Description ── */}
+        <Section label="Details" required>
           <input
             type="text"
-            placeholder="e.g., Vintage Levi's 501 Jeans"
+            placeholder="Item name, e.g. Vintage Levi's 501"
             value={form.title}
             onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            className="sf-input"
+            className="sf-input mb-2"
             required
           />
-        </Field>
-
-        {/* ── Description ── */}
-        <Field label="Description">
           <textarea
-            placeholder="Fit, fabric, condition details..."
+            placeholder="Describe fit, fabric, any flaws… (optional)"
             value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             rows={3}
             className="sf-input resize-none"
           />
-        </Field>
+        </Section>
 
-        {/* ── Price row ── */}
-        <div className="flex gap-3">
-          <Field label="Asking Price" required className="flex-1">
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999] text-sm font-medium">$</span>
-              <input
-                type="number" min="1" step="0.01" placeholder="0.00"
-                value={form.price}
-                onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-                className="sf-input pl-7"
-                required
-              />
+        {/* ── Price ── */}
+        <Section label="Price" required>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-wider mb-1 block">Asking</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0A0A0A] font-black text-base">$</span>
+                <input type="number" min="1" step="0.01" placeholder="0"
+                  value={form.price}
+                  onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                  className="sf-input pl-8 text-lg font-black" required />
+              </div>
             </div>
-          </Field>
-          <Field label="Original Price" className="flex-1">
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999] text-sm font-medium">$</span>
-              <input
-                type="number" min="1" step="0.01" placeholder="0.00"
-                value={form.originalPrice}
-                onChange={e => setForm(f => ({ ...f, originalPrice: e.target.value }))}
-                className="sf-input pl-7"
-              />
+            <div className="flex-1">
+              <label className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-wider mb-1 block">Original</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#AAAAAA] font-bold text-base">$</span>
+                <input type="number" min="1" step="0.01" placeholder="0"
+                  value={form.originalPrice}
+                  onChange={e => setForm(f => ({ ...f, originalPrice: e.target.value }))}
+                  className="sf-input pl-8 text-lg font-black" />
+              </div>
             </div>
-          </Field>
-        </div>
+          </div>
+          {discount !== null && discount > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs font-black text-[#E63946] bg-red-50 px-2.5 py-1 rounded-full">-{discount}% off retail</span>
+              <span className="text-xs text-[#AAAAAA]">Buyers love a deal</span>
+            </div>
+          )}
+        </Section>
 
         {/* ── Category ── */}
-        <Field label="Category" required>
+        <Section label="Category" required>
           <div className="grid grid-cols-3 gap-2">
             {CATEGORIES.map(c => (
-              <button
-                key={c.value} type="button"
+              <button key={c.value} type="button"
                 onClick={() => setForm(f => ({ ...f, category: c.value }))}
-                className={`py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
+                className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border-2 transition-all ${
                   form.category === c.value
-                    ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-                    : 'bg-white text-[#5A5A5A] border-[#EBEBEB] hover:border-[#0A0A0A]'
-                }`}
-              >
-                {c.label}
+                    ? 'bg-[#0A0A0A] border-[#0A0A0A]'
+                    : 'bg-white border-[#EBEBEB]'
+                }`}>
+                <span className="text-xl">{c.emoji}</span>
+                <span className={`text-xs font-bold ${form.category === c.value ? 'text-white' : 'text-[#5A5A5A]'}`}>
+                  {c.label}
+                </span>
               </button>
             ))}
           </div>
-        </Field>
+        </Section>
 
         {/* ── Brand & Size ── */}
-        <div className="flex gap-3">
-          <Field label="Brand" className="flex-1">
-            <input
-              type="text" placeholder="Nike, Zara..."
-              value={form.brand}
-              onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}
-              className="sf-input"
-            />
-          </Field>
-          <Field label="Size" className="flex-1">
-            <input
-              type="text" placeholder="M, 32×30, 10..."
-              value={form.size}
-              onChange={e => setForm(f => ({ ...f, size: e.target.value }))}
-              className="sf-input"
-            />
-          </Field>
-        </div>
+        <Section label="Brand & Size">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-wider mb-1 block">Brand</label>
+              <input type="text" placeholder="Nike, Zara, Levi's…"
+                value={form.brand}
+                onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}
+                className="sf-input" />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-wider mb-1 block">Size</label>
+              <input type="text" placeholder="M, 32×30, 10…"
+                value={form.size}
+                onChange={e => setForm(f => ({ ...f, size: e.target.value }))}
+                className="sf-input" />
+            </div>
+          </div>
+        </Section>
 
         {/* ── Condition ── */}
-        <Field label="Condition">
-          <div className="grid grid-cols-2 gap-2">
+        <Section label="Condition">
+          <div className="space-y-2">
             {CONDITIONS.map(c => (
-              <button
-                key={c.value} type="button"
+              <button key={c.value} type="button"
                 onClick={() => setForm(f => ({ ...f, condition: c.value }))}
-                className={`py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
+                className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all text-left ${
                   form.condition === c.value
-                    ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-                    : 'bg-white text-[#5A5A5A] border-[#EBEBEB] hover:border-[#0A0A0A]'
-                }`}
-              >
-                {c.label}
+                    ? 'bg-[#0A0A0A] border-[#0A0A0A]'
+                    : 'bg-white border-[#EBEBEB]'
+                }`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  form.condition === c.value ? 'border-white' : 'border-[#DDDDDD]'
+                }`}>
+                  {form.condition === c.value && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                </div>
+                <div>
+                  <p className={`text-sm font-black ${form.condition === c.value ? 'text-white' : 'text-[#0A0A0A]'}`}>
+                    {c.label}
+                  </p>
+                  <p className={`text-xs mt-0.5 ${form.condition === c.value ? 'text-white/50' : 'text-[#AAAAAA]'}`}>
+                    {c.sub}
+                  </p>
+                </div>
               </button>
             ))}
           </div>
-        </Field>
+        </Section>
 
         {/* ── Styles ── */}
-        <Field label="Styles" hint="pick up to 4">
+        <Section label="Style" hint="Pick up to 4">
           <div className="flex flex-wrap gap-2">
             {STYLES.map(s => (
-              <button
-                key={s} type="button"
-                onClick={() => toggleStyle(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border capitalize transition-colors ${
+              <button key={s} type="button" onClick={() => toggleStyle(s)}
+                className={`px-3.5 py-2 rounded-full text-xs font-bold capitalize transition-all border ${
                   form.styles.includes(s)
                     ? 'bg-[#E63946] text-white border-[#E63946]'
-                    : 'bg-white text-[#5A5A5A] border-[#EBEBEB] hover:border-[#0A0A0A]'
-                }`}
-              >
+                    : 'bg-white text-[#5A5A5A] border-[#EBEBEB]'
+                }`}>
                 {s}
               </button>
             ))}
           </div>
-        </Field>
+        </Section>
 
         {/* ── Colors ── */}
-        <Field label="Colors" hint="comma separated">
-          <input
-            type="text" placeholder="black, white, grey"
+        <Section label="Colors" hint="Comma separated">
+          <input type="text" placeholder="black, white, grey…"
             value={form.colors}
             onChange={e => setForm(f => ({ ...f, colors: e.target.value }))}
-            className="sf-input"
-          />
-        </Field>
+            className="sf-input" />
+        </Section>
 
         {/* ── Submit ── */}
-        <button
-          type="submit"
-          disabled={loading || uploading || !form.title || !form.price || !form.category || images.length === 0}
-          className="w-full bg-[#0A0A0A] text-white font-bold text-sm py-4 rounded-2xl disabled:opacity-40 hover:bg-[#222] active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
-        >
-          {loading ? <Loader size={16} className="animate-spin" /> : <ChevronRight size={16} />}
-          {loading ? 'Listing...' : 'List for Sale'}
-        </button>
+        <div className="pt-1">
+          <button type="submit" disabled={!canSubmit}
+            className="w-full bg-[#E63946] text-white font-black py-[18px] rounded-2xl disabled:opacity-35 active:scale-95 transition-all text-sm uppercase tracking-widest shadow-lg shadow-[#E63946]/20 flex items-center justify-center gap-2">
+            {loading
+              ? <><Loader2 size={16} className="animate-spin" /> Listing…</>
+              : 'List for Sale'}
+          </button>
+
+          {(!form.title || !form.category || images.length === 0) && (
+            <p className="text-center text-xs text-[#AAAAAA] mt-2.5">
+              {images.length === 0 ? 'Add at least one photo to continue' :
+               !form.title ? 'Add a title to continue' :
+               'Select a category to continue'}
+            </p>
+          )}
+        </div>
 
       </form>
 
@@ -343,20 +369,16 @@ export default function SellPage() {
   );
 }
 
-function Field({
-  label, required, hint, children, className,
-}: {
-  label: string; required?: boolean; hint?: string;
-  children: React.ReactNode; className?: string;
+function Section({ label, required, hint, children }: {
+  label: string; required?: boolean; hint?: string; children: React.ReactNode;
 }) {
   return (
-    <div className={className}>
-      <div className="flex items-baseline gap-1.5 mb-1.5">
-        <label className="text-xs font-bold uppercase tracking-widest text-[#0A0A0A]">
-          {label}
-          {required && <span className="text-[#E63946] ml-0.5">*</span>}
-        </label>
-        {hint && <span className="text-[10px] text-[#999] font-normal">({hint})</span>}
+    <div className="bg-white rounded-2xl px-4 pt-4 pb-4">
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-xs font-black uppercase tracking-widest text-[#0A0A0A]">
+          {label}{required && <span className="text-[#E63946] ml-0.5">*</span>}
+        </span>
+        {hint && <span className="text-[10px] text-[#AAAAAA]">{hint}</span>}
       </div>
       {children}
     </div>
