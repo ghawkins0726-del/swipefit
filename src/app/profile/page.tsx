@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
-import { Heart, ShoppingBag, Bell, Settings, ChevronRight, TrendingUp, Edit2, Check } from 'lucide-react';
+import { Heart, ShoppingBag, Bell, TrendingUp, Edit2, Check, UserCog, Package2 } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
 import Link from 'next/link';
 
@@ -17,6 +17,7 @@ interface ProfileData {
   listings: Item[];
   notifications: { id: string; title: string; body: string; read: boolean; createdAt: number; type: string }[];
   unreadCount: number;
+  purchaseCount: number;
 }
 
 export default function ProfilePage() {
@@ -71,7 +72,7 @@ export default function ProfilePage() {
     );
   }
 
-  const { user, liked, listings, notifications, unreadCount } = data!;
+  const { user, liked, listings, notifications, unreadCount, purchaseCount } = data!;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -106,25 +107,41 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <Link href="/dashboard" className="bg-white/20 backdrop-blur rounded-xl px-3 py-2 text-white text-xs font-semibold flex items-center gap-1.5">
-            <TrendingUp size={13} />
-            Dashboard
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/profile/edit" className="bg-white/20 backdrop-blur rounded-xl px-3 py-2 text-white text-xs font-semibold flex items-center gap-1.5">
+              <UserCog size={13} />
+              Edit
+            </Link>
+            <Link href="/dashboard" className="bg-white/20 backdrop-blur rounded-xl px-3 py-2 text-white text-xs font-semibold flex items-center gap-1.5">
+              <TrendingUp size={13} />
+              Dashboard
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {[
             { value: liked.length, label: 'Liked' },
             { value: listings.length, label: 'Listed' },
             { value: listings.filter(i => i.sold).length, label: 'Sold' },
+            { value: purchaseCount, label: 'Bought' },
           ].map(({ value, label }) => (
             <div key={label} className="bg-white/15 backdrop-blur rounded-2xl p-3 text-center">
-              <div className="font-black text-2xl text-white">{value}</div>
+              <div className="font-black text-xl text-white">{value}</div>
               <div className="text-white/60 text-xs">{label}</div>
             </div>
           ))}
         </div>
+
+        {/* Orders link */}
+        <Link href="/orders" className="mt-3 flex items-center justify-between bg-white/15 backdrop-blur rounded-2xl px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Package2 size={15} className="text-white/80" />
+            <span className="text-white font-semibold text-sm">My Orders</span>
+          </div>
+          <span className="text-white/50 text-xs">View all →</span>
+        </Link>
       </div>
 
       {/* Tab bar */}

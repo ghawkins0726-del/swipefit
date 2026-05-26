@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrCreateUser, getLikedItems, getNotifications, getUnreadCount, markAllRead, updateUser, getSellerItems } from '@/lib/db';
+import { getOrCreateUser, getLikedItems, getNotifications, getUnreadCount, markAllRead, updateUser, getSellerItems, getOrderCount } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId') || 'anonymous';
-  const [user, liked, listings, notifications, unreadCount] = await Promise.all([
+  const [user, liked, listings, notifications, unreadCount, purchaseCount] = await Promise.all([
     getOrCreateUser(userId),
     getLikedItems(userId),
     getSellerItems(userId),
     getNotifications(userId),
     getUnreadCount(userId),
+    getOrderCount(userId, 'buyer'),
   ]);
-  return NextResponse.json({ user, liked, listings, notifications, unreadCount });
+  return NextResponse.json({ user, liked, listings, notifications, unreadCount, purchaseCount });
 }
 
 export async function PATCH(req: NextRequest) {
