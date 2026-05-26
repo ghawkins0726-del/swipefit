@@ -9,9 +9,9 @@ import { useUser } from '@clerk/nextjs';
 type Tab = { href: string; icon: React.ElementType; label: string; match: string; center?: boolean };
 
 const tabs: Tab[] = [
-  { href: '/feed',     icon: Flame,          label: 'Feed',     match: '/feed' },
+  { href: '/dna',      icon: Dna,            label: 'DNA',      match: '/dna' },
   { href: '/messages', icon: MessageSquare,  label: 'Messages', match: '/messages' },
-  { href: '/dna',      icon: Dna,            label: 'DNA',      match: '/dna',  center: true },
+  { href: '/feed',     icon: Flame,          label: 'Swipe',    match: '/feed', center: true },
   { href: '/sell',     icon: PlusSquare,     label: 'Sell',     match: '/sell' },
   { href: '/profile',  icon: User,           label: 'Profile',  match: '/profile' },
 ];
