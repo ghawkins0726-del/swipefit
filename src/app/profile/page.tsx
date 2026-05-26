@@ -235,10 +235,10 @@ export default function ProfilePage() {
                 </p>
                 <p className="text-white/60 text-[11px] mt-0.5 leading-tight">
                   {connect.ready
-                    ? '90% of every sale goes straight to your bank'
+                    ? 'Payouts go straight to your bank'
                     : connect.connected
                       ? 'Stripe needs a few more details'
-                      : 'Get paid 90% when your items sell'}
+                      : 'Get paid when your items sell'}
                 </p>
               </div>
             </div>

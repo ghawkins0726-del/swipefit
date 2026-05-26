@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
               userId: user.id,
               type: 'order',
               title: 'Payouts unlocked 🎉',
-              body: 'Your Stripe account is verified. You can now accept payments — 90% goes straight to you.',
+              body: 'Your Stripe account is verified. You can now accept payments on your listings.',
               payload: JSON.stringify({}),
               createdAt: Date.now(),
             });

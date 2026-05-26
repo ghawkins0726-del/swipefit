@@ -47,7 +47,7 @@ export default function ConnectReturnPage() {
             You&apos;re set up to sell 🎉
           </h1>
           <p className="text-white/40 text-sm leading-relaxed mb-8 max-w-xs">
-            Your bank is verified. When someone buys from you, 90% drops straight into your Stripe balance — we keep 10%.
+            Your bank is verified. When someone buys from you, the payout drops straight into your Stripe balance.
           </p>
           <Link href="/sell"
             className="flex items-center justify-center gap-2 bg-[#FF2E47] text-white font-black px-8 py-4 rounded-2xl text-sm uppercase tracking-widest shadow-xl shadow-[#FF2E47]/30">
