@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, RefreshCw, ShoppingBag, Loader2, ChevronRight, Dna, Crown, Lock } from 'lucide-react';
+import { Sparkles, Send, RefreshCw, ShoppingBag, ChevronRight, Dna, Crown, Lock } from 'lucide-react';
 import StyleDnaCard from '@/components/StyleDnaCard';
 import { StyleDna } from '@/lib/styleDna';
 import Navbar from '@/components/Navbar';
@@ -21,7 +21,7 @@ interface OutfitItem {
 
 type Message =
   | { role: 'user'; text: string }
-  | { role: 'ai'; verdict: string; outfit: OutfitItem[] };
+  | { role: 'ai'; text: string; outfit: OutfitItem[] };
 
 const OCCASIONS = [
   { label: 'Date night', emoji: '🌙' },
@@ -114,21 +114,26 @@ export default function DnaPage() {
     if (tab === 'outfit' && messages.length === 0) {
       setMessages([{
         role: 'ai',
-        verdict: "I'm Fit — your AI stylist. Pick a vibe above or describe an occasion and I'll pull a real outfit from your liked items.",
+        text: "hey — I'm Fit. ask me anything about fashion, what to wear, brands you're curious about, whatever. when you want an actual outfit, say the word and I'll pull one from what you've already liked.",
         outfit: [],
       }]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, premiumLoaded]);
 
-  // Build serialized history for multi-turn
+  // Build natural multi-turn history for Claude
   const buildHistory = (msgs: Message[]) => {
     return msgs.map(m => {
       if (m.role === 'user') return { role: 'user' as const, content: m.text };
-      return {
-        role: 'assistant' as const,
-        content: JSON.stringify({ verdict: m.verdict, items: m.outfit.map(o => ({ id: o.id, role: o.role })) }),
-      };
+      // Assistant — include text + a note about any outfit shown
+      let content = m.text;
+      if (m.outfit.length > 0) {
+        const summary = m.outfit
+          .map(o => `${o.role}: ${o.title} by ${o.brand} (ID:${o.id})`)
+          .join(', ');
+        content += `\n\n[Showed outfit — ${summary}]`;
+      }
+      return { role: 'assistant' as const, content };
     });
   };
 
@@ -151,7 +156,7 @@ export default function DnaPage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setMessages(prev => [...prev, { role: 'ai', verdict: data.verdict || 'No response', outfit: data.outfit || [] }]);
+      setMessages(prev => [...prev, { role: 'ai', text: data.reply || 'No response', outfit: data.outfit || [] }]);
     } catch (err) {
       setChatError(`Couldn't reach Fit — ${err instanceof Error ? err.message : 'try again'}`);
     }
@@ -478,10 +483,12 @@ export default function DnaPage() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        {/* Verdict */}
+                        {/* Reply bubble */}
                         <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm mb-3">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-[#E63946] mb-1">Fit</p>
-                          <p className="text-sm text-[#0A0A0A] leading-relaxed font-medium">{msg.verdict}</p>
+                          {msg.outfit.length > 0 && (
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[#E63946] mb-1">Fit · Outfit</p>
+                          )}
+                          <p className="text-sm text-[#0A0A0A] leading-relaxed font-medium whitespace-pre-wrap">{msg.text}</p>
                         </div>
 
                         {/* Outfit board */}
@@ -524,10 +531,11 @@ export default function DnaPage() {
                     <div className="w-8 h-8 bg-[#0A0A0A] rounded-full flex items-center justify-center flex-shrink-0">
                       <Sparkles size={13} className="text-[#E63946]" />
                     </div>
-                    <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-4 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <Loader2 size={14} className="text-[#E63946] animate-spin" />
-                        <span className="text-xs text-[#AAAAAA] font-semibold">Building your outfit…</span>
+                    <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                      <div className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-[#E63946] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-[#E63946] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-[#E63946] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                     </div>
                   </motion.div>
@@ -553,7 +561,7 @@ export default function DnaPage() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                  placeholder="Describe an occasion or ask for changes…"
+                  placeholder="Ask Fit anything…"
                   className="flex-1 bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#0A0A0A] transition-colors"
                 />
                 <button onClick={() => sendMessage()} disabled={!input.trim() || chatLoading}
