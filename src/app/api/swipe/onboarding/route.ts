@@ -1,0 +1,38 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuid } from 'uuid';
+import { getItems, recordSwipe } from '@/lib/db';
+import { Item } from '@/lib/types';
+
+export async function POST(req: NextRequest) {
+  const { userId, styles, categories, budget } = await req.json();
+  if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+
+  const allItems = await getItems(500);
+  const now = Date.now();
+
+  const scored = allItems.map(item => {
+    let score = 0;
+    const styleMatches = item.styles.filter(s => styles?.includes(s)).length;
+    score += styleMatches * 3;
+    if (categories?.includes(item.category)) score += 2;
+    if (categories?.includes(item.subcategory)) score += 1;
+    if (budget !== undefined) score += Math.max(0, 3 - Math.abs(item.priceRange - parseInt(budget)));
+    return { item, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const total = allItems.length;
+  const superCount = Math.max(1, Math.floor(total * 0.05));
+  const likeCount = Math.max(3, Math.floor(total * 0.15));
+
+  const toSwipe: { item: Item; action: 'superlike' | 'like' }[] = [
+    ...scored.slice(0, superCount).map(s => ({ item: s.item, action: 'superlike' as const })),
+    ...scored.slice(superCount, superCount + likeCount).map(s => ({ item: s.item, action: 'like' as const })),
+  ];
+
+  for (const { item, action } of toSwipe) {
+    await recordSwipe({ id: uuid(), userId, itemId: item.id, action, timestamp: now - Math.random() * 86400000 });
+  }
+
+  return NextResponse.json({ bootstrapped: toSwipe.length });
+}

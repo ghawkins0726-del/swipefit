@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
+/* ─── Brand tokens ─────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --sf-bg: #F5F4F0;          /* warm off-white — editorial feel */
+  --sf-surface: #FFFFFF;
+  --sf-ink: #0A0A0A;         /* near-black */
+  --sf-ink-2: #5A5A5A;       /* secondary text */
+  --sf-ink-3: #AAAAAA;       /* placeholder / meta */
+  --sf-accent: #E63946;      /* SwipeFit red — the one pop of color */
+  --sf-accent-dim: #FDECED;
+  --sf-border: #EBEBEB;
+  --sf-card-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-sf-bg: var(--sf-bg);
+  --color-sf-surface: var(--sf-surface);
+  --color-sf-ink: var(--sf-ink);
+  --color-sf-accent: var(--sf-accent);
+  --color-sf-border: var(--sf-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
+html {
+  overscroll-behavior-y: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--sf-bg);
+  color: var(--sf-ink);
+  font-family: var(--font-geist-sans), -apple-system, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
 }
+
+/* ─── Safe area ────────────────────────────────────────────────────────────── */
+.pb-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* ─── Scrollbar hide ───────────────────────────────────────────────────────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ─── Touch ────────────────────────────────────────────────────────────────── */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ─── Card ─────────────────────────────────────────────────────────────────── */
+.sf-card {
+  background: var(--sf-surface);
+  border-radius: 16px;
+  box-shadow: var(--sf-card-shadow);
+}
+
+/* ─── Swipe card specific ──────────────────────────────────────────────────── */
+.swipe-card { will-change: transform; transform-origin: bottom center; }
+
+/* ─── Typography helpers ───────────────────────────────────────────────────── */
+.sf-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sf-ink-3);
+}
+
+/* ─── Accent utilities ─────────────────────────────────────────────────────── */
+.sf-accent-bg { background: var(--sf-accent); }
+.sf-accent-text { color: var(--sf-accent); }
+.sf-accent-dim-bg { background: var(--sf-accent-dim); }
+
+/* ─── Form input ────────────────────────────────────────────────────────────── */
+.sf-input {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1px solid var(--sf-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--sf-ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.sf-input:focus { border-color: var(--sf-ink); }
+.sf-input::placeholder { color: var(--sf-ink-3); }
