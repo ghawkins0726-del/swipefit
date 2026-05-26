@@ -53,3 +53,60 @@ export interface Message {
   read: boolean;
   createdAt: number;
 }
+
+// ─── Recommendation engine ─────────────────────────────────────────────────────
+
+export interface TasteProfile {
+  userId: string;
+  // Style affinities (0–1)
+  outdoorScore: number;
+  streetwearScore: number;
+  luxuryScore: number;
+  minimalScore: number;
+  preppyScore: number;
+  vintageScore: number;
+  // Category affinities
+  topsScore: number;
+  bottomsScore: number;
+  dressesScore: number;
+  outerwearScore: number;
+  shoesScore: number;
+  accessoriesScore: number;
+  // Price tier affinities
+  budgetScore: number;
+  midrangeScore: number;
+  premiumScore: number;
+  luxuryTierScore: number;
+  // Condition affinities
+  mintConditionScore: number;
+  excellentConditionScore: number;
+  goodConditionScore: number;
+  fairConditionScore: number;
+  // Meta
+  totalInteractions: number;
+  lastInteractionAt: number | null;
+  updatedAt: number;
+}
+
+export type PriceTier = 'budget' | 'midrange' | 'premium' | 'luxury';
+
+export interface ItemClassification {
+  itemId: string;
+  sellerId: string;
+  primaryStyle: string;
+  category: string;
+  priceTier: PriceTier;
+  condition: string;
+  // Style confidences (0–1)
+  outdoorConfidence: number;
+  streetwearConfidence: number;
+  luxuryConfidence: number;
+  minimalConfidence: number;
+  preppyConfidence: number;
+  vintageConfidence: number;
+  // Quality signals
+  brandTierScore: number;  // 0–1, higher = more aspirational
+  trendScore: number;      // 0–1
+  classifiedAt: number;
+  aiAssisted: boolean;
+}

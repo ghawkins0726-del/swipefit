@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { getItems, createItem } from '@/lib/db';
+import { classifyAndSave } from '@/lib/classification';
 import { Item } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -56,5 +57,22 @@ export async function POST(req: NextRequest) {
   };
 
   await createItem(item);
+
+  // Fire-and-forget: classify the item so it's ready for taste-based ranking.
+  // classifyAndSave uses keyword heuristics first; only calls Claude when
+  // keyword confidence is below 0.35 — so most items cost 0 AI tokens.
+  classifyAndSave({
+    id: item.id,
+    sellerId: item.sellerId,
+    title: item.title,
+    description: item.description,
+    brand: item.brand,
+    price: item.price,
+    category: item.category,
+    condition: item.condition,
+  }).catch(() => {
+    // Non-critical — classification failure must not block listing creation
+  });
+
   return NextResponse.json(item, { status: 201 });
 }

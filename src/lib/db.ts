@@ -4,7 +4,7 @@
  */
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
-import { Offer, Notification, Message, Order, ConversationPreview } from './db-types';
+import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier } from './db-types';
 
 let _sql: NeonQueryFunction<false, false> | null = null;
 
@@ -137,6 +137,85 @@ export async function initDb(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_orders_seller ON orders(seller_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_orders_item ON orders(item_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC)`;
+
+  // ── Recommendation engine tables ──────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS user_taste_profiles_v2 (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      outdoor_score FLOAT DEFAULT 0.5,
+      streetwear_score FLOAT DEFAULT 0.5,
+      luxury_score FLOAT DEFAULT 0.5,
+      minimal_score FLOAT DEFAULT 0.5,
+      preppy_score FLOAT DEFAULT 0.5,
+      vintage_score FLOAT DEFAULT 0.5,
+      tops_score FLOAT DEFAULT 0.5,
+      bottoms_score FLOAT DEFAULT 0.5,
+      dresses_score FLOAT DEFAULT 0.5,
+      outerwear_score FLOAT DEFAULT 0.5,
+      shoes_score FLOAT DEFAULT 0.5,
+      accessories_score FLOAT DEFAULT 0.5,
+      budget_score FLOAT DEFAULT 0.5,
+      midrange_score FLOAT DEFAULT 0.5,
+      premium_score FLOAT DEFAULT 0.5,
+      luxury_tier_score FLOAT DEFAULT 0.5,
+      mint_condition_score FLOAT DEFAULT 0.5,
+      excellent_condition_score FLOAT DEFAULT 0.5,
+      good_condition_score FLOAT DEFAULT 0.5,
+      fair_condition_score FLOAT DEFAULT 0.5,
+      total_interactions INT DEFAULT 0,
+      last_interaction_at BIGINT,
+      updated_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_taste_updated ON user_taste_profiles_v2(updated_at DESC)`;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS item_classifications (
+      item_id TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+      seller_id TEXT NOT NULL,
+      primary_style TEXT NOT NULL,
+      category TEXT NOT NULL,
+      price_tier TEXT NOT NULL,
+      condition TEXT NOT NULL,
+      outdoor_confidence FLOAT DEFAULT 0,
+      streetwear_confidence FLOAT DEFAULT 0,
+      luxury_confidence FLOAT DEFAULT 0,
+      minimal_confidence FLOAT DEFAULT 0,
+      preppy_confidence FLOAT DEFAULT 0,
+      vintage_confidence FLOAT DEFAULT 0,
+      brand_tier_score FLOAT DEFAULT 0.5,
+      trend_score FLOAT DEFAULT 0.5,
+      classified_at BIGINT NOT NULL,
+      ai_assisted BOOLEAN DEFAULT FALSE
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_class_seller ON item_classifications(seller_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_class_style ON item_classifications(primary_style)`;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS user_interactions_v2 (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      action TEXT NOT NULL,
+      action_strength FLOAT NOT NULL,
+      time_viewing_ms INT DEFAULT 0,
+      created_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_interact_user ON user_interactions_v2(user_id, created_at DESC)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_interact_item ON user_interactions_v2(item_id)`;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS user_similarities (
+      user_a_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_b_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      similarity_score FLOAT NOT NULL,
+      calculated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_a_id, user_b_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_sim_a ON user_similarities(user_a_id, similarity_score DESC)`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -575,4 +654,238 @@ function rowToItem(row: Record<string, unknown>): Item {
     views: row.views as number,
     sold: row.sold as boolean,
   };
+}
+
+// ─── Recommendation engine ────────────────────────────────────────────────────
+
+function rowToTasteProfile(r: Record<string, unknown>): TasteProfile {
+  return {
+    userId: r.user_id as string,
+    outdoorScore: Number(r.outdoor_score),
+    streetwearScore: Number(r.streetwear_score),
+    luxuryScore: Number(r.luxury_score),
+    minimalScore: Number(r.minimal_score),
+    preppyScore: Number(r.preppy_score),
+    vintageScore: Number(r.vintage_score),
+    topsScore: Number(r.tops_score),
+    bottomsScore: Number(r.bottoms_score),
+    dressesScore: Number(r.dresses_score),
+    outerwearScore: Number(r.outerwear_score),
+    shoesScore: Number(r.shoes_score),
+    accessoriesScore: Number(r.accessories_score),
+    budgetScore: Number(r.budget_score),
+    midrangeScore: Number(r.midrange_score),
+    premiumScore: Number(r.premium_score),
+    luxuryTierScore: Number(r.luxury_tier_score),
+    mintConditionScore: Number(r.mint_condition_score),
+    excellentConditionScore: Number(r.excellent_condition_score),
+    goodConditionScore: Number(r.good_condition_score),
+    fairConditionScore: Number(r.fair_condition_score),
+    totalInteractions: Number(r.total_interactions),
+    lastInteractionAt: r.last_interaction_at ? Number(r.last_interaction_at) : null,
+    updatedAt: Number(r.updated_at),
+  };
+}
+
+function rowToClassification(r: Record<string, unknown>): ItemClassification {
+  return {
+    itemId: r.item_id as string,
+    sellerId: r.seller_id as string,
+    primaryStyle: r.primary_style as string,
+    category: r.category as string,
+    priceTier: r.price_tier as PriceTier,
+    condition: r.condition as string,
+    outdoorConfidence: Number(r.outdoor_confidence),
+    streetwearConfidence: Number(r.streetwear_confidence),
+    luxuryConfidence: Number(r.luxury_confidence),
+    minimalConfidence: Number(r.minimal_confidence),
+    preppyConfidence: Number(r.preppy_confidence),
+    vintageConfidence: Number(r.vintage_confidence),
+    brandTierScore: Number(r.brand_tier_score),
+    trendScore: Number(r.trend_score),
+    classifiedAt: Number(r.classified_at),
+    aiAssisted: r.ai_assisted as boolean,
+  };
+}
+
+/** Get (or create) a user's taste profile */
+export async function getTasteProfile(userId: string): Promise<TasteProfile> {
+  const db = sql();
+  await db`
+    INSERT INTO user_taste_profiles_v2 (user_id, updated_at)
+    VALUES (${userId}, ${Date.now()})
+    ON CONFLICT (user_id) DO NOTHING
+  `;
+  const rows = await db`SELECT * FROM user_taste_profiles_v2 WHERE user_id = ${userId}`;
+  return rowToTasteProfile(rows[0]);
+}
+
+/** Persist updated taste profile values */
+export async function saveTasteProfile(p: TasteProfile): Promise<void> {
+  const db = sql();
+  await db`
+    UPDATE user_taste_profiles_v2 SET
+      outdoor_score             = ${p.outdoorScore},
+      streetwear_score          = ${p.streetwearScore},
+      luxury_score              = ${p.luxuryScore},
+      minimal_score             = ${p.minimalScore},
+      preppy_score              = ${p.preppyScore},
+      vintage_score             = ${p.vintageScore},
+      tops_score                = ${p.topsScore},
+      bottoms_score             = ${p.bottomsScore},
+      dresses_score             = ${p.dressesScore},
+      outerwear_score           = ${p.outerwearScore},
+      shoes_score               = ${p.shoesScore},
+      accessories_score         = ${p.accessoriesScore},
+      budget_score              = ${p.budgetScore},
+      midrange_score            = ${p.midrangeScore},
+      premium_score             = ${p.premiumScore},
+      luxury_tier_score         = ${p.luxuryTierScore},
+      mint_condition_score      = ${p.mintConditionScore},
+      excellent_condition_score = ${p.excellentConditionScore},
+      good_condition_score      = ${p.goodConditionScore},
+      fair_condition_score      = ${p.fairConditionScore},
+      total_interactions        = ${p.totalInteractions},
+      last_interaction_at       = ${p.lastInteractionAt ?? null},
+      updated_at                = ${p.updatedAt}
+    WHERE user_id = ${p.userId}
+  `;
+}
+
+/** Record a raw user→item interaction for audit trail */
+export async function recordInteraction(
+  id: string,
+  userId: string,
+  itemId: string,
+  action: string,
+  actionStrength: number,
+  timeViewingMs: number,
+): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO user_interactions_v2 (id, user_id, item_id, action, action_strength, time_viewing_ms, created_at)
+    VALUES (${id}, ${userId}, ${itemId}, ${action}, ${actionStrength}, ${timeViewingMs}, ${Date.now()})
+    ON CONFLICT (id) DO NOTHING
+  `;
+}
+
+/** Get a single item's classification (null if not yet classified) */
+export async function getItemClassification(itemId: string): Promise<ItemClassification | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM item_classifications WHERE item_id = ${itemId}`;
+  return rows[0] ? rowToClassification(rows[0]) : null;
+}
+
+/** Get classifications for a batch of item IDs */
+export async function getItemClassifications(itemIds: string[]): Promise<Map<string, ItemClassification>> {
+  if (itemIds.length === 0) return new Map();
+  const db = sql();
+  const rows = await db`SELECT * FROM item_classifications WHERE item_id = ANY(${itemIds})`;
+  return new Map(rows.map(r => [r.item_id as string, rowToClassification(r)]));
+}
+
+/** Save (upsert) an item classification */
+export async function saveItemClassification(c: ItemClassification): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO item_classifications (
+      item_id, seller_id, primary_style, category, price_tier, condition,
+      outdoor_confidence, streetwear_confidence, luxury_confidence,
+      minimal_confidence, preppy_confidence, vintage_confidence,
+      brand_tier_score, trend_score, classified_at, ai_assisted
+    ) VALUES (
+      ${c.itemId}, ${c.sellerId}, ${c.primaryStyle}, ${c.category}, ${c.priceTier}, ${c.condition},
+      ${c.outdoorConfidence}, ${c.streetwearConfidence}, ${c.luxuryConfidence},
+      ${c.minimalConfidence}, ${c.preppyConfidence}, ${c.vintageConfidence},
+      ${c.brandTierScore}, ${c.trendScore}, ${c.classifiedAt}, ${c.aiAssisted}
+    )
+    ON CONFLICT (item_id) DO UPDATE SET
+      primary_style          = EXCLUDED.primary_style,
+      price_tier             = EXCLUDED.price_tier,
+      condition              = EXCLUDED.condition,
+      outdoor_confidence     = EXCLUDED.outdoor_confidence,
+      streetwear_confidence  = EXCLUDED.streetwear_confidence,
+      luxury_confidence      = EXCLUDED.luxury_confidence,
+      minimal_confidence     = EXCLUDED.minimal_confidence,
+      preppy_confidence      = EXCLUDED.preppy_confidence,
+      vintage_confidence     = EXCLUDED.vintage_confidence,
+      brand_tier_score       = EXCLUDED.brand_tier_score,
+      trend_score            = EXCLUDED.trend_score,
+      classified_at          = EXCLUDED.classified_at,
+      ai_assisted            = EXCLUDED.ai_assisted
+  `;
+}
+
+/** Get IDs of items not yet in item_classifications */
+export async function getUnclassifiedItemIds(limit = 100): Promise<{ id: string; title: string; description: string; brand: string; price: number; category: string; sellerId: string }[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT i.id, i.title, i.description, i.brand, i.price, i.category, i.seller_id
+    FROM items i
+    LEFT JOIN item_classifications ic ON i.id = ic.item_id
+    WHERE ic.item_id IS NULL
+    ORDER BY i.created_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map(r => ({
+    id: r.id as string,
+    title: r.title as string,
+    description: r.description as string,
+    brand: r.brand as string,
+    price: Number(r.price),
+    category: r.category as string,
+    sellerId: r.seller_id as string,
+  }));
+}
+
+/** Store a computed similarity score between two users */
+export async function saveUserSimilarity(userAId: string, userBId: string, score: number): Promise<void> {
+  const db = sql();
+  const now = Date.now();
+  await db`
+    INSERT INTO user_similarities (user_a_id, user_b_id, similarity_score, calculated_at)
+    VALUES (${userAId}, ${userBId}, ${score}, ${now})
+    ON CONFLICT (user_a_id, user_b_id) DO UPDATE SET similarity_score = EXCLUDED.similarity_score, calculated_at = EXCLUDED.calculated_at
+  `;
+}
+
+/** Find the most similar users to a given user */
+export async function getSimilarUsers(userId: string, topN = 10): Promise<Array<{ userId: string; similarityScore: number }>> {
+  const db = sql();
+  const rows = await db`
+    SELECT user_b_id, similarity_score
+    FROM user_similarities
+    WHERE user_a_id = ${userId}
+    ORDER BY similarity_score DESC
+    LIMIT ${topN}
+  `;
+  return rows.map(r => ({ userId: r.user_b_id as string, similarityScore: Number(r.similarity_score) }));
+}
+
+/** All user IDs that have taste profiles (for similarity batch job) */
+export async function getAllTasteProfileUserIds(): Promise<string[]> {
+  const db = sql();
+  const rows = await db`SELECT user_id FROM user_taste_profiles_v2 WHERE total_interactions >= 3`;
+  return rows.map(r => r.user_id as string);
+}
+
+/** Item IDs liked by similar users that the target user hasn't seen */
+export async function getCollaborativeItemIds(
+  userId: string,
+  similarUserIds: string[],
+  limit = 40,
+): Promise<Set<string>> {
+  if (similarUserIds.length === 0) return new Set();
+  const db = sql();
+  const rows = await db`
+    SELECT DISTINCT s.item_id
+    FROM swipes s
+    WHERE s.user_id = ANY(${similarUserIds})
+      AND s.action IN ('like', 'superlike')
+      AND s.item_id NOT IN (
+        SELECT item_id FROM swipes WHERE user_id = ${userId}
+      )
+    LIMIT ${limit}
+  `;
+  return new Set(rows.map(r => r.item_id as string));
 }
