@@ -112,7 +112,7 @@ export default function SubscribePage() {
         <button
           onClick={handleSubscribe}
           disabled={loading}
-          className="w-full bg-gradient-to-r from-[#E63946] to-[#ff5c68] text-white font-black py-5 rounded-2xl text-base uppercase tracking-widest disabled:opacity-50 transition-all active:scale-[0.98] shadow-xl shadow-[#E63946]/40 flex items-center justify-center gap-2"
+          className="btn-halo w-full text-base"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

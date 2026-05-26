@@ -33,12 +33,10 @@ export default function Home() {
 
         {/* CTAs */}
         <div className="w-full max-w-xs space-y-3">
-          <Link href="/feed"
-            className="flex items-center justify-center w-full bg-[#E63946] text-white font-black text-base py-4 rounded-2xl active:scale-95 transition-transform">
+          <Link href="/feed" className="btn-halo w-full text-base">
             Start Swiping
           </Link>
-          <Link href="/sign-up"
-            className="flex items-center justify-center w-full border border-[#222] text-[#AAAAAA] font-semibold text-sm py-3.5 rounded-2xl hover:border-[#444] hover:text-white transition-colors">
+          <Link href="/sign-up" className="btn-halo-ghost w-full">
             Create Account
           </Link>
           <p className="text-center text-[#2A2A2A] text-[11px]">

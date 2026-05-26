@@ -350,8 +350,7 @@ export default function SellPage() {
 
         {/* ── Submit ── */}
         <div className="pt-1">
-          <button type="submit" disabled={!canSubmit}
-            className="w-full bg-[#E63946] text-white font-black py-[18px] rounded-2xl disabled:opacity-35 active:scale-95 transition-all text-sm uppercase tracking-widest shadow-lg shadow-[#E63946]/20 flex items-center justify-center gap-2">
+          <button type="submit" disabled={!canSubmit} className="btn-halo w-full text-base">
             {loading
               ? <><Loader2 size={16} className="animate-spin" /> Listing…</>
               : 'List for Sale'}

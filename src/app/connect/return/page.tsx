@@ -49,8 +49,7 @@ export default function ConnectReturnPage() {
           <p className="text-white/40 text-sm leading-relaxed mb-8 max-w-xs">
             Your bank is verified. When someone buys from you, the payout drops straight into your Stripe balance.
           </p>
-          <Link href="/sell"
-            className="flex items-center justify-center gap-2 bg-[#FF2E47] text-white font-black px-8 py-4 rounded-2xl text-sm uppercase tracking-widest shadow-xl shadow-[#FF2E47]/30">
+          <Link href="/sell" className="btn-halo">
             List your first item
             <ArrowRight size={16} />
           </Link>
@@ -71,8 +70,7 @@ export default function ConnectReturnPage() {
               <span className="block mt-2 text-white/60">Missing: {status.requirementsDue.join(', ')}</span>
             )}
           </p>
-          <Link href="/profile"
-            className="bg-white/10 border border-white/10 text-white font-bold px-6 py-3 rounded-2xl text-sm">
+          <Link href="/profile" className="btn-halo-ghost">
             Back to profile
           </Link>
         </motion.div>
