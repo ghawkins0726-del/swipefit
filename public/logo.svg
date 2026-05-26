@@ -1,0 +1,31 @@
+<svg viewBox="0 0 480 360" xmlns="http://www.w3.org/2000/svg">
+  <rect width="480" height="360" fill="#0A0A0A"/>
+
+  <!-- Hanger hook -->
+  <path d="M185 118
+           C185 88  196 68  214 60
+           C232 52  258 60  260 80
+           C262 100 246 108 236 104"
+        stroke="white" stroke-width="18" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Left shoulder -->
+  <line x1="185" y1="118" x2="78"  y2="262"
+        stroke="white" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- Right shoulder -->
+  <line x1="185" y1="118" x2="278" y2="262"
+        stroke="white" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- Bottom crossbar -->
+  <line x1="78"  y1="262" x2="278" y2="262"
+        stroke="white" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- Red heart (overlapping right shoulder) -->
+  <path d="M390,190
+           C390,162 364,146 348,164
+           C332,146 306,162 306,190
+           C306,222 348,252 348,252
+           C348,252 390,222 390,190 Z"
+        fill="#E63946"/>
+</svg>
