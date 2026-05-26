@@ -47,6 +47,7 @@ export default function ItemPage() {
   // Buy sheet
   const [showBuy, setShowBuy] = useState(false);
   const [buyState, setBuyState] = useState<'idle' | 'loading' | 'done'>('idle');
+  const [buyError, setBuyError] = useState('');
 
   // Share toast
   const [copied, setCopied] = useState(false);
@@ -95,6 +96,7 @@ export default function ItemPage() {
   const handleBuy = async () => {
     if (!item || !myId) return;
     setBuyState('loading');
+    setBuyError('');
     const res = await fetch('/api/stripe/item-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -104,7 +106,12 @@ export default function ItemPage() {
     if (data.url) {
       window.location.href = data.url; // hand off to Stripe checkout
     } else {
-      setBuyState('idle'); // e.g. item already sold
+      setBuyState('idle');
+      if (data.code === 'seller_not_onboarded') {
+        setBuyError("This seller hasn't set up payouts yet. We can't process payment until they do.");
+      } else {
+        setBuyError(data.error || 'Something went wrong. Try again.');
+      }
     }
   };
 
@@ -562,6 +569,12 @@ export default function ItemPage() {
                   <p className="text-[10px] text-[#AAAAAA] text-center mb-4 leading-relaxed">
                     By placing this order you agree to pay the seller directly. SwipeFit buyer protection covers items significantly not as described.
                   </p>
+
+                  {buyError && (
+                    <div className="bg-[#FF2E47]/10 border border-[#FF2E47]/30 rounded-xl px-3 py-2.5 mb-3">
+                      <p className="text-[#FF2E47] text-xs font-semibold leading-snug">{buyError}</p>
+                    </div>
+                  )}
 
                   <button
                     onClick={handleBuy}

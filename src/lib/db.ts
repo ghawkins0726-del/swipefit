@@ -30,13 +30,17 @@ export async function initDb(): Promise<void> {
       total_listings INT DEFAULT 0,
       is_premium BOOLEAN DEFAULT FALSE,
       premium_until BIGINT,
-      stripe_customer_id TEXT
+      stripe_customer_id TEXT,
+      stripe_account_id TEXT,
+      stripe_account_ready BOOLEAN DEFAULT FALSE
     )
   `;
-  // Migration: add premium columns to existing tables
+  // Migration: add columns to existing tables
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until BIGINT`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_id TEXT`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_ready BOOLEAN DEFAULT FALSE`;
   await db`
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY,
@@ -335,7 +339,20 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
     const r = rows[0];
     const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
     const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-    return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil, stripeCustomerId: r.stripe_customer_id as string | undefined };
+    return {
+      id: r.id as string,
+      name: r.name as string,
+      avatar: r.avatar as string,
+      bio: r.bio as string,
+      createdAt: Number(r.created_at),
+      totalLikes: r.total_likes as number,
+      totalListings: r.total_listings as number,
+      isPremium,
+      premiumUntil,
+      stripeCustomerId: r.stripe_customer_id as string | undefined,
+      stripeAccountId: r.stripe_account_id as string | undefined,
+      stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
+    };
   }
   const user: UserProfile = {
     id: userId, name: displayName || 'SwipeFit User',
@@ -358,7 +375,56 @@ export async function getUserByStripeCustomer(stripeCustomerId: string): Promise
   const r = rows[0];
   const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
   const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-  return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil };
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium,
+    premiumUntil,
+    stripeCustomerId: r.stripe_customer_id as string | undefined,
+    stripeAccountId: r.stripe_account_id as string | undefined,
+    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
+  };
+}
+
+/** Set or update a user's Stripe Connect (Express) account id. */
+export async function setStripeAccountId(userId: string, accountId: string): Promise<void> {
+  const db = sql();
+  await db`UPDATE users SET stripe_account_id = ${accountId} WHERE id = ${userId}`;
+}
+
+/** Mark a user's connected account as ready (or not) for charges + payouts. */
+export async function setStripeAccountReady(userId: string, ready: boolean): Promise<void> {
+  const db = sql();
+  await db`UPDATE users SET stripe_account_ready = ${ready} WHERE id = ${userId}`;
+}
+
+/** Look up a user by their Stripe Connect account id — used by webhook handlers. */
+export async function getUserByStripeAccount(stripeAccountId: string): Promise<UserProfile | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM users WHERE stripe_account_id = ${stripeAccountId}`;
+  if (!rows[0]) return null;
+  const r = rows[0];
+  const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
+  const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium,
+    premiumUntil,
+    stripeCustomerId: r.stripe_customer_id as string | undefined,
+    stripeAccountId: r.stripe_account_id as string | undefined,
+    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
+  };
 }
 
 export async function updateUser(userId: string, data: { name?: string; bio?: string; avatar?: string }): Promise<void> {

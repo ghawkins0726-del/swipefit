@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
 import Logo from '@/components/Logo';
-import { Heart, ShoppingBag, Bell, TrendingUp, Edit2, Check, LogOut, Package2, ChevronRight } from 'lucide-react';
+import { Heart, ShoppingBag, Bell, TrendingUp, Edit2, Check, LogOut, Package2, ChevronRight, DollarSign, Loader2, AlertCircle } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
 import Link from 'next/link';
 
@@ -32,6 +32,49 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // ── Stripe Connect (seller payouts) ────────────────────────────────────────
+  const [connect, setConnect] = useState<{ connected: boolean; ready?: boolean; requirementsDue?: string[] } | null>(null);
+  const [connectLoading, setConnectLoading] = useState(false);
+
+  const refreshConnect = async () => {
+    try {
+      const r = await fetch('/api/stripe/connect/status');
+      const j = await r.json();
+      setConnect(j);
+    } catch {
+      setConnect({ connected: false });
+    }
+  };
+
+  const startOnboarding = async () => {
+    setConnectLoading(true);
+    try {
+      const r = await fetch('/api/stripe/connect/onboard', { method: 'POST' });
+      const j = await r.json();
+      if (j.url) window.location.href = j.url;
+      else setConnectLoading(false);
+    } catch {
+      setConnectLoading(false);
+    }
+  };
+
+  const openDashboard = async () => {
+    setConnectLoading(true);
+    try {
+      const r = await fetch('/api/stripe/connect/dashboard', { method: 'POST' });
+      const j = await r.json();
+      if (j.url) window.location.href = j.url;
+      else setConnectLoading(false);
+    } catch {
+      setConnectLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoaded || !clerkUser) return;
+    refreshConnect();
+  }, [isLoaded, clerkUser]);
 
   useEffect(() => {
     if (!isLoaded || !clerkUser) return;
@@ -155,7 +198,7 @@ export default function ProfilePage() {
 
         {/* Orders link */}
         <Link href="/orders"
-          className="flex items-center justify-between bg-white/8 border border-white/8 rounded-2xl px-4 py-3.5">
+          className="flex items-center justify-between bg-white/8 border border-white/8 rounded-2xl px-4 py-3.5 mb-2">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-white/10 rounded-xl flex items-center justify-center">
               <Package2 size={14} className="text-white/70" />
@@ -164,6 +207,46 @@ export default function ProfilePage() {
           </div>
           <ChevronRight size={16} className="text-white/30" />
         </Link>
+
+        {/* ── Seller payouts (Stripe Connect) ── */}
+        {connect && (
+          <button
+            onClick={connect.ready ? openDashboard : startOnboarding}
+            disabled={connectLoading}
+            className={`w-full flex items-center justify-between rounded-2xl px-4 py-3.5 transition-all active:scale-[0.98] ${
+              connect.ready
+                ? 'bg-white/8 border border-white/8'
+                : connect.connected
+                  ? 'bg-[#FF2E47]/15 border border-[#FF2E47]/30'
+                  : 'bg-gradient-to-r from-[#FF2E47] to-[#ff5c68] border border-transparent'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                connect.ready ? 'bg-white/10' : connect.connected ? 'bg-[#FF2E47]/30' : 'bg-white/20'
+              }`}>
+                {connect.connected && !connect.ready
+                  ? <AlertCircle size={14} className="text-white" />
+                  : <DollarSign size={14} className="text-white" strokeWidth={2.5} />}
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-white font-bold text-sm leading-tight">
+                  {connect.ready ? 'Manage payouts' : connect.connected ? 'Finish payout setup' : 'Set up seller payouts'}
+                </p>
+                <p className="text-white/60 text-[11px] mt-0.5 leading-tight">
+                  {connect.ready
+                    ? '90% of every sale goes straight to your bank'
+                    : connect.connected
+                      ? 'Stripe needs a few more details'
+                      : 'Get paid 90% when your items sell'}
+                </p>
+              </div>
+            </div>
+            {connectLoading
+              ? <Loader2 size={16} className="text-white/50 animate-spin flex-shrink-0" />
+              : <ChevronRight size={16} className="text-white/30 flex-shrink-0" />}
+          </button>
+        )}
       </div>
 
       {/* ── Tab Bar ── */}
