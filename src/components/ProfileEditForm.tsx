@@ -54,17 +54,17 @@ export default function ProfileEditForm({ user, onSaved }: Props) {
       {/* Avatar */}
       <div className="flex flex-col items-center gap-3">
         <div className="relative">
-          <div className="w-24 h-24 rounded-3xl overflow-hidden bg-violet-100 flex items-center justify-center">
+          <div className="w-24 h-24 rounded-3xl overflow-hidden bg-[#F5F4F0] border border-[#EBEBEB] flex items-center justify-center">
             {avatarUrl ? (
               <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-4xl font-black text-violet-400">{name[0]?.toUpperCase()}</span>
+              <span className="text-4xl font-black text-[#0A0A0A]">{name[0]?.toUpperCase()}</span>
             )}
           </div>
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="absolute -bottom-2 -right-2 w-8 h-8 bg-violet-600 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
+            className="absolute -bottom-2 -right-2 w-8 h-8 bg-[#0A0A0A] rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
           >
             {uploading ? <Loader2 size={14} className="text-white animate-spin" /> : <Camera size={14} className="text-white" />}
           </button>
@@ -81,7 +81,7 @@ export default function ProfileEditForm({ user, onSaved }: Props) {
           onChange={e => setName(e.target.value)}
           maxLength={40}
           placeholder="Your name"
-          className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold text-gray-800 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition"
+          className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold text-gray-800 focus:outline-none focus:border-[#0A0A0A] focus:ring-2 focus:ring-[#0A0A0A]/10 transition"
         />
       </div>
 
@@ -94,7 +94,7 @@ export default function ProfileEditForm({ user, onSaved }: Props) {
           maxLength={160}
           rows={3}
           placeholder="Tell buyers about your style…"
-          className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition resize-none"
+          className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#0A0A0A] focus:ring-2 focus:ring-[#0A0A0A]/10 transition resize-none"
         />
         <p className="text-right text-xs text-gray-300 mt-1">{bio.length}/160</p>
       </div>
@@ -103,7 +103,7 @@ export default function ProfileEditForm({ user, onSaved }: Props) {
       <button
         onClick={handleSave}
         disabled={saving || !name.trim()}
-        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-pink-500 text-white font-bold py-4 rounded-2xl shadow-md active:scale-[0.98] transition-transform disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-2 bg-[#E63946] text-white font-bold py-4 rounded-2xl shadow-md active:scale-[0.98] transition-transform disabled:opacity-50"
       >
         {saving ? (
           <Loader2 size={18} className="animate-spin" />

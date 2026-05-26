@@ -33,7 +33,7 @@ export default function TrendingPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-5 pt-12 pb-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-[#E63946] rounded-xl flex items-center justify-center">
             <TrendingUp size={16} className="text-white" />
           </div>
           <h1 className="text-xl font-black text-gray-900">Trending Now</h1>
@@ -83,7 +83,7 @@ export default function TrendingPage() {
                       </div>
                       <div className="p-2">
                         <p className="font-bold text-xs text-gray-800 truncate">{item.title}</p>
-                        <p className="text-violet-600 font-black text-sm">${item.price}</p>
+                        <p className="text-[#E63946] font-black text-sm">${item.price}</p>
                         <div className="flex items-center gap-1">
                           <Heart size={9} className="text-pink-400 fill-pink-300" />
                           <span className="text-xs text-gray-400">{item.likes}</span>

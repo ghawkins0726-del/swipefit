@@ -315,7 +315,21 @@ export async function getSellerAnalytics(sellerId: string) {
   const totalRevenue = items.filter(i => i.sold).reduce((s, i) => s + i.price, 0);
   const activeListings = items.filter(i => !i.sold).length;
   const conversionRate = totalViews > 0 ? ((totalLikes / totalViews) * 100).toFixed(1) : '0';
-  const recentSwipes: { day: string; count: number }[] = [];
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const db = sql();
+  const swipeRows = items.length > 0 ? await db`
+    SELECT
+      TO_CHAR(TO_TIMESTAMP(s.timestamp / 1000), 'MM-DD') AS day,
+      COUNT(*)::int AS count
+    FROM swipes s
+    JOIN items i ON i.id = s.item_id
+    WHERE i.seller_id = ${sellerId}
+      AND s.action IN ('like', 'superlike')
+      AND s.timestamp > ${cutoff}
+    GROUP BY day
+    ORDER BY day ASC
+  ` : [];
+  const recentSwipes = swipeRows.map(r => ({ day: r.day as string, count: r.count as number }));
   return { items, totalViews, totalLikes, totalSold, totalRevenue, activeListings, recentSwipes, conversionRate };
 }
 

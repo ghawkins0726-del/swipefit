@@ -32,7 +32,7 @@ export default function ProfileEditPage() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -40,7 +40,7 @@ export default function ProfileEditPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-pink-500 pt-12 pb-6 px-5">
+      <div className="bg-[#0A0A0A] pt-12 pb-6 px-5">
         <div className="flex items-center gap-3 mb-5">
           <button onClick={() => router.back()} className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
             <ArrowLeft size={18} className="text-white" />
