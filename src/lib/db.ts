@@ -256,7 +256,7 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
     const r = rows[0];
     const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
     const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-    return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil };
+    return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil, stripeCustomerId: r.stripe_customer_id as string | undefined };
   }
   const user: UserProfile = {
     id: userId, name: displayName || 'SwipeFit User',

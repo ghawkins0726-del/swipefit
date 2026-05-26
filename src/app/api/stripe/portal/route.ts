@@ -10,14 +10,12 @@ export async function POST() {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const user = await getOrCreateUser(userId);
-  const rows = await stripe.customers.list({ limit: 1, email: undefined });
-  // Find by stripe customer id stored on user
-  const customerId = rows.data.find(() => true)?.id;
-
-  if (!customerId) return NextResponse.json({ error: 'No subscription found' }, { status: 404 });
+  if (!user.stripeCustomerId) {
+    return NextResponse.json({ error: 'No active subscription found' }, { status: 404 });
+  }
 
   const session = await stripe.billingPortal.sessions.create({
-    customer: customerId,
+    customer: user.stripeCustomerId,
     return_url: `${process.env.NEXT_PUBLIC_URL}/profile`,
   });
 

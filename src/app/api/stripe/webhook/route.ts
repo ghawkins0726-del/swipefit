@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { setPremium, getUserByStripeCustomer } from '@/lib/db';
+import { v4 as uuid } from 'uuid';
+import {
+  setPremium,
+  getUserByStripeCustomer,
+  updateOrderStatus,
+  getOrderById,
+  getItemById,
+  createNotification,
+} from '@/lib/db';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-04-22.dahlia' });
 
 // 31 days from now in ms — premium window, refreshed on each invoice.paid
 const PREMIUM_MS = 31 * 24 * 3600 * 1000;
+
+const customerId = (obj: unknown): string | null =>
+  typeof (obj as { customer?: unknown }).customer === 'string'
+    ? (obj as { customer: string }).customer
+    : null;
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -18,39 +31,72 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  const getCustomerId = (obj: unknown): string | null =>
-    typeof (obj as { customer?: unknown }).customer === 'string'
-      ? (obj as { customer: string }).customer
-      : null;
-
   switch (event.type) {
+
+    // ── Checkout completed ────────────────────────────────────────────────────
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.metadata?.userId;
-      const customerId = typeof session.customer === 'string' ? session.customer : null;
-      if (userId && session.subscription) {
-        await setPremium(userId, true, Date.now() + PREMIUM_MS, customerId ?? undefined);
+      const meta = session.metadata ?? {};
+      const cid = typeof session.customer === 'string' ? session.customer : null;
+
+      if (meta.type === 'item_purchase') {
+        // ── Item purchase ────────────────────────────────────────────────────
+        const { orderId, buyerId, sellerId, itemId } = meta;
+        if (!orderId) break;
+
+        await updateOrderStatus(orderId, 'processing');
+
+        // Fire notifications for both parties
+        const [order, item] = await Promise.all([
+          getOrderById(orderId),
+          getItemById(itemId),
+        ]);
+        const now = Date.now();
+        await Promise.all([
+          createNotification({
+            id: `notif_${uuid()}`,
+            userId: buyerId,
+            type: 'order',
+            title: `Payment confirmed for ${item?.title ?? 'your item'}`,
+            body: `Your order of $${order?.amount ?? ''} is being prepared by the seller.`,
+            payload: JSON.stringify({ orderId, itemId }),
+            createdAt: now,
+          }),
+          createNotification({
+            id: `notif_${uuid()}`,
+            userId: sellerId,
+            type: 'order',
+            title: `New sale — ${item?.title ?? 'item'} sold`,
+            body: `Payment of $${order?.amount ?? ''} received. Please ship soon.`,
+            payload: JSON.stringify({ orderId, itemId }),
+            createdAt: now,
+          }),
+        ]);
+
+      } else if (meta.userId && session.subscription) {
+        // ── Subscription ─────────────────────────────────────────────────────
+        await setPremium(meta.userId, true, Date.now() + PREMIUM_MS, cid ?? undefined);
       }
       break;
     }
 
+    // ── Subscription renewal ──────────────────────────────────────────────────
     case 'invoice.paid': {
       const invoice = event.data.object as Stripe.Invoice;
-      const customerId = getCustomerId(invoice);
-      if (customerId) {
-        const user = await getUserByStripeCustomer(customerId);
-        if (user) {
-          await setPremium(user.id, true, Date.now() + PREMIUM_MS);
-        }
+      const cid2 = customerId(invoice);
+      if (cid2) {
+        const user = await getUserByStripeCustomer(cid2);
+        if (user) await setPremium(user.id, true, Date.now() + PREMIUM_MS);
       }
       break;
     }
 
+    // ── Subscription cancelled / payment failed ───────────────────────────────
     case 'customer.subscription.deleted':
     case 'invoice.payment_failed': {
-      const customerId = getCustomerId(event.data.object);
-      if (customerId) {
-        const user = await getUserByStripeCustomer(customerId);
+      const cid3 = customerId(event.data.object);
+      if (cid3) {
+        const user = await getUserByStripeCustomer(cid3);
         if (user) await setPremium(user.id, false);
       }
       break;

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, MessageSquare, Package2, Loader2, Check } from 'lucide-react';
+import { useEffect, useState, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, MessageSquare, Package2, Loader2, Check, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { Order } from '@/lib/db-types';
@@ -20,6 +20,18 @@ const STATUS_LABELS: Record<Order['status'], string> = {
 };
 
 export default function OrderDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen bg-[#F5F4F0]">
+        <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <OrderDetailInner />
+    </Suspense>
+  );
+}
+
+function OrderDetailInner() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user: clerkUser, isLoaded } = useUser();
@@ -29,6 +41,8 @@ export default function OrderDetailPage() {
   const [updated, setUpdated] = useState(false);
 
   const myId = clerkUser?.id ?? '';
+  const searchParams = useSearchParams();
+  const paymentSuccess = searchParams.get('payment') === 'success';
 
   useEffect(() => {
     fetch(`/api/orders?orderId=${id}`)
@@ -116,6 +130,19 @@ export default function OrderDetailPage() {
       </div>
 
       <div className="flex-1 px-4 py-5 pb-24 space-y-4">
+        {/* Payment success banner */}
+        {paymentSuccess && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3.5 flex items-center gap-3">
+            <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <Sparkles size={15} className="text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-emerald-800 text-sm">Payment confirmed!</p>
+              <p className="text-emerald-600 text-xs mt-0.5">The seller has been notified and will ship soon.</p>
+            </div>
+          </div>
+        )}
+
         {/* Tracking timeline */}
         <OrderTracking order={order} />
 

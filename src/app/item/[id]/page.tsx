@@ -95,14 +95,17 @@ export default function ItemPage() {
   const handleBuy = async () => {
     if (!item || !myId) return;
     setBuyState('loading');
-    const res = await fetch('/api/orders', {
+    const res = await fetch('/api/stripe/item-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sellerId: item.sellerId, itemId: item.id, amount: item.price }),
+      body: JSON.stringify({ itemId: item.id, sellerId: item.sellerId, amount: item.price }),
     });
     const data = await res.json();
-    setBuyState('done');
-    setTimeout(() => router.push(`/orders/${data.orderId}`), 900);
+    if (data.url) {
+      window.location.href = data.url; // hand off to Stripe checkout
+    } else {
+      setBuyState('idle'); // e.g. item already sold
+    }
   };
 
   const share = () => {

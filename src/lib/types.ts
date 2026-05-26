@@ -39,6 +39,7 @@ export interface UserProfile {
   totalListings: number;
   isPremium: boolean;
   premiumUntil?: number;
+  stripeCustomerId?: string;
 }
 
 export interface UserPreferences {
