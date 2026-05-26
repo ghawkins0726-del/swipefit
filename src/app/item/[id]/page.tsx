@@ -5,8 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Heart, Share2, Zap, ShoppingBag, MessageCircle,
-  ChevronLeft, ChevronRight, Star, Shield, Truck
+  ChevronLeft, ChevronRight, Star, Shield, Truck, MessageSquare
 } from 'lucide-react';
+import Link from 'next/link';
 import { Item } from '@/lib/types';
 
 const CONDITION_LABELS = { new: 'New with tags', like_new: 'Like new', good: 'Good', fair: 'Fair' };
@@ -21,6 +22,7 @@ export default function ItemPage() {
   const router = useRouter();
   const [item, setItem] = useState<Item | null>(null);
   const [imgIndex, setImgIndex] = useState(0);
+  const [myId, setMyId] = useState('');
   const [liked, setLiked] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
   const [offerAmount, setOfferAmount] = useState('');
@@ -29,6 +31,7 @@ export default function ItemPage() {
   const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
+    setMyId(getUserId());
     fetch(`/api/items/${id}`).then(r => r.json()).then(setItem);
   }, [id]);
 
@@ -206,9 +209,20 @@ export default function ItemPage() {
               <span className="text-xs text-gray-500">Trusted seller</span>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Heart size={12} className="text-pink-400 fill-pink-300" />
-            {item.likes} likes
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <Heart size={12} className="text-pink-400 fill-pink-300" />
+              {item.likes}
+            </div>
+            {myId !== item.sellerId && (
+              <Link
+                href={`/messages/${item.id}/${item.sellerId}`}
+                className="bg-violet-600 text-white rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+              >
+                <MessageSquare size={12} />
+                Message
+              </Link>
+            )}
           </div>
         </div>
 

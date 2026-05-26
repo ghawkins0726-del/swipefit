@@ -4,7 +4,7 @@
  */
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
-import { Offer, Notification } from './db-types';
+import { Offer, Notification, Message, Order, ConversationPreview } from './db-types';
 
 let _sql: NeonQueryFunction<false, false> | null = null;
 
@@ -96,6 +96,40 @@ export async function initDb(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_items_seller ON items(seller_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_offers_seller ON offers(seller_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_notifs_user ON notifications(user_id)`;
+  await db`
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      sender_id TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      receiver_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      read BOOLEAN DEFAULT FALSE,
+      created_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_messages_item ON messages(item_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC)`;
+  await db`
+    CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY,
+      buyer_id TEXT NOT NULL,
+      seller_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      amount FLOAT NOT NULL,
+      status TEXT DEFAULT 'pending_payment',
+      shipping_address TEXT,
+      tracking_number TEXT,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_seller ON orders(seller_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_item ON orders(item_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC)`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -224,10 +258,11 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
   return user;
 }
 
-export async function updateUser(userId: string, data: { name?: string; bio?: string }): Promise<void> {
+export async function updateUser(userId: string, data: { name?: string; bio?: string; avatar?: string }): Promise<void> {
   const db = sql();
   if (data.name !== undefined) await db`UPDATE users SET name = ${data.name} WHERE id = ${userId}`;
   if (data.bio !== undefined) await db`UPDATE users SET bio = ${data.bio} WHERE id = ${userId}`;
+  if (data.avatar !== undefined) await db`UPDATE users SET avatar = ${data.avatar} WHERE id = ${userId}`;
 }
 
 export async function getLikedItems(userId: string): Promise<Item[]> {
@@ -323,12 +358,162 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return Number(rows[0]?.c ?? 0);
 }
 
+// ─── Orders ───────────────────────────────────────────────────────────────────
+export async function createOrder(order: Order): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO orders (id, buyer_id, seller_id, item_id, amount, status, shipping_address, tracking_number, created_at, updated_at)
+    VALUES (${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt})
+  `;
+  await db`UPDATE items SET sold = true WHERE id = ${order.itemId}`;
+}
+
+export async function getOrdersByUser(userId: string, role: 'buyer' | 'seller'): Promise<(Order & { item: Item | null })[]> {
+  const db = sql();
+  const rows = role === 'buyer'
+    ? await db`SELECT * FROM orders WHERE buyer_id = ${userId} ORDER BY created_at DESC`
+    : await db`SELECT * FROM orders WHERE seller_id = ${userId} ORDER BY created_at DESC`;
+  return Promise.all(rows.map(async r => ({
+    ...rowToOrder(r),
+    item: await getItemById(r.item_id as string),
+  })));
+}
+
+export async function getOrderById(orderId: string): Promise<Order | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM orders WHERE id = ${orderId}`;
+  return rows[0] ? rowToOrder(rows[0]) : null;
+}
+
+export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
+  const db = sql();
+  await db`UPDATE orders SET status = ${status}, updated_at = ${Date.now()} WHERE id = ${orderId}`;
+}
+
+export async function updateOrderTracking(orderId: string, trackingNumber: string): Promise<void> {
+  const db = sql();
+  await db`UPDATE orders SET tracking_number = ${trackingNumber}, status = 'shipped', updated_at = ${Date.now()} WHERE id = ${orderId}`;
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+export async function sendMessage(message: Message): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO messages (id, sender_id, sender_name, receiver_id, item_id, text, read, created_at)
+    VALUES (${message.id}, ${message.senderId}, ${message.senderName}, ${message.receiverId}, ${message.itemId}, ${message.text}, false, ${message.createdAt})
+  `;
+}
+
+export async function getConversation(userId: string, itemId: string, otherUserId: string, limit = 50): Promise<Message[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT * FROM messages
+    WHERE item_id = ${itemId}
+      AND (
+        (sender_id = ${userId} AND receiver_id = ${otherUserId})
+        OR (sender_id = ${otherUserId} AND receiver_id = ${userId})
+      )
+    ORDER BY created_at ASC
+    LIMIT ${limit}
+  `;
+  return rows.map(rowToMessage);
+}
+
+export async function markMessagesRead(userId: string, senderId: string, itemId: string): Promise<void> {
+  const db = sql();
+  await db`
+    UPDATE messages SET read = true
+    WHERE receiver_id = ${userId} AND sender_id = ${senderId} AND item_id = ${itemId} AND NOT read
+  `;
+}
+
+export async function getOrderCount(userId: string, role: 'buyer' | 'seller'): Promise<number> {
+  const db = sql();
+  const rows = role === 'buyer'
+    ? await db`SELECT COUNT(*) as c FROM orders WHERE buyer_id = ${userId}`
+    : await db`SELECT COUNT(*) as c FROM orders WHERE seller_id = ${userId}`;
+  return Number(rows[0]?.c ?? 0);
+}
+
+export async function getConversationList(userId: string): Promise<ConversationPreview[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT * FROM (
+      SELECT DISTINCT ON (
+        LEAST(m.sender_id, m.receiver_id),
+        GREATEST(m.sender_id, m.receiver_id),
+        m.item_id
+      )
+        m.item_id,
+        m.text AS last_message,
+        m.created_at AS last_message_at,
+        CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END AS other_user_id,
+        CASE WHEN m.sender_id = ${userId} THEN COALESCE(u.name, 'User') ELSE m.sender_name END AS other_user_name,
+        COALESCE(i.title, 'Item') AS item_title,
+        (m.receiver_id = ${userId} AND NOT m.read) AS unread
+      FROM messages m
+      LEFT JOIN items i ON i.id = m.item_id
+      LEFT JOIN users u ON u.id = CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END
+      WHERE m.sender_id = ${userId} OR m.receiver_id = ${userId}
+      ORDER BY
+        LEAST(m.sender_id, m.receiver_id),
+        GREATEST(m.sender_id, m.receiver_id),
+        m.item_id,
+        m.created_at DESC
+    ) t
+    ORDER BY t.last_message_at DESC
+  `;
+  return rows.map(r => ({
+    itemId: r.item_id as string,
+    itemTitle: r.item_title as string,
+    otherUserId: r.other_user_id as string,
+    otherUserName: r.other_user_name as string,
+    lastMessage: r.last_message as string,
+    lastMessageAt: Number(r.last_message_at),
+    unread: r.unread as boolean,
+  }));
+}
+
+export async function getUnreadMessageCount(userId: string): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*) as c FROM messages WHERE receiver_id = ${userId} AND NOT read`;
+  return Number(rows[0]?.c ?? 0);
+}
+
 // ─── DB init (called from seed route) ────────────────────────────────────────
 export async function ensureSchema(): Promise<void> {
   await initDb();
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function rowToOrder(row: Record<string, unknown>): Order {
+  return {
+    id: row.id as string,
+    buyerId: row.buyer_id as string,
+    sellerId: row.seller_id as string,
+    itemId: row.item_id as string,
+    amount: row.amount as number,
+    status: row.status as Order['status'],
+    shippingAddress: row.shipping_address as string | undefined,
+    trackingNumber: row.tracking_number as string | undefined,
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at),
+  };
+}
+
+function rowToMessage(row: Record<string, unknown>): Message {
+  return {
+    id: row.id as string,
+    senderId: row.sender_id as string,
+    senderName: row.sender_name as string,
+    receiverId: row.receiver_id as string,
+    itemId: row.item_id as string,
+    text: row.text as string,
+    read: row.read as boolean,
+    createdAt: Number(row.created_at),
+  };
+}
+
 function rowToItem(row: Record<string, unknown>): Item {
   return {
     id: row.id as string,

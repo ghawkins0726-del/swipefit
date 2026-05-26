@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { v4 as uuid } from 'uuid';
+import { sendMessage, getConversation, markMessagesRead, getItemById, createNotification, getConversationList, getUnreadMessageCount } from '@/lib/db';
+
+export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const clerkUser = await currentUser();
+  const senderName = clerkUser?.username
+    || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
+    || 'SwipeFit User';
+
+  const body = await req.json();
+  const { receiverId, itemId, text } = body;
+  if (!receiverId || !itemId || !text) {
+    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+  const message = { id: uuid(), senderId: userId, senderName, receiverId, itemId, text, read: false, createdAt: Date.now() };
+  await sendMessage(message);
+  const item = await getItemById(itemId);
+  await createNotification({
+    id: `notif_${uuid()}`,
+    userId: receiverId,
+    type: 'message',
+    title: `New message from ${senderName}`,
+    body: text.length > 80 ? text.slice(0, 80) + '…' : text,
+    payload: JSON.stringify({ senderId: userId, senderName, itemId, itemTitle: item?.title ?? '' }),
+    createdAt: Date.now(),
+  });
+  return NextResponse.json({ ok: true, message });
+}
+
+export async function GET(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const itemId = searchParams.get('itemId');
+  const otherId = searchParams.get('otherId');
+
+  if (searchParams.get('count') === 'true') {
+    return NextResponse.json({ count: await getUnreadMessageCount(userId) });
+  }
+  if (searchParams.get('list') === 'true') {
+    return NextResponse.json(await getConversationList(userId));
+  }
+  if (!itemId || !otherId) {
+    return NextResponse.json({ error: 'Missing itemId or otherId' }, { status: 400 });
+  }
+  return NextResponse.json(await getConversation(userId, itemId, otherId));
+}
+
+export async function PATCH(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await req.json();
+  const { senderId, itemId } = body;
+  if (!senderId || !itemId) {
+    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+  await markMessagesRead(userId, senderId, itemId);
+  return NextResponse.json({ ok: true });
+}
