@@ -67,7 +67,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -77,11 +77,15 @@ export default function ProfilePage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-pink-500 pt-12 pb-5 px-5">
-        <div className="flex items-start justify-between mb-4">
+      <div className="bg-white border-b border-[#EBEBEB] pt-12 pb-5 px-5">
+        <div className="flex items-start justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur overflow-hidden flex items-center justify-center">
-              <span className="text-2xl font-black text-white">{user.name[0]?.toUpperCase()}</span>
+            <div className="w-14 h-14 rounded-2xl bg-[#F5F4F0] border border-[#EBEBEB] overflow-hidden flex items-center justify-center">
+              {user.avatar && !user.avatar.includes('dicebear') ? (
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl font-black text-[#0A0A0A]">{user.name[0]?.toUpperCase()}</span>
+              )}
             </div>
             <div>
               {editingName ? (
@@ -89,30 +93,30 @@ export default function ProfilePage() {
                   <input
                     value={nameInput}
                     onChange={e => setNameInput(e.target.value)}
-                    className="bg-white/20 text-white font-bold rounded-lg px-2 py-0.5 text-sm focus:outline-none w-32"
+                    className="bg-[#F5F4F0] text-[#0A0A0A] font-bold rounded-lg px-2 py-0.5 text-sm border border-[#EBEBEB] focus:outline-none focus:border-[#0A0A0A] w-32"
                     autoFocus
                     onKeyDown={e => e.key === 'Enter' && saveName()}
                   />
-                  <button onClick={saveName}><Check size={16} className="text-white" /></button>
+                  <button onClick={saveName}><Check size={16} className="text-[#0A0A0A]" /></button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <h1 className="text-white font-black text-lg">{user.name}</h1>
+                  <h1 className="text-[#0A0A0A] font-black text-lg">{user.name}</h1>
                   <button onClick={() => setEditingName(true)}>
-                    <Edit2 size={13} className="text-white/60" />
+                    <Edit2 size={13} className="text-[#5A5A5A]" />
                   </button>
                 </div>
               )}
-              <p className="text-white/60 text-xs">Member since {new Date(user.createdAt).toLocaleDateString()}</p>
+              <p className="text-[#999] text-xs">Member since {new Date(user.createdAt).toLocaleDateString()}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href="/profile/edit" className="bg-white/20 backdrop-blur rounded-xl px-3 py-2 text-white text-xs font-semibold flex items-center gap-1.5">
+            <Link href="/profile/edit" className="border border-[#EBEBEB] rounded-xl px-3 py-2 text-[#0A0A0A] text-xs font-semibold flex items-center gap-1.5">
               <UserCog size={13} />
               Edit
             </Link>
-            <Link href="/dashboard" className="bg-white/20 backdrop-blur rounded-xl px-3 py-2 text-white text-xs font-semibold flex items-center gap-1.5">
+            <Link href="/dashboard" className="bg-[#0A0A0A] rounded-xl px-3 py-2 text-white text-xs font-semibold flex items-center gap-1.5">
               <TrendingUp size={13} />
               Dashboard
             </Link>
@@ -120,27 +124,27 @@ export default function ProfilePage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2 mb-3">
           {[
             { value: liked.length, label: 'Liked' },
             { value: listings.length, label: 'Listed' },
             { value: listings.filter(i => i.sold).length, label: 'Sold' },
             { value: purchaseCount, label: 'Bought' },
           ].map(({ value, label }) => (
-            <div key={label} className="bg-white/15 backdrop-blur rounded-2xl p-3 text-center">
-              <div className="font-black text-xl text-white">{value}</div>
-              <div className="text-white/60 text-xs">{label}</div>
+            <div key={label} className="bg-[#F5F4F0] rounded-2xl p-3 text-center">
+              <div className="font-black text-xl text-[#0A0A0A]">{value}</div>
+              <div className="text-[#999] text-xs">{label}</div>
             </div>
           ))}
         </div>
 
         {/* Orders link */}
-        <Link href="/orders" className="mt-3 flex items-center justify-between bg-white/15 backdrop-blur rounded-2xl px-4 py-3">
+        <Link href="/orders" className="flex items-center justify-between border border-[#EBEBEB] rounded-2xl px-4 py-3">
           <div className="flex items-center gap-2">
-            <Package2 size={15} className="text-white/80" />
-            <span className="text-white font-semibold text-sm">My Orders</span>
+            <Package2 size={15} className="text-[#5A5A5A]" />
+            <span className="text-[#0A0A0A] font-semibold text-sm">My Orders</span>
           </div>
-          <span className="text-white/50 text-xs">View all →</span>
+          <span className="text-[#999] text-xs">View all →</span>
         </Link>
       </div>
 
@@ -154,13 +158,13 @@ export default function ProfilePage() {
           <button key={id}
             onClick={() => { setTab(id as typeof tab); if (id === 'notifications' && unreadCount > 0) markRead(); }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
-              tab === id ? 'border-violet-500 text-violet-600' : 'border-transparent text-gray-400'
+              tab === id ? 'border-[#0A0A0A] text-[#0A0A0A]' : 'border-transparent text-gray-400'
             }`}
           >
             {icon}
             {label}
             {count > 0 && (
-              <span className={`text-xs rounded-full px-1.5 font-bold ${tab === id ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-xs rounded-full px-1.5 font-bold ${tab === id ? 'bg-red-100 text-[#E63946]' : 'bg-gray-100 text-gray-500'}`}>
                 {count}
               </span>
             )}
@@ -175,7 +179,7 @@ export default function ProfilePage() {
             <div className="text-center py-16">
               <Heart size={40} className="text-gray-200 mx-auto mb-3" />
               <p className="text-gray-400 text-sm">Start swiping to save items you love</p>
-              <Link href="/feed" className="inline-block mt-4 bg-violet-600 text-white px-6 py-2.5 rounded-full font-semibold text-sm">
+              <Link href="/feed" className="inline-block mt-4 bg-[#E63946] text-white px-6 py-2.5 rounded-full font-semibold text-sm">
                 Go to Feed
               </Link>
             </div>
@@ -200,7 +204,7 @@ export default function ProfilePage() {
         {/* Listings */}
         {tab === 'listings' && (
           <div className="space-y-2.5">
-            <Link href="/sell" className="flex items-center justify-center gap-2 w-full bg-violet-600 text-white font-bold py-3.5 rounded-2xl mb-4">
+            <Link href="/sell" className="flex items-center justify-center gap-2 w-full bg-[#E63946] text-white font-bold py-3.5 rounded-2xl mb-4">
               <ShoppingBag size={18} />
               List a new item
             </Link>
@@ -218,7 +222,7 @@ export default function ProfilePage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800 text-sm truncate">{item.title}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <Heart size={10} className="text-pink-300 fill-pink-200" />
+                    <Heart size={10} className="text-[#E63946] fill-[#E63946]/30" />
                     <span className="text-xs text-gray-400">{item.likes} likes</span>
                   </div>
                 </div>
@@ -242,9 +246,9 @@ export default function ProfilePage() {
                 <p className="text-gray-400 text-sm">No notifications yet</p>
               </div>
             ) : notifications.map(n => (
-              <div key={n.id} className={`flex items-start gap-3 rounded-2xl p-4 ${n.read ? 'bg-white' : 'bg-violet-50 border border-violet-100'}`}>
+              <div key={n.id} className={`flex items-start gap-3 rounded-2xl p-4 ${n.read ? 'bg-white' : 'bg-[#F5F4F0] border border-[#EBEBEB]'}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  n.type === 'offer' ? 'bg-green-100' : 'bg-violet-100'
+                  n.type === 'offer' ? 'bg-green-100' : 'bg-[#F5F4F0]'
                 }`}>
                   {n.type === 'offer' ? '💰' : '🔔'}
                 </div>
@@ -253,7 +257,7 @@ export default function ProfilePage() {
                   <p className="text-gray-500 text-xs mt-0.5">{n.body}</p>
                   <p className="text-gray-300 text-xs mt-1">{new Date(n.createdAt).toLocaleDateString()}</p>
                 </div>
-                {!n.read && <div className="w-2 h-2 bg-violet-500 rounded-full flex-shrink-0 mt-1" />}
+                {!n.read && <div className="w-2 h-2 bg-[#E63946] rounded-full flex-shrink-0 mt-1" />}
               </div>
             ))}
           </div>

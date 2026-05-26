@@ -12,7 +12,7 @@ export default function MessageBubble({ message, isOwn }: Props) {
   return (
     <div className={`flex mb-3 ${isOwn ? 'justify-end' : 'justify-start'}`}>
       {!isOwn && (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-pink-400 flex items-center justify-center text-white text-xs font-black mr-2 flex-shrink-0 self-end mb-4">
+        <div className="w-7 h-7 rounded-full bg-[#0A0A0A] flex items-center justify-center text-white text-xs font-black mr-2 flex-shrink-0 self-end mb-4">
           {message.senderName[0]?.toUpperCase()}
         </div>
       )}
@@ -22,7 +22,7 @@ export default function MessageBubble({ message, isOwn }: Props) {
         )}
         <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
           isOwn
-            ? 'bg-gradient-to-br from-violet-600 to-pink-500 text-white rounded-br-sm'
+            ? 'bg-[#0A0A0A] text-white rounded-br-sm'
             : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
         }`}>
           {message.text}

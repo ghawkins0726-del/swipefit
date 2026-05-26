@@ -45,7 +45,7 @@ export default function MessageThread({ userId, itemId, otherUserId, refreshSign
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }

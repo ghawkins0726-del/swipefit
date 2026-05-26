@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { ImagePlus, CheckCircle, Loader, X, ChevronRight } from 'lucide-react';
@@ -30,6 +30,15 @@ export default function SellPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [sellerName, setSellerName] = useState('Seller');
+
+  useEffect(() => {
+    const userId = localStorage.getItem('swipefit_user_id') || 'anonymous';
+    fetch(`/api/profile?userId=${userId}`)
+      .then(r => r.json())
+      .then(d => { if (d.user?.name) setSellerName(d.user.name); })
+      .catch(() => {});
+  }, []);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [form, setForm] = useState({
@@ -93,7 +102,7 @@ export default function SellPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sellerId: userId,
-        sellerName: 'You',
+        sellerName,
         title: form.title,
         description: form.description,
         price: form.price,

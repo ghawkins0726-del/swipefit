@@ -70,7 +70,7 @@ export default function OrderDetailPage() {
   if (!order) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -85,7 +85,7 @@ export default function OrderDetailPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-pink-500 pt-12 pb-5 px-5">
+      <div className="bg-[#0A0A0A] pt-12 pb-5 px-5">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()}
             className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
@@ -132,12 +132,12 @@ export default function OrderDetailPage() {
                 value={tracking}
                 onChange={e => setTracking(e.target.value)}
                 placeholder="e.g. 1Z999AA10123456784"
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400"
+                className="flex-1 bg-[#F5F4F0] border border-[#EBEBEB] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#0A0A0A]"
               />
               <button
                 onClick={submitTracking}
                 disabled={!tracking.trim() || updating}
-                className="flex items-center gap-1.5 bg-violet-600 text-white font-bold px-4 rounded-xl text-sm disabled:opacity-40"
+                className="flex items-center gap-1.5 bg-[#E63946] text-white font-bold px-4 rounded-xl text-sm disabled:opacity-40"
               >
                 {updating ? <Loader2 size={14} className="animate-spin" /> : updated ? <Check size={14} /> : 'Ship'}
               </button>
@@ -182,7 +182,7 @@ export default function OrderDetailPage() {
         {order.itemId && otherUserId && (
           <Link
             href={`/messages/${order.itemId}/${otherUserId}`}
-            className="flex items-center justify-center gap-2 w-full bg-white border-2 border-violet-200 text-violet-600 font-bold py-3.5 rounded-2xl text-sm"
+            className="flex items-center justify-center gap-2 w-full bg-white border-2 border-[#EBEBEB] text-[#0A0A0A] font-bold py-3.5 rounded-2xl text-sm"
           >
             <MessageSquare size={16} />
             Message {isSeller ? 'Buyer' : 'Seller'}

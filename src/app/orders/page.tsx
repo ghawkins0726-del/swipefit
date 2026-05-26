@@ -38,9 +38,9 @@ export default function OrdersPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-pink-500 pt-12 pb-5 px-5">
-        <h1 className="text-white font-black text-2xl">Orders</h1>
-        <p className="text-white/60 text-sm mt-0.5">
+      <div className="bg-white border-b border-[#EBEBEB] pt-12 pb-5 px-5">
+        <h1 className="text-[#0A0A0A] font-black text-2xl tracking-tight">Orders</h1>
+        <p className="text-[#5A5A5A] text-sm mt-0.5">
           {buyingOrders.length} purchased · {sellingOrders.length} sold
         </p>
       </div>
@@ -54,13 +54,13 @@ export default function OrdersPage() {
           <button key={id}
             onClick={() => setTab(id)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
-              tab === id ? 'border-violet-500 text-violet-600' : 'border-transparent text-gray-400'
+              tab === id ? 'border-[#0A0A0A] text-[#0A0A0A]' : 'border-transparent text-gray-400'
             }`}
           >
             {icon}
             {label}
             {count > 0 && (
-              <span className={`text-xs rounded-full px-1.5 font-bold ${tab === id ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-xs rounded-full px-1.5 font-bold ${tab === id ? 'bg-red-100 text-[#E63946]' : 'bg-gray-100 text-gray-500'}`}>
                 {count}
               </span>
             )}
@@ -72,7 +72,7 @@ export default function OrdersPage() {
       <div className="flex-1 px-4 pt-4 pb-24 space-y-2.5">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-16">

@@ -37,7 +37,7 @@ export default function ConversationPage() {
   if (!myId) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -52,7 +52,7 @@ export default function ConversationPage() {
         >
           <ArrowLeft size={18} className="text-gray-700" />
         </button>
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-pink-400 flex items-center justify-center text-white font-black flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-[#0A0A0A] flex items-center justify-center text-white font-black flex-shrink-0">
           {(otherName || '?')[0].toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">

@@ -72,7 +72,7 @@ export default function OnboardingPage() {
       {/* Progress bar */}
       <div className="h-1 bg-gray-100">
         <motion.div
-          className="h-full bg-gradient-to-r from-violet-500 to-pink-500"
+          className="h-full bg-[#E63946]"
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.4 }}
         />
@@ -92,7 +92,7 @@ export default function OnboardingPage() {
                   <button key={s.id} onClick={() => toggle(styles, setStyles, s.id)}
                     className={`p-3 rounded-2xl border-2 text-left transition-all ${
                       styles.includes(s.id)
-                        ? 'border-violet-500 bg-violet-50'
+                        ? 'border-[#0A0A0A] bg-[#F5F4F0]'
                         : 'border-gray-100 bg-gray-50 hover:border-gray-200'
                     }`}
                   >
@@ -101,7 +101,7 @@ export default function OnboardingPage() {
                     <div className="text-xs text-gray-400 truncate">{s.desc}</div>
                     {styles.includes(s.id) && (
                       <div className="absolute top-2 right-2">
-                        <Check size={14} className="text-violet-600" />
+                        <Check size={14} className="text-[#0A0A0A]" />
                       </div>
                     )}
                   </button>
@@ -122,7 +122,7 @@ export default function OnboardingPage() {
                   <button key={c.id} onClick={() => toggle(categories, setCategories, c.id)}
                     className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${
                       categories.includes(c.id)
-                        ? 'border-violet-500 bg-violet-50'
+                        ? 'border-[#0A0A0A] bg-[#F5F4F0]'
                         : 'border-gray-100 bg-gray-50'
                     }`}
                   >
@@ -146,7 +146,7 @@ export default function OnboardingPage() {
                   <button key={b.id} onClick={() => setBudget(b.id)}
                     className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
                       budget === b.id
-                        ? 'border-violet-500 bg-violet-50'
+                        ? 'border-[#0A0A0A] bg-[#F5F4F0]'
                         : 'border-gray-100 bg-gray-50'
                     }`}
                   >
@@ -154,7 +154,7 @@ export default function OnboardingPage() {
                       <div className="font-bold text-gray-800">{b.label}</div>
                       <div className="text-xs text-gray-400">{b.sub}</div>
                     </div>
-                    {budget === b.id && <Check size={18} className="text-violet-600" />}
+                    {budget === b.id && <Check size={18} className="text-[#0A0A0A]" />}
                   </button>
                 ))}
               </div>
@@ -166,7 +166,7 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               className="flex-1 flex flex-col items-center justify-center text-center"
             >
-              <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-pink-500 rounded-3xl flex items-center justify-center mb-6 shadow-xl">
+              <div className="w-20 h-20 bg-[#E63946] rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                 <Sparkles size={36} className="text-white" />
               </div>
               <h1 className="text-3xl font-black text-gray-900 mb-3">You're all set!</h1>
@@ -188,7 +188,7 @@ export default function OnboardingPage() {
           ) : (
             <button
               onClick={finish}
-              className="w-full bg-gradient-to-r from-violet-600 to-pink-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
+              className="w-full bg-[#E63946] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
             >
               Start Discovering <ChevronRight size={18} />
             </button>

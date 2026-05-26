@@ -87,12 +87,12 @@ function SearchInner() {
             onClick={() => setShowFilters(v => !v)}
             className={`flex items-center gap-1.5 px-3 rounded-xl text-sm font-medium border transition-colors ${
               showFilters || activeFilterCount > 0
-                ? 'bg-violet-600 text-white border-violet-600'
+                ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
                 : 'bg-white text-gray-600 border-gray-200'
             }`}
           >
             <SlidersHorizontal size={15} />
-            {activeFilterCount > 0 && <span className="bg-white text-violet-600 rounded-full w-4 h-4 text-xs flex items-center justify-center font-bold">{activeFilterCount}</span>}
+            {activeFilterCount > 0 && <span className="bg-white text-[#E63946] rounded-full w-4 h-4 text-xs flex items-center justify-center font-bold">{activeFilterCount}</span>}
           </button>
         </form>
 
@@ -106,7 +106,7 @@ function SearchInner() {
                   onClick={() => setFilters(f => ({ ...f, category: c }))}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
                     filters.category === c
-                      ? 'bg-violet-600 text-white border-violet-600'
+                      ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
                       : 'bg-white text-gray-600 border-gray-200'
                   }`}
                 >
@@ -119,10 +119,10 @@ function SearchInner() {
             <div className="flex gap-2">
               <input type="number" placeholder="Min $" value={filters.minPrice}
                 onChange={e => setFilters(f => ({ ...f, minPrice: e.target.value }))}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/20" />
               <input type="number" placeholder="Max $" value={filters.maxPrice}
                 onChange={e => setFilters(f => ({ ...f, maxPrice: e.target.value }))}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/20" />
               <select value={filters.sort}
                 onChange={e => setFilters(f => ({ ...f, sort: e.target.value }))}
                 className="flex-1 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none bg-white">
@@ -131,7 +131,7 @@ function SearchInner() {
             </div>
 
             {activeFilterCount > 0 && (
-              <button onClick={clearFilters} className="text-xs text-violet-600 font-medium">
+              <button onClick={clearFilters} className="text-xs text-[#E63946] font-medium">
                 Clear filters
               </button>
             )}
@@ -143,7 +143,7 @@ function SearchInner() {
       <div className="flex-1 pb-24 px-4 pt-4">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : results.length === 0 ? (
           <div className="text-center py-16">
@@ -172,7 +172,7 @@ function SearchInner() {
                     <p className="font-semibold text-gray-800 text-sm truncate">{item.title}</p>
                     <p className="text-gray-400 text-xs">{item.brand} · {item.size}</p>
                     <div className="flex items-center gap-1 mt-1">
-                      <Heart size={10} className="text-pink-400 fill-pink-300" />
+                      <Heart size={10} className="text-[#E63946] fill-[#E63946]/40" />
                       <span className="text-xs text-gray-400">{item.likes}</span>
                       {item.condition === 'new' && (
                         <span className="ml-auto text-xs bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full">New</span>
@@ -195,7 +195,7 @@ export default function SearchPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <SearchInner />

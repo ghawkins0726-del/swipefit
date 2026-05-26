@@ -58,23 +58,23 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-[#F5F4F0]">
+        <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   const stats = [
     { icon: <Eye size={18} className="text-blue-500" />, label: 'Total Views', value: analytics?.totalViews.toLocaleString() ?? '0', bg: 'bg-blue-50' },
-    { icon: <Heart size={18} className="text-pink-500" />, label: 'Total Likes', value: analytics?.totalLikes.toLocaleString() ?? '0', bg: 'bg-pink-50' },
+    { icon: <Heart size={18} className="text-[#E63946]" />, label: 'Total Likes', value: analytics?.totalLikes.toLocaleString() ?? '0', bg: 'bg-red-50' },
     { icon: <ShoppingBag size={18} className="text-emerald-500" />, label: 'Items Sold', value: analytics?.totalSold ?? 0, bg: 'bg-emerald-50' },
-    { icon: <TrendingUp size={18} className="text-violet-500" />, label: 'Conversion', value: `${analytics?.conversionRate}%`, bg: 'bg-violet-50' },
+    { icon: <TrendingUp size={18} className="text-[#E63946]" />, label: 'Conversion', value: `${analytics?.conversionRate}%`, bg: 'bg-red-50' },
   ];
 
   const pendingOffers = offers.filter(o => o.status === 'pending');
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-5 pt-12 pb-4">
         <div className="flex items-center gap-3 mb-4">
@@ -122,7 +122,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Revenue card */}
-            <div className="bg-gradient-to-br from-violet-600 to-pink-500 rounded-2xl p-5 text-white">
+            <div className="bg-[#0A0A0A] rounded-2xl p-5 text-white">
               <div className="flex items-center gap-2 mb-3">
                 <DollarSign size={18} />
                 <span className="font-semibold text-sm text-white/80">Total Revenue</span>
@@ -141,8 +141,8 @@ export default function DashboardPage() {
                     const pct = max > 0 ? (count / max) * 100 : 0;
                     return (
                       <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                        <div className="w-full bg-violet-100 rounded-t-sm" style={{ height: `${Math.max(pct, 4)}%` }}>
-                          <div className="w-full h-full bg-violet-500 rounded-t-sm" />
+                        <div className="w-full bg-red-100 rounded-t-sm" style={{ height: `${Math.max(pct, 4)}%` }}>
+                          <div className="w-full h-full bg-[#E63946] rounded-t-sm" />
                         </div>
                         <span className="text-xs text-gray-400">{day.slice(5)}</span>
                       </div>
@@ -155,7 +155,7 @@ export default function DashboardPage() {
             {/* Quick actions */}
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <Link href="/sell" className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 hover:bg-gray-50">
-                <ShoppingBag size={18} className="text-violet-500" />
+                <ShoppingBag size={18} className="text-[#E63946]" />
                 <span className="flex-1 text-sm font-semibold text-gray-700">List new item</span>
                 <ChevronRight size={16} className="text-gray-300" />
               </Link>
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                 <ShoppingBag size={36} className="text-gray-200 mx-auto mb-3" />
                 <p className="text-gray-400 text-sm">No listings yet</p>
                 <Link href="/sell"
-                  className="inline-block mt-4 bg-violet-600 text-white px-6 py-2.5 rounded-full font-semibold text-sm">
+                  className="inline-block mt-4 bg-[#0A0A0A] text-white px-6 py-2.5 rounded-full font-semibold text-sm">
                   List your first item
                 </Link>
               </div>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                     <p className="font-bold text-gray-800 text-sm truncate">{offer.item?.title ?? 'Item'}</p>
                     <p className="text-gray-400 text-xs">Listed at ${offer.item?.price}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xl font-black text-violet-600">${offer.amount}</span>
+                      <span className="text-xl font-black text-[#E63946]">${offer.amount}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                         offer.status === 'pending' ? 'bg-yellow-100 text-yellow-600'
                         : offer.status === 'accepted' ? 'bg-emerald-100 text-emerald-600'

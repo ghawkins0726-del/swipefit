@@ -45,8 +45,8 @@ export default function OrderTracking({ order }: Props) {
             {/* Icon + line */}
             <div className="flex flex-col items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                done   ? 'bg-violet-600'  :
-                active ? 'bg-gradient-to-br from-violet-600 to-pink-500' :
+                done   ? 'bg-[#0A0A0A]'  :
+                active ? 'bg-[#E63946]' :
                          'bg-gray-100'
               }`}>
                 {done ? (
@@ -56,7 +56,7 @@ export default function OrderTracking({ order }: Props) {
                 )}
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`w-0.5 h-8 mt-0.5 ${done ? 'bg-violet-300' : 'bg-gray-100'}`} />
+                <div className={`w-0.5 h-8 mt-0.5 ${done ? 'bg-[#0A0A0A]/30' : 'bg-gray-100'}`} />
               )}
             </div>
 
@@ -65,7 +65,7 @@ export default function OrderTracking({ order }: Props) {
               <p className={`text-sm font-bold leading-tight ${future ? 'text-gray-300' : 'text-gray-800'}`}>
                 {step.label}
               </p>
-              <p className={`text-xs mt-0.5 ${active ? 'text-violet-500 font-semibold' : future ? 'text-gray-200' : 'text-gray-400'}`}>
+              <p className={`text-xs mt-0.5 ${active ? 'text-[#E63946] font-semibold' : future ? 'text-gray-200' : 'text-gray-400'}`}>
                 {active && order.status === 'shipped' && order.trackingNumber
                   ? `Tracking: ${order.trackingNumber}`
                   : step.sub}

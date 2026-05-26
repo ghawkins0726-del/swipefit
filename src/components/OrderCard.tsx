@@ -8,7 +8,7 @@ import { Item } from '@/lib/types';
 const STATUS_CONFIG: Record<Order['status'], { label: string; color: string; bg: string }> = {
   pending_payment: { label: 'Pending Payment', color: 'text-amber-600',  bg: 'bg-amber-50'  },
   processing:      { label: 'Processing',      color: 'text-blue-600',   bg: 'bg-blue-50'   },
-  shipped:         { label: 'Shipped',         color: 'text-violet-600', bg: 'bg-violet-50' },
+  shipped:         { label: 'Shipped',         color: 'text-[#E63946]',  bg: 'bg-red-50'    },
   delivered:       { label: 'Delivered',       color: 'text-emerald-600',bg: 'bg-emerald-50'},
   cancelled:       { label: 'Cancelled',       color: 'text-gray-400',   bg: 'bg-gray-100'  },
 };

@@ -83,7 +83,7 @@ export default function ItemPage() {
   if (!item) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -199,7 +199,7 @@ export default function ItemPage() {
 
         {/* Seller */}
         <div className="flex items-center gap-3 bg-gray-50 rounded-2xl p-4 mb-5">
-          <div className="w-10 h-10 bg-gradient-to-br from-violet-400 to-pink-400 rounded-full flex items-center justify-center text-white font-black text-sm">
+          <div className="w-10 h-10 bg-[#0A0A0A] rounded-full flex items-center justify-center text-white font-black text-sm">
             {item.sellerName[0].toUpperCase()}
           </div>
           <div className="flex-1">
@@ -211,13 +211,13 @@ export default function ItemPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 text-xs text-gray-500">
-              <Heart size={12} className="text-pink-400 fill-pink-300" />
+              <Heart size={12} className="text-[#E63946] fill-[#E63946]/40" />
               {item.likes}
             </div>
             {myId !== item.sellerId && (
               <Link
                 href={`/messages/${item.id}/${item.sellerId}`}
-                className="bg-violet-600 text-white rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+                className="bg-[#0A0A0A] text-white rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
               >
                 <MessageSquare size={12} />
                 Message
@@ -246,9 +246,9 @@ export default function ItemPage() {
           {/* Like */}
           <button onClick={handleLike}
             className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all ${
-              liked ? 'border-pink-300 bg-pink-50' : 'border-gray-200'
+              liked ? 'border-[#E63946] bg-red-50' : 'border-gray-200'
             }`}>
-            <Heart size={20} className={liked ? 'text-pink-500 fill-pink-500' : 'text-gray-400'} />
+            <Heart size={20} className={liked ? 'text-[#E63946] fill-[#E63946]' : 'text-gray-400'} />
           </button>
 
           {/* Super like */}
@@ -259,13 +259,13 @@ export default function ItemPage() {
 
           {/* Make offer */}
           <button onClick={() => setShowOffer(true)}
-            className="flex-1 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl flex items-center justify-center gap-2 hover:border-violet-400 transition-colors">
+            className="flex-1 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl flex items-center justify-center gap-2 hover:border-[#0A0A0A] transition-colors">
             <MessageCircle size={18} />
             Make Offer
           </button>
 
           {/* Buy now */}
-          <button className="flex-1 bg-gradient-to-r from-violet-600 to-pink-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg">
+          <button className="flex-1 bg-[#E63946] text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg">
             <ShoppingBag size={18} />
             Buy ${item.price}
           </button>
@@ -299,15 +299,15 @@ export default function ItemPage() {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
                     <input type="number" placeholder="Your offer" value={offerAmount}
                       onChange={e => setOfferAmount(e.target.value)}
-                      className="w-full border-2 border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 text-lg font-bold focus:outline-none focus:border-violet-500"
+                      className="w-full border-2 border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 text-lg font-bold focus:outline-none focus:border-[#0A0A0A]"
                     />
                   </div>
                   <textarea placeholder="Add a note to the seller (optional)" value={offerMessage}
                     onChange={e => setOfferMessage(e.target.value)} rows={2}
-                    className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 resize-none mb-4"
+                    className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#0A0A0A] resize-none mb-4"
                   />
                   <button onClick={sendOffer} disabled={!offerAmount}
-                    className="w-full bg-violet-600 text-white font-black py-4 rounded-2xl disabled:opacity-40">
+                    className="w-full bg-[#E63946] text-white font-black py-4 rounded-2xl disabled:opacity-40">
                     Send Offer
                   </button>
                   <button onClick={() => setShowOffer(false)}
