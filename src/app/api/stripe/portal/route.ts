@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import Stripe from 'stripe';
+import { getStripe } from '@/lib/stripe';
 import { getOrCreateUser } from '@/lib/db';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-04-22.dahlia' });
 
 export async function POST() {
   const { userId } = await auth();
@@ -14,6 +12,7 @@ export async function POST() {
     return NextResponse.json({ error: 'No active subscription found' }, { status: 404 });
   }
 
+  const stripe = getStripe();
   const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
     return_url: `${process.env.NEXT_PUBLIC_URL}/profile`,

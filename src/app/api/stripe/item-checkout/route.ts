@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import Stripe from 'stripe';
 import { v4 as uuid } from 'uuid';
+import { getStripe } from '@/lib/stripe';
 import { getItemById, createOrder } from '@/lib/db';
 import { Order } from '@/lib/db-types';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-04-22.dahlia' });
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -36,6 +34,7 @@ export async function POST(req: NextRequest) {
   await createOrder(order);
 
   // Build Stripe checkout session (one-time payment, not subscription)
+  const stripe = getStripe();
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card'],
