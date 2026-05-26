@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { getItems, recordSwipe } from '@/lib/db';
 import { Item } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
-  const { userId, styles, categories, budget } = await req.json();
-  if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { styles, categories, budget } = await req.json();
 
   const allItems = await getItems(500);
   const now = Date.now();

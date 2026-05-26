@@ -2,43 +2,33 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import SwipeFeed from '@/components/SwipeFeed';
 import Navbar from '@/components/Navbar';
 import { Flame, Search, Bell, Dna } from 'lucide-react';
 import Link from 'next/link';
 
-function getUserId(): string {
-  if (typeof window === 'undefined') return 'anonymous';
-  let id = localStorage.getItem('swipefit_user_id');
-  if (!id) {
-    id = 'user_' + Math.random().toString(36).slice(2, 11);
-    localStorage.setItem('swipefit_user_id', id);
-  }
-  return id;
-}
-
 export default function FeedPage() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user, isLoaded } = useUser();
   const [seeded, setSeeded] = useState(false);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    const id = getUserId();
-    setUserId(id);
+    if (!isLoaded || !user) return;
 
-    const hasOnboarded = localStorage.getItem('swipefit_onboarded');
+    const hasOnboarded = localStorage.getItem(`swipefit_onboarded_${user.id}`);
     if (!hasOnboarded) {
-      localStorage.setItem('swipefit_onboarded', '1');
+      localStorage.setItem(`swipefit_onboarded_${user.id}`, '1');
       router.push('/onboarding');
       return;
     }
 
-    fetch(`/api/profile?userId=${id}`)
+    fetch('/api/profile')
       .then(r => r.json())
       .then(d => setUnread(d.unreadCount || 0))
       .catch(() => {});
-  }, [router]);
+  }, [isLoaded, user, router]);
 
   useEffect(() => {
     fetch('/api/seed').then(r => r.json()).then(d => {
@@ -49,6 +39,14 @@ export default function FeedPage() {
       }
     });
   }, []);
+
+  if (!isLoaded || !user) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#F5F4F0]">
+        <div className="w-8 h-8 border-3 border-[#E63946] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[#F5F4F0]">
@@ -83,8 +81,8 @@ export default function FeedPage() {
 
       {/* Feed */}
       <div className="flex-1 overflow-hidden px-4 py-3 pb-20">
-        {userId && seeded ? (
-          <SwipeFeed userId={userId} />
+        {seeded ? (
+          <SwipeFeed userId={user.id} />
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-3 border-[#E63946] border-t-transparent rounded-full animate-spin" />

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { getItems, getUserSwipes, getSwipedItemIds } from '@/lib/db';
 import { buildUserPreferences, rankItems } from '@/lib/algorithm';
 import { computeStyleDna, computeMatchScore } from '@/lib/styleDna';
 import { Item } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId') || 'anonymous';
   const batchSize = parseInt(searchParams.get('batch') ?? '10');
 
   const [allItems, swipes, seenIds] = await Promise.all([

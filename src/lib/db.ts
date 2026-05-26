@@ -208,7 +208,7 @@ export async function getSwipedItemIds(userId: string): Promise<Set<string>> {
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
-export async function getOrCreateUser(userId: string): Promise<UserProfile> {
+export async function getOrCreateUser(userId: string, displayName?: string): Promise<UserProfile> {
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE id = ${userId}`;
   if (rows[0]) {
@@ -216,7 +216,7 @@ export async function getOrCreateUser(userId: string): Promise<UserProfile> {
     return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number };
   }
   const user: UserProfile = {
-    id: userId, name: 'Guest',
+    id: userId, name: displayName || 'SwipeFit User',
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
     bio: '', createdAt: Date.now(), totalLikes: 0, totalListings: 0,
   };

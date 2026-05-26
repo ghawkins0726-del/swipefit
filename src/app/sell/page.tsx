@@ -87,13 +87,10 @@ export default function SellPage() {
     setLoading(true);
     setError('');
 
-    const userId = localStorage.getItem('swipefit_user_id') || 'anonymous';
     const res = await fetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sellerId: userId,
-        sellerName: 'You',
         title: form.title,
         description: form.description,
         price: form.price,

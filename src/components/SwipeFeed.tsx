@@ -19,7 +19,7 @@ export default function SwipeFeed({ userId }: Props) {
 
   const fetchBatch = useCallback(async () => {
     try {
-      const res = await fetch(`/api/feed?userId=${userId}&batch=8`);
+      const res = await fetch(`/api/feed?batch=8`);
       const data = await res.json();
       if (!data.feed?.length) {
         setEmpty(true);
@@ -34,7 +34,7 @@ export default function SwipeFeed({ userId }: Props) {
       }
     } catch {}
     setLoading(false);
-  }, [userId]);
+  }, []);
 
   useEffect(() => { fetchBatch(); }, [fetchBatch]);
   useEffect(() => {
@@ -52,10 +52,9 @@ export default function SwipeFeed({ userId }: Props) {
     await fetch('/api/swipe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, itemId: item.id, action }),
+      body: JSON.stringify({ itemId: item.id, action }),
     });
 
-    // Unlock DNA at 5 swipes
     if (swipeCount + 1 === 5) setDnaUnlocked(true);
     setTimeout(() => setLastAction(null), 700);
   };
@@ -76,7 +75,7 @@ export default function SwipeFeed({ userId }: Props) {
       <div className="flex items-center justify-center h-full">
         <div className="text-center px-8">
           <div className="text-4xl mb-4">✨</div>
-          <h3 className="font-black text-lg text-[#0A0A0A] mb-2">You've seen everything!</h3>
+          <h3 className="font-black text-lg text-[#0A0A0A] mb-2">You&apos;ve seen everything!</h3>
           <p className="text-[#AAAAAA] text-sm mb-6">Check back soon — new drops daily.</p>
           <button
             onClick={() => { setStack([]); setEmpty(false); setLoading(true); fetchBatch(); }}
@@ -93,7 +92,6 @@ export default function SwipeFeed({ userId }: Props) {
 
   return (
     <div className="relative w-full h-full flex flex-col items-center">
-      {/* Swipe counter + DNA nudge */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between z-20 pointer-events-none px-1">
         {swipeCount > 0 && (
           <div className="text-[10px] font-bold text-[#AAAAAA] uppercase tracking-wide">
@@ -108,7 +106,6 @@ export default function SwipeFeed({ userId }: Props) {
         )}
       </div>
 
-      {/* Last action toast */}
       <AnimatePresence>
         {lastAction && (
           <motion.div
@@ -127,23 +124,13 @@ export default function SwipeFeed({ userId }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Card stack */}
       <div className="relative w-full flex-1 mt-6" style={{ maxWidth: 400 }}>
         <AnimatePresence>
           {stack.slice(0, 3).map((item, index) => (
             <motion.div
               key={item.id}
-              style={{
-                zIndex: 10 - index,
-                scale: 1 - index * 0.035,
-                y: index * 8,
-              }}
-              exit={{
-                x: exitX,
-                opacity: 0,
-                rotate: lastAction === 'like' ? 15 : -15,
-                transition: { duration: 0.22 },
-              }}
+              style={{ zIndex: 10 - index, scale: 1 - index * 0.035, y: index * 8 }}
+              exit={{ x: exitX, opacity: 0, rotate: lastAction === 'like' ? 15 : -15, transition: { duration: 0.22 } }}
               className="absolute inset-0"
             >
               <SwipeCard item={item} onSwipe={handleSwipe} isTop={index === 0} />

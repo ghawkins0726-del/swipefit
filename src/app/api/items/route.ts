@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { getItems, createItem } from '@/lib/db';
 import { Item } from '@/lib/types';
@@ -12,9 +13,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const clerkUser = await currentUser();
+  const displayName = clerkUser?.username
+    || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
+    || 'SwipeFit User';
+
   const body = await req.json();
   const {
-    sellerId, sellerName, title, description, price, originalPrice,
+    title, description, price, originalPrice,
     images, category, subcategory, styles, colors, size, brand, condition,
   } = body;
 
@@ -31,8 +40,8 @@ export async function POST(req: NextRequest) {
 
   const item: Item = {
     id: uuid(),
-    sellerId: sellerId || 'anonymous',
-    sellerName: sellerName || 'Anonymous',
+    sellerId: userId,
+    sellerName: displayName,
     title, description: description || '',
     price: priceNum,
     originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
