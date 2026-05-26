@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
-import { getItems, createItem } from '@/lib/db';
+import { getItems, getSellerItems, createItem } from '@/lib/db';
 import { classifyAndSave } from '@/lib/classification';
 import { Item } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const sellerId = searchParams.get('sellerId');
+  if (sellerId) {
+    // Public lookup: all items for a given seller
+    const items = await getSellerItems(sellerId);
+    return NextResponse.json(items);
+  }
   const limit = parseInt(searchParams.get('limit') ?? '20');
   const offset = parseInt(searchParams.get('offset') ?? '0');
   const items = await getItems(limit, offset);

@@ -42,6 +42,16 @@ export async function initDb(): Promise<void> {
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_id TEXT`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_ready BOOLEAN DEFAULT FALSE`;
   await db`
+    CREATE TABLE IF NOT EXISTS follows (
+      follower_id TEXT NOT NULL,
+      following_id TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (follower_id, following_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`;
+  await db`
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY,
       seller_id TEXT NOT NULL,
@@ -432,6 +442,142 @@ export async function updateUser(userId: string, data: { name?: string; bio?: st
   if (data.name !== undefined) await db`UPDATE users SET name = ${data.name} WHERE id = ${userId}`;
   if (data.bio !== undefined) await db`UPDATE users SET bio = ${data.bio} WHERE id = ${userId}`;
   if (data.avatar !== undefined) await db`UPDATE users SET avatar = ${data.avatar} WHERE id = ${userId}`;
+}
+
+// ─── Social graph (follows) ──────────────────────────────────────────────────
+/** Returns user public profile by id (no auth required — for public profiles). */
+export async function getUserById(userId: string): Promise<UserProfile | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM users WHERE id = ${userId}`;
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false, // Don't leak premium status on public lookups
+  };
+}
+
+/** Make followerId follow followingId. Idempotent — duplicate follows are silently ignored. */
+export async function followUser(followerId: string, followingId: string): Promise<void> {
+  if (followerId === followingId) return; // Can't follow yourself
+  const db = sql();
+  await db`INSERT INTO follows (follower_id, following_id, created_at) VALUES (${followerId}, ${followingId}, ${Date.now()}) ON CONFLICT (follower_id, following_id) DO NOTHING`;
+}
+
+export async function unfollowUser(followerId: string, followingId: string): Promise<void> {
+  const db = sql();
+  await db`DELETE FROM follows WHERE follower_id = ${followerId} AND following_id = ${followingId}`;
+}
+
+export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
+  const db = sql();
+  const rows = await db`SELECT 1 FROM follows WHERE follower_id = ${followerId} AND following_id = ${followingId} LIMIT 1`;
+  return rows.length > 0;
+}
+
+/** Counts of followers/following for a user. */
+export async function getFollowCounts(userId: string): Promise<{ followers: number; following: number }> {
+  const db = sql();
+  const [f, g] = await Promise.all([
+    db`SELECT COUNT(*)::int AS c FROM follows WHERE following_id = ${userId}`,
+    db`SELECT COUNT(*)::int AS c FROM follows WHERE follower_id  = ${userId}`,
+  ]);
+  return {
+    followers: (f[0]?.c as number) ?? 0,
+    following: (g[0]?.c as number) ?? 0,
+  };
+}
+
+/** Users that followerId follows. Most recent first. */
+export async function getFollowing(userId: string, limit = 100): Promise<(UserProfile & { followedAt: number })[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT u.*, f.created_at AS followed_at
+    FROM follows f
+    JOIN users u ON u.id = f.following_id
+    WHERE f.follower_id = ${userId}
+    ORDER BY f.created_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map(r => ({
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false,
+    followedAt: Number(r.followed_at),
+  }));
+}
+
+/** Users that follow userId. Most recent first. */
+export async function getFollowers(userId: string, limit = 100): Promise<(UserProfile & { followedAt: number })[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT u.*, f.created_at AS followed_at
+    FROM follows f
+    JOIN users u ON u.id = f.follower_id
+    WHERE f.following_id = ${userId}
+    ORDER BY f.created_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map(r => ({
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false,
+    followedAt: Number(r.followed_at),
+  }));
+}
+
+/** Find users by name. Case-insensitive prefix-then-substring match. */
+export async function searchUsers(query: string, excludeUserId?: string, limit = 30): Promise<UserProfile[]> {
+  if (!query.trim()) return [];
+  const db = sql();
+  const q = query.trim();
+  const pattern = `%${q.toLowerCase()}%`;
+  const rows = excludeUserId
+    ? await db`
+        SELECT * FROM users
+        WHERE LOWER(name) LIKE ${pattern}
+          AND id != ${excludeUserId}
+        ORDER BY
+          CASE WHEN LOWER(name) LIKE ${q.toLowerCase() + '%'} THEN 0 ELSE 1 END,
+          total_listings DESC,
+          total_likes DESC
+        LIMIT ${limit}
+      `
+    : await db`
+        SELECT * FROM users
+        WHERE LOWER(name) LIKE ${pattern}
+        ORDER BY
+          CASE WHEN LOWER(name) LIKE ${q.toLowerCase() + '%'} THEN 0 ELSE 1 END,
+          total_listings DESC,
+          total_likes DESC
+        LIMIT ${limit}
+      `;
+  return rows.map(r => ({
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false,
+  }));
 }
 
 export async function getLikedItems(userId: string): Promise<Item[]> {
