@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import { Search, SlidersHorizontal, X, Heart } from 'lucide-react';
 import { Item } from '@/lib/types';
 import Link from 'next/link';
@@ -66,6 +67,7 @@ function SearchInner() {
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-3 sticky top-0 z-30">
+        <Logo size={26} href="/feed" className="text-[#0A0A0A] mb-3" />
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="flex-1 flex items-center bg-gray-100 rounded-xl px-3 gap-2">
             <Search size={16} className="text-gray-400 flex-shrink-0" />

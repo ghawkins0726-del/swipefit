@@ -1,11 +1,11 @@
 import { SignIn } from '@clerk/nextjs';
-import Image from 'next/image';
+import Logo from '@/components/Logo';
 
 export default function SignInPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center px-4 py-12">
-      <div className="mb-6 text-center">
-        <Image src="/logo.svg" alt="SwipeFit" width={120} height={90} className="mx-auto mb-4 w-[100px] h-auto" />
+      <div className="mb-6 flex flex-col items-center text-center">
+        <Logo size={80} className="text-white mb-4" />
         <h1 className="font-black text-2xl text-white tracking-tight">Welcome back</h1>
         <p className="text-[#444] text-sm mt-1">Sign in to your SwipeFit account</p>
       </div>

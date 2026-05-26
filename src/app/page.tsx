@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import Logo from '@/components/Logo';
 
 export default function Home() {
   return (
@@ -9,20 +9,13 @@ export default function Home() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 pt-16 pb-8">
 
         {/* Logo */}
-        <div className="mb-8">
-          <Image
-            src="/logo.svg"
-            alt="SwipeFit"
-            width={220}
-            height={165}
-            priority
-            className="w-[200px] h-auto"
-          />
+        <div className="mb-6">
+          <Logo size={140} className="text-white" />
         </div>
 
         {/* Wordmark */}
         <h1 className="text-5xl font-black text-white tracking-tight leading-none mb-3 text-center">
-          Swipe<span className="text-[#E63946]">Fit</span>
+          Swipe<span className="text-[#FF2E47]">Fit</span>
         </h1>
         <p className="text-[#555] text-base font-medium text-center max-w-xs leading-snug mb-10">
           The only fashion marketplace that learns your style.

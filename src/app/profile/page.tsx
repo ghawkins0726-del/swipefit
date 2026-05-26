@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import { Heart, ShoppingBag, Bell, TrendingUp, Edit2, Check, LogOut, Package2, ChevronRight } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
 import Link from 'next/link';
@@ -74,7 +75,10 @@ export default function ProfilePage() {
     <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
 
       {/* ── Header ── */}
-      <div className="bg-[#0A0A0A] pt-14 pb-6 px-5">
+      <div className="bg-[#0A0A0A] pt-12 pb-6 px-5">
+
+        {/* Logo top-left */}
+        <Logo size={26} href="/feed" className="text-white mb-4" />
 
         {/* Top row: avatar + actions */}
         <div className="flex items-start justify-between mb-5">

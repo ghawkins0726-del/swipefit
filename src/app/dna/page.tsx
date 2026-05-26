@@ -6,6 +6,7 @@ import { Sparkles, Send, RefreshCw, ShoppingBag, ChevronRight, Dna, Crown, Lock 
 import StyleDnaCard from '@/components/StyleDnaCard';
 import { StyleDna } from '@/lib/styleDna';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 
@@ -168,8 +169,9 @@ export default function DnaPage() {
 
       {/* ── Header ── */}
       <div className="bg-[#0A0A0A] pt-12 px-5 pb-0 flex-shrink-0">
+        <Logo size={26} href="/feed" className="text-white mb-3" />
         <div className="flex items-center gap-2 mb-4">
-          <Dna size={18} className="text-[#E63946]" />
+          <Dna size={18} className="text-[#FF2E47]" />
           <h1 className="font-black text-white text-xl tracking-tight">Style DNA</h1>
         </div>
 

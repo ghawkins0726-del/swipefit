@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import { useUser } from '@clerk/nextjs';
 import { ConversationPreview } from '@/lib/db-types';
 
@@ -30,6 +31,7 @@ export default function MessagesPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
       <div className="bg-[#0A0A0A] pt-12 pb-5 px-5">
+        <Logo size={26} href="/feed" className="text-white mb-3" />
         <h1 className="text-white font-black text-2xl">Messages</h1>
         {conversations.length > 0 && (
           <p className="text-white/40 text-sm mt-0.5">

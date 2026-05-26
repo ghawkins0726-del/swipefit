@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ShoppingBag, Store } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import { useUser } from '@clerk/nextjs';
 import OrderCard from '@/components/OrderCard';
 import { Order } from '@/lib/db-types';
@@ -36,6 +37,7 @@ export default function OrdersPage() {
     <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
       {/* Header */}
       <div className="bg-[#0A0A0A] pt-12 pb-5 px-5">
+        <Logo size={26} href="/feed" className="text-white mb-3" />
         <h1 className="text-white font-black text-2xl">Orders</h1>
         <p className="text-white/40 text-sm mt-0.5">
           {buyingOrders.length} purchased · {sellingOrders.length} sold

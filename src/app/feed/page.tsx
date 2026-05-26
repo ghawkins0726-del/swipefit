@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import SwipeFeed from '@/components/SwipeFeed';
 import Navbar from '@/components/Navbar';
-import { Flame, Search, Bell, Dna } from 'lucide-react';
+import { Search, Bell, Dna } from 'lucide-react';
+import Logo from '@/components/Logo';
 import Link from 'next/link';
 
 export default function FeedPage() {
@@ -52,10 +53,7 @@ export default function FeedPage() {
     <div className="flex flex-col h-screen bg-[#F5F4F0]">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-12 pb-3 bg-white border-b border-[#EBEBEB]">
-        <div className="flex items-center gap-2">
-          <Flame size={18} className="text-[#E63946]" strokeWidth={2.5} />
-          <span className="font-black text-lg text-[#0A0A0A] tracking-tight">SwipeFit</span>
-        </div>
+        <Logo size={30} withWordmark className="text-[#0A0A0A]" href="/feed" />
 
         <div className="flex items-center gap-1.5">
           <Link href="/dna"
