@@ -164,7 +164,7 @@ export default function DnaPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col h-[100dvh] bg-[#F5F4F0]">
 
       {/* ── Header ── */}
       <div className="bg-[#0A0A0A] pt-12 px-5 pb-0 flex-shrink-0">
@@ -459,8 +459,8 @@ export default function DnaPage() {
               </div>
             </div>
 
-            {/* Chat */}
-            <div className="flex-1 overflow-y-auto px-4 space-y-4 pt-4 pb-2 bg-[#F5F4F0]">
+            {/* Chat — scrollable with bottom padding so messages clear the sticky input bar */}
+            <div className="flex-1 overflow-y-auto px-4 space-y-4 pt-4 pb-[200px] bg-[#F5F4F0]">
               <AnimatePresence initial={false}>
                 {messages.map((msg, i) => {
                   if (msg.role === 'user') {
@@ -544,28 +544,39 @@ export default function DnaPage() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input — sits above the fixed navbar */}
-            <div className="flex-shrink-0 px-4 pt-3 pb-[84px] bg-white border-t border-[#EBEBEB]">
-              {chatError && (
-                <p className="text-[#E63946] text-xs font-medium mb-2">{chatError}</p>
-              )}
-              {genre && (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest">Vibe:</span>
-                  <span className="bg-[#0A0A0A] text-white text-[10px] font-black px-2.5 py-1 rounded-full">{genre}</span>
-                  <button onClick={() => setGenre('')} className="text-[#AAAAAA] text-xs underline">clear</button>
+            {/* Input — fixed above the navbar, always visible */}
+            <div
+              className="fixed left-0 right-0 z-40 bg-white border-t border-[#EBEBEB] shadow-[0_-8px_24px_rgba(0,0,0,0.04)]"
+              style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+            >
+              {/* Label header — makes it obvious this is where to type */}
+              <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={11} className="text-[#E63946]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#0A0A0A]">Ask Fit</span>
                 </div>
+                {genre && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="bg-[#0A0A0A] text-white text-[9px] font-black px-2 py-0.5 rounded-full">{genre}</span>
+                    <button onClick={() => setGenre('')} className="text-[#AAAAAA] text-[10px] underline">clear</button>
+                  </div>
+                )}
+              </div>
+
+              {chatError && (
+                <p className="text-[#E63946] text-xs font-medium px-4 mb-1.5">{chatError}</p>
               )}
-              <div className="flex gap-2">
+
+              <div className="flex gap-2 px-4 pb-3">
                 <input
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                  placeholder="Ask Fit anything…"
-                  className="flex-1 bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#0A0A0A] transition-colors"
+                  placeholder="Type anything — brands, advice, outfit ideas…"
+                  className="flex-1 bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-4 py-3 text-sm text-[#0A0A0A] placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#E63946] focus:bg-white transition-colors"
                 />
                 <button onClick={() => sendMessage()} disabled={!input.trim() || chatLoading}
-                  className="w-12 h-12 bg-[#E63946] rounded-2xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all shadow-sm shadow-[#E63946]/30">
+                  className="w-12 h-12 bg-[#E63946] rounded-2xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all shadow-sm shadow-[#E63946]/30 flex-shrink-0">
                   <Send size={16} className="text-white" />
                 </button>
               </div>
