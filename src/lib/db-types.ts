@@ -90,6 +90,15 @@ export interface TasteProfile {
 
 export type PriceTier = 'budget' | 'midrange' | 'premium' | 'luxury';
 
+export interface Rating {
+  orderId: string;        // unique — one rating per order
+  buyerId: string;        // who gave the rating
+  sellerId: string;       // who got rated
+  stars: number;          // 1..5
+  comment: string | null;
+  createdAt: number;
+}
+
 export interface ItemClassification {
   itemId: string;
   sellerId: string;

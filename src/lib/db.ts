@@ -444,6 +444,81 @@ export async function updateUser(userId: string, data: { name?: string; bio?: st
   if (data.avatar !== undefined) await db`UPDATE users SET avatar = ${data.avatar} WHERE id = ${userId}`;
 }
 
+// ─── Seller ratings ──────────────────────────────────────────────────────────
+let _ratingsSchemaReady: Promise<void> | null = null;
+async function ensureRatingsSchema(): Promise<void> {
+  if (_ratingsSchemaReady) return _ratingsSchemaReady;
+  _ratingsSchemaReady = (async () => {
+    const db = sql();
+    await db`
+      CREATE TABLE IF NOT EXISTS ratings (
+        order_id TEXT PRIMARY KEY,
+        buyer_id TEXT NOT NULL,
+        seller_id TEXT NOT NULL,
+        stars INT NOT NULL CHECK (stars >= 1 AND stars <= 5),
+        comment TEXT,
+        created_at BIGINT NOT NULL
+      )
+    `;
+    await db`CREATE INDEX IF NOT EXISTS idx_ratings_seller ON ratings(seller_id)`;
+    await db`CREATE INDEX IF NOT EXISTS idx_ratings_buyer  ON ratings(buyer_id)`;
+  })().catch(err => { _ratingsSchemaReady = null; throw err; });
+  return _ratingsSchemaReady;
+}
+
+/** Create or update a rating for an order. Returns the saved row. */
+export async function createOrUpdateRating(
+  orderId: string, buyerId: string, sellerId: string, stars: number, comment?: string,
+): Promise<void> {
+  await ensureRatingsSchema();
+  if (stars < 1 || stars > 5) throw new Error('stars must be 1..5');
+  const db = sql();
+  await db`
+    INSERT INTO ratings (order_id, buyer_id, seller_id, stars, comment, created_at)
+    VALUES (${orderId}, ${buyerId}, ${sellerId}, ${stars}, ${comment ?? null}, ${Date.now()})
+    ON CONFLICT (order_id) DO UPDATE SET
+      stars = EXCLUDED.stars,
+      comment = EXCLUDED.comment,
+      created_at = EXCLUDED.created_at
+  `;
+}
+
+/** Returns the existing rating for an order, if any. */
+export async function getRatingForOrder(orderId: string): Promise<{ stars: number; comment: string | null; createdAt: number } | null> {
+  await ensureRatingsSchema();
+  const db = sql();
+  const rows = await db`SELECT stars, comment, created_at FROM ratings WHERE order_id = ${orderId}`;
+  if (!rows[0]) return null;
+  return {
+    stars: rows[0].stars as number,
+    comment: (rows[0].comment as string | null) ?? null,
+    createdAt: Number(rows[0].created_at),
+  };
+}
+
+/**
+ * Algorithmic average rating for a seller.
+ *
+ * average = SUM(stars) / COUNT(*)        — simple arithmetic mean
+ * count   = number of distinct rated orders
+ *
+ * Returns { average: 0, count: 0 } for new sellers with no ratings yet.
+ */
+export async function getSellerRating(sellerId: string): Promise<{ average: number; count: number }> {
+  await ensureRatingsSchema();
+  const db = sql();
+  const rows = await db`
+    SELECT COUNT(*)::int AS c, COALESCE(AVG(stars), 0)::float AS avg
+    FROM ratings
+    WHERE seller_id = ${sellerId}
+  `;
+  const r = rows[0];
+  return {
+    average: r ? Number(r.avg) : 0,
+    count:   r ? Number(r.c)   : 0,
+  };
+}
+
 // ─── Social graph (follows) ──────────────────────────────────────────────────
 // Lazy schema bootstrap — runs once per serverless instance.
 // CREATE TABLE/INDEX IF NOT EXISTS are no-ops after the first successful call.

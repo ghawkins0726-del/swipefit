@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getUserById, getFollowCounts, isFollowing } from '@/lib/db';
+import { getUserById, getFollowCounts, isFollowing, getSellerRating } from '@/lib/db';
 
 /**
  * Public-ish user lookup. Returns basic profile + social-graph stats and,
@@ -14,7 +14,10 @@ export async function GET(
   const user = await getUserById(id);
   if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const counts = await getFollowCounts(id);
+  const [counts, rating] = await Promise.all([
+    getFollowCounts(id),
+    getSellerRating(id),
+  ]);
 
   const { userId: viewerId } = await auth();
   let viewerFollows = false;
@@ -34,6 +37,8 @@ export async function GET(
     totalListings: user.totalListings,
     followers: counts.followers,
     following: counts.following,
+    ratingAverage: rating.average,
+    ratingCount: rating.count,
     viewerFollows,
     isSelf,
   });
