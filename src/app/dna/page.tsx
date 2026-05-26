@@ -65,6 +65,7 @@ export default function DnaPage() {
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [genre, setGenre] = useState('');
+  const [chatError, setChatError] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Load premium status from profile API
@@ -138,16 +139,22 @@ export default function DnaPage() {
     const newMessages: Message[] = [...messages, { role: 'user', text: msg }];
     setMessages(newMessages);
     setChatLoading(true);
+    setChatError('');
 
     const history = buildHistory(messages); // history = everything before this message
 
-    const res = await fetch('/api/ai/outfit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, genre: genre || undefined, history }),
-    });
-    const data = await res.json();
-    setMessages(prev => [...prev, { role: 'ai', verdict: data.verdict || '', outfit: data.outfit || [] }]);
+    try {
+      const res = await fetch('/api/ai/outfit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, genre: genre || undefined, history }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'ai', verdict: data.verdict || 'No response', outfit: data.outfit || [] }]);
+    } catch (err) {
+      setChatError(`Couldn't reach Fit — ${err instanceof Error ? err.message : 'try again'}`);
+    }
     setChatLoading(false);
   };
 
@@ -448,7 +455,7 @@ export default function DnaPage() {
             </div>
 
             {/* Chat */}
-            <div className="flex-1 overflow-y-auto px-4 space-y-4 py-4 bg-[#F5F4F0]">
+            <div className="flex-1 overflow-y-auto px-4 space-y-4 pt-4 pb-2 bg-[#F5F4F0]">
               <AnimatePresence initial={false}>
                 {messages.map((msg, i) => {
                   if (msg.role === 'user') {
@@ -529,8 +536,11 @@ export default function DnaPage() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="flex-shrink-0 px-4 py-3 bg-white border-t border-[#EBEBEB]">
+            {/* Input — sits above the fixed navbar */}
+            <div className="flex-shrink-0 px-4 pt-3 pb-[84px] bg-white border-t border-[#EBEBEB]">
+              {chatError && (
+                <p className="text-[#E63946] text-xs font-medium mb-2">{chatError}</p>
+              )}
               {genre && (
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-widest">Vibe:</span>
