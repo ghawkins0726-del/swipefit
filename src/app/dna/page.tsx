@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, RefreshCw, ShoppingBag, ChevronRight, Dna, Crown, Lock } from 'lucide-react';
+import { Sparkles, Send, RefreshCw, ShoppingBag, ChevronRight, Dna, Crown } from 'lucide-react';
 import StyleDnaCard from '@/components/StyleDnaCard';
 import { StyleDna } from '@/lib/styleDna';
 import Navbar from '@/components/Navbar';
@@ -105,12 +105,9 @@ export default function DnaPage() {
   };
 
   useEffect(() => {
-    if (tab === 'drop' && drop.length === 0 && !dropBlocked && premiumLoaded) {
-      if (isPremium) {
-        loadDrop();
-      } else {
-        setDropBlocked(true);
-      }
+    // Daily Drop is free for everyone right now — premium gate temporarily disabled.
+    if (tab === 'drop' && drop.length === 0 && !dropBlocked) {
+      loadDrop();
     }
     if (tab === 'outfit' && messages.length === 0) {
       setMessages([{
@@ -188,9 +185,6 @@ export default function DnaPage() {
                   ? 'bg-white text-[#0A0A0A] shadow-sm'
                   : 'text-white/40'
               }`}>
-              {t.id === 'drop' && !isPremium && premiumLoaded && (
-                <Lock size={10} className={tab === t.id ? 'text-[#E63946]' : 'text-white/30'} />
-              )}
               {t.label}
             </button>
           ))}

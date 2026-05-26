@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { getUserSwipes, getItems, getLikedItems, getOrCreateUser } from '@/lib/db';
+import { getUserSwipes, getItems, getLikedItems } from '@/lib/db';
 import { computeStyleDna } from '@/lib/styleDna';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -10,11 +10,12 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Premium gate
-  const profile = await getOrCreateUser(userId);
-  if (!profile.isPremium) {
-    return NextResponse.json({ error: 'Premium required' }, { status: 403 });
-  }
+  // Premium gate temporarily disabled — Daily Drop free for all users.
+  // To re-enable, uncomment the block below and import getOrCreateUser from '@/lib/db'.
+  // const profile = await getOrCreateUser(userId);
+  // if (!profile.isPremium) {
+  //   return NextResponse.json({ error: 'Premium required' }, { status: 403 });
+  // }
 
   const [swipes, allItems, liked] = await Promise.all([
     getUserSwipes(userId),
