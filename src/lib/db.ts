@@ -445,6 +445,31 @@ export async function updateUser(userId: string, data: { name?: string; bio?: st
 }
 
 // ─── Social graph (follows) ──────────────────────────────────────────────────
+// Lazy schema bootstrap — runs once per serverless instance.
+// CREATE TABLE/INDEX IF NOT EXISTS are no-ops after the first successful call.
+let _followsSchemaReady: Promise<void> | null = null;
+async function ensureFollowsSchema(): Promise<void> {
+  if (_followsSchemaReady) return _followsSchemaReady;
+  _followsSchemaReady = (async () => {
+    const db = sql();
+    await db`
+      CREATE TABLE IF NOT EXISTS follows (
+        follower_id TEXT NOT NULL,
+        following_id TEXT NOT NULL,
+        created_at BIGINT NOT NULL,
+        PRIMARY KEY (follower_id, following_id)
+      )
+    `;
+    await db`CREATE INDEX IF NOT EXISTS idx_follows_follower  ON follows(follower_id)`;
+    await db`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`;
+  })().catch(err => {
+    // If migration fails, reset so the next call retries
+    _followsSchemaReady = null;
+    throw err;
+  });
+  return _followsSchemaReady;
+}
+
 /** Returns user public profile by id (no auth required — for public profiles). */
 export async function getUserById(userId: string): Promise<UserProfile | null> {
   const db = sql();
@@ -466,16 +491,19 @@ export async function getUserById(userId: string): Promise<UserProfile | null> {
 /** Make followerId follow followingId. Idempotent — duplicate follows are silently ignored. */
 export async function followUser(followerId: string, followingId: string): Promise<void> {
   if (followerId === followingId) return; // Can't follow yourself
+  await ensureFollowsSchema();
   const db = sql();
   await db`INSERT INTO follows (follower_id, following_id, created_at) VALUES (${followerId}, ${followingId}, ${Date.now()}) ON CONFLICT (follower_id, following_id) DO NOTHING`;
 }
 
 export async function unfollowUser(followerId: string, followingId: string): Promise<void> {
+  await ensureFollowsSchema();
   const db = sql();
   await db`DELETE FROM follows WHERE follower_id = ${followerId} AND following_id = ${followingId}`;
 }
 
 export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
+  await ensureFollowsSchema();
   const db = sql();
   const rows = await db`SELECT 1 FROM follows WHERE follower_id = ${followerId} AND following_id = ${followingId} LIMIT 1`;
   return rows.length > 0;
@@ -483,6 +511,7 @@ export async function isFollowing(followerId: string, followingId: string): Prom
 
 /** Counts of followers/following for a user. */
 export async function getFollowCounts(userId: string): Promise<{ followers: number; following: number }> {
+  await ensureFollowsSchema();
   const db = sql();
   const [f, g] = await Promise.all([
     db`SELECT COUNT(*)::int AS c FROM follows WHERE following_id = ${userId}`,
@@ -496,6 +525,7 @@ export async function getFollowCounts(userId: string): Promise<{ followers: numb
 
 /** Users that followerId follows. Most recent first. */
 export async function getFollowing(userId: string, limit = 100): Promise<(UserProfile & { followedAt: number })[]> {
+  await ensureFollowsSchema();
   const db = sql();
   const rows = await db`
     SELECT u.*, f.created_at AS followed_at
@@ -520,6 +550,7 @@ export async function getFollowing(userId: string, limit = 100): Promise<(UserPr
 
 /** Users that follow userId. Most recent first. */
 export async function getFollowers(userId: string, limit = 100): Promise<(UserProfile & { followedAt: number })[]> {
+  await ensureFollowsSchema();
   const db = sql();
   const rows = await db`
     SELECT u.*, f.created_at AS followed_at
