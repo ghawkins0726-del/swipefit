@@ -124,9 +124,6 @@ export default function TrendingPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-black text-gray-900">${item.price}</p>
-                        {item.originalPrice && (
-                          <p className="text-xs text-gray-400 line-through">${item.originalPrice}</p>
-                        )}
                       </div>
                     </Link>
                   ))}

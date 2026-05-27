@@ -250,7 +250,7 @@ export async function createItem(item: Item): Promise<void> {
   await db`
     INSERT INTO items VALUES (
       ${item.id}, ${item.sellerId}, ${item.sellerName}, ${item.title},
-      ${item.description}, ${item.price}, ${item.originalPrice ?? null},
+      ${item.description}, ${item.price},
       ${JSON.stringify(item.images)}, ${item.category}, ${item.subcategory},
       ${JSON.stringify(item.styles)}, ${JSON.stringify(item.colors)},
       ${item.size}, ${item.brand}, ${item.condition}, ${item.priceRange},
@@ -957,7 +957,6 @@ function rowToItem(row: Record<string, unknown>): Item {
     title: row.title as string,
     description: row.description as string,
     price: row.price as number,
-    originalPrice: row.original_price as number | undefined,
     images: typeof row.images === 'string' ? JSON.parse(row.images) : row.images as string[],
     category: row.category as string,
     subcategory: row.subcategory as string,

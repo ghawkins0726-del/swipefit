@@ -30,10 +30,6 @@ export default function SwipeCard({ item, onSwipe, isTop }: Props) {
     else if (info.offset.y < -130) onSwipe('superlike');
   };
 
-  const discount = item.originalPrice
-    ? Math.round((1 - item.price / item.originalPrice) * 100)
-    : null;
-
   return (
     <motion.div
       style={{ x, rotate }}
@@ -91,13 +87,6 @@ export default function SwipeCard({ item, onSwipe, isTop }: Props) {
             )}
           </div>
 
-          {/* Discount */}
-          {discount && discount > 0 && (
-            <div className="absolute top-3 right-3 bg-[#E63946] text-white text-[10px] font-black px-2 py-1 rounded-full">
-              -{discount}%
-            </div>
-          )}
-
           {/* Image nav */}
           {item.images.length > 1 && (
             <>
@@ -131,9 +120,6 @@ export default function SwipeCard({ item, onSwipe, isTop }: Props) {
             </div>
             <div className="text-right flex-shrink-0">
               <p className="font-black text-[#0A0A0A] text-lg leading-none">${item.price}</p>
-              {item.originalPrice && (
-                <p className="text-[11px] text-[#AAAAAA] line-through">${item.originalPrice}</p>
-              )}
             </div>
           </div>
 

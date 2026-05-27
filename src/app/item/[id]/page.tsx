@@ -135,7 +135,6 @@ export default function ItemPage() {
 
   const isMine = myId === item.sellerId;
   const isSold = item.sold;
-  const discount = item.originalPrice ? Math.round((1 - item.price / item.originalPrice) * 100) : null;
   const daysAgo = Math.floor((Date.now() - item.createdAt) / 86400000);
 
   return (
@@ -236,14 +235,6 @@ export default function ItemPage() {
           </div>
           <div className="text-right flex-shrink-0">
             <div className="text-2xl font-black text-[#0A0A0A]">${item.price}</div>
-            {item.originalPrice && (
-              <div className="text-sm text-[#AAAAAA] line-through">${item.originalPrice}</div>
-            )}
-            {discount && (
-              <div className="text-xs text-[#E63946] font-black bg-red-50 px-2 py-0.5 rounded-full inline-block mt-0.5">
-                -{discount}%
-              </div>
-            )}
           </div>
         </div>
 

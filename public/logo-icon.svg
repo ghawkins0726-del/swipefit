@@ -1,12 +1,12 @@
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="none">
   <defs>
     <radialGradient id="sfico-heart-aura" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.7"/>
-      <stop offset="45%"  stop-color="#FF2E47" stop-opacity="0.25"/>
+      <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.85"/>
+      <stop offset="44%"  stop-color="#FF2E47" stop-opacity="0.30"/>
       <stop offset="100%" stop-color="#FF2E47" stop-opacity="0"/>
     </radialGradient>
-    <filter id="sfico-heart-bloom" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="1.6" result="b1"/>
+    <filter id="sfico-heart-bloom" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="2.5" result="b1"/>
       <feMerge>
         <feMergeNode in="b1"/>
         <feMergeNode in="SourceGraphic"/>
@@ -16,23 +16,39 @@
 
   <rect width="100" height="100" fill="#0A0A0A"/>
 
-  <!-- Heart aura halo -->
-  <circle cx="72" cy="55" r="28" fill="url(#sfico-heart-aura)"/>
+  <!--
+    Scale the 120×92 logo to fit a 100×100 square with ~8px padding.
+    Scale = 84/120 = 0.70, offset x=8, y=14 to center vertically.
+    x' = x*0.70+8,  y' = y*0.70+14
+  -->
 
-  <!-- Hanger (scaled to fit left side of square) -->
-  <g stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Hook + stem -->
-    <path d="M 28 56 L 28 28 C 28 24 31 22 35 22 C 41 22 44 24 44 28 L 44 34 C 44 37 42 37 41 35"/>
-    <!-- Shoulders -->
-    <path d="M 28 51 L 8 78"/>
-    <path d="M 28 51 L 50 78"/>
-    <!-- Crossbar -->
-    <path d="M 8 78 L 50 78"/>
+  <!-- Heart aura: cx=(84*0.70+8)=66.8≈67, cy=(46*0.70+14)=46.2≈46, r=26*0.70=18 -->
+  <circle cx="67" cy="46" r="18" fill="url(#sfico-heart-aura)"/>
+
+  <!-- Hanger (stroke-width=5*0.70=3.5→4) -->
+  <g stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <!--
+      Hook: M(30,50)→(30,28) bezier to peak (46,15) around right and back to (44,34)
+      Scaled: M(29,49)→L(29,34) C(29,27)(35,23)(40,25) C(46,26)(48,32)(46,36) C(44,40)(40,40)(39,38)
+    -->
+    <path d="M 29 49 L 29 34 C 29 27 35 23 40 25 C 46 26 48 32 46 36 C 44 40 40 40 39 38"/>
+    <!-- Left shoulder: (30,50)→(8,78) scaled: (29,49)→(14,69) -->
+    <path d="M 29 49 L 14 69"/>
+    <!-- Right shoulder: (30,50)→(52,78) scaled: (29,49)→(44,69) -->
+    <path d="M 29 49 L 44 69"/>
+    <!-- Crossbar: (8,78)→(52,78) scaled: (14,69)→(44,69) -->
+    <path d="M 14 69 L 44 69"/>
   </g>
 
-  <!-- Heart -->
+  <!--
+    Heart: original (84,38)(81,31)(62,31)(62,44)(62,55)(84,64)(84,64)(106,55)(106,44)(106,31)(87,31)(84,38)
+    Scaled: x'=x*0.70+8, y'=y*0.70+14
+    (84,38)→(67,41)  (81,31)→(65,36)  (62,31)→(51,36)  (62,44)→(51,45)
+    (62,55)→(51,53)  (84,64)→(67,59)  (106,55)→(82,53)  (106,44)→(82,45)
+    (106,31)→(82,36)  (87,31)→(69,36)
+  -->
   <path
-    d="M 72 47 C 69 41 60 41 60 51 C 60 60 65 65 72 70 C 79 65 84 60 84 51 C 84 41 75 41 72 47 Z"
+    d="M 67 41 C 65 36 51 36 51 45 C 51 53 67 59 67 59 C 67 59 82 53 82 45 C 82 36 69 36 67 41 Z"
     fill="#FF2E47"
     filter="url(#sfico-heart-bloom)"
   />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
 import Logo from '@/components/Logo';
@@ -48,6 +48,80 @@ export default function ProfilePage() {
   const [nameInput, setNameInput] = useState('');
   const [editingBio, setEditingBio] = useState(false);
   const [bioInput, setBioInput] = useState('');
+
+  // Avatar upload with EXIF orientation correction
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+
+  /** Read EXIF orientation tag from raw bytes (no library needed) */
+  function readExifOrientation(buffer: ArrayBuffer): number {
+    const view = new DataView(buffer);
+    if (view.getUint16(0, false) !== 0xFFD8) return 1;
+    let offset = 2;
+    while (offset < view.byteLength) {
+      const marker = view.getUint16(offset, false);
+      offset += 2;
+      if (marker === 0xFFE1) {
+        if (view.getUint32(offset + 2, false) !== 0x45786966) return 1;
+        const little = view.getUint16(offset + 8, false) === 0x4949;
+        const ifdOffset = offset + 10 + view.getUint32(offset + 14, little);
+        const tags = view.getUint16(ifdOffset, little);
+        for (let i = 0; i < tags; i++) {
+          if (view.getUint16(ifdOffset + 2 + i * 12, little) === 0x0112) {
+            return view.getUint16(ifdOffset + 2 + i * 12 + 8, little);
+          }
+        }
+        return 1;
+      } else if ((marker & 0xFF00) !== 0xFF00) break;
+      else offset += view.getUint16(offset, false);
+    }
+    return 1;
+  }
+
+  /** Draw image onto canvas with EXIF orientation corrected, return corrected Blob */
+  async function correctOrientation(file: File): Promise<Blob> {
+    const buf = await file.arrayBuffer();
+    const orientation = readExifOrientation(buf);
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+    await new Promise<void>(r => { img.onload = () => r(); img.src = blobUrl; });
+    URL.revokeObjectURL(blobUrl);
+
+    const swapped = orientation >= 5;
+    const canvas = document.createElement('canvas');
+    canvas.width  = swapped ? img.height : img.width;
+    canvas.height = swapped ? img.width  : img.height;
+    const ctx = canvas.getContext('2d')!;
+
+    // Apply the inverse of the EXIF transform so pixels render correctly
+    switch (orientation) {
+      case 2: ctx.transform(-1, 0,  0,  1, img.width,  0);           break;
+      case 3: ctx.transform(-1, 0,  0, -1, img.width,  img.height);  break;
+      case 4: ctx.transform( 1, 0,  0, -1, 0,           img.height); break;
+      case 5: ctx.transform( 0, 1,  1,  0, 0,           0);          break;
+      case 6: ctx.transform( 0, 1, -1,  0, img.height,  0);          break;
+      case 7: ctx.transform( 0,-1, -1,  0, img.height,  img.width);  break;
+      case 8: ctx.transform( 0,-1,  1,  0, 0,            img.width); break;
+    }
+    ctx.drawImage(img, 0, 0);
+    return new Promise(resolve => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.92));
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !clerkUser) return;
+    setAvatarLoading(true);
+    try {
+      const corrected = await correctOrientation(file);
+      const correctedFile = new File([corrected], file.name, { type: 'image/jpeg' });
+      await clerkUser.setProfileImage({ file: correctedFile });
+    } catch (err) {
+      console.error('Avatar upload failed', err);
+    } finally {
+      setAvatarLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Stripe Connect
   const [connect, setConnect] = useState<{ connected: boolean; ready?: boolean; requirementsDue?: string[] } | null>(null);
@@ -150,17 +224,36 @@ export default function ProfilePage() {
 
         <div className="relative flex flex-col items-center text-center">
           {/* Avatar with vibrant glow ring */}
-          <button onClick={() => openUserProfile()} className="relative group">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarChange}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={avatarLoading}
+            className="relative group"
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-[#FF2E47] to-[#ff8c42] rounded-full blur-2xl opacity-60 scale-110" />
             <div className="relative w-28 h-28 rounded-full p-[3px] bg-gradient-to-br from-[#FF2E47] via-[#ff5c68] to-[#ff8c42] shadow-2xl shadow-[#FF2E47]/40">
               <div className="w-full h-full rounded-full overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
-                {clerkUser?.imageUrl
-                  ? <img src={clerkUser.imageUrl} alt="" className="w-full h-full object-cover" />
-                  : <span className="text-4xl font-black text-white">{user.name[0]?.toUpperCase()}</span>}
+                {avatarLoading
+                  ? <Loader2 size={28} className="text-white animate-spin" />
+                  : clerkUser?.imageUrl
+                    ? <img
+                        src={clerkUser.imageUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        style={{ imageOrientation: 'from-image' }}
+                      />
+                    : <span className="text-4xl font-black text-white">{user.name[0]?.toUpperCase()}</span>
+                }
               </div>
               {/* Edit badge */}
               <div className="absolute bottom-0 right-0 w-9 h-9 bg-[#FF2E47] rounded-full border-[3px] border-[#0A0A0A] flex items-center justify-center shadow-lg shadow-[#FF2E47]/40">
-                <Edit2 size={13} className="text-white" />
+                {avatarLoading ? <Loader2 size={13} className="text-white animate-spin" /> : <Edit2 size={13} className="text-white" />}
               </div>
             </div>
           </button>
@@ -205,15 +298,27 @@ export default function ProfilePage() {
           {/* Stats row — Following | Followers | Listings */}
           <div className="mt-5 flex items-stretch gap-0 w-full max-w-xs">
             {[
-              { n: following,        label: 'Following' },
-              { n: followers,        label: 'Followers' },
-              { n: listings.length,  label: 'Listings'  },
-            ].map((s, i) => (
-              <div key={s.label} className={`flex-1 flex flex-col items-center ${i > 0 ? 'border-l border-white/8' : ''}`}>
-                <span className="text-white font-black text-xl leading-none">{s.n}</span>
-                <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">{s.label}</span>
-              </div>
-            ))}
+              { n: following,       label: 'Following', href: '/profile/following' },
+              { n: followers,       label: 'Followers', href: '/profile/followers' },
+              { n: listings.length, label: 'Listings',  href: null },
+            ].map((s, i) => {
+              const inner = (
+                <>
+                  <span className="text-white font-black text-xl leading-none">{s.n}</span>
+                  <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">{s.label}</span>
+                </>
+              );
+              return s.href ? (
+                <Link key={s.label} href={s.href}
+                  className={`flex-1 flex flex-col items-center active:opacity-60 transition-opacity ${i > 0 ? 'border-l border-white/8' : ''}`}>
+                  {inner}
+                </Link>
+              ) : (
+                <div key={s.label} className={`flex-1 flex flex-col items-center ${i > 0 ? 'border-l border-white/8' : ''}`}>
+                  {inner}
+                </div>
+              );
+            })}
           </div>
 
           {/* Bio */}

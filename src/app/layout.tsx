@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SwipeFit — Swipe. Like. Shop.",
-  description: "Discover fashion you'll actually love. Swipe right on clothes, shoes, and accessories.",
+  title: "Wove — Unravel your style.",
+  description: "Unravel your style. Swipe, discover, and shop fashion that actually fits you.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "SwipeFit",
+    title: "Wove",
   },
 };
 

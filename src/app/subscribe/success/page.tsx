@@ -30,7 +30,7 @@ export default function SubscribeSuccessPage() {
       >
         <p className="text-[#E63946] font-black text-xs uppercase tracking-widest mb-2">You&apos;re in</p>
         <h1 className="font-black text-white text-4xl tracking-tight leading-tight mb-3">
-          SwipeFit Premium<br />unlocked 🎉
+          Wove Premium<br />unlocked 🎉
         </h1>
         <p className="text-white/40 text-sm leading-relaxed mb-8 max-w-xs mx-auto">
           Welcome to the drop. Everything&apos;s live — go explore.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { getUserById, getFollowCounts, isFollowing, getSellerRating } from '@/lib/db';
+import { auth, clerkClient } from '@clerk/nextjs/server';
+import { getUserById, getFollowCounts, isFollowing, getSellerRating, updateUser } from '@/lib/db';
 
 /**
  * Public-ish user lookup. Returns basic profile + social-graph stats and,
@@ -13,6 +13,23 @@ export async function GET(
   const { id } = await params;
   const user = await getUserById(id);
   if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Fetch live avatar from Clerk so we always show the user's current photo,
+  // not whatever stale URL is in the DB.
+  let liveAvatar = user.avatar;
+  try {
+    const clerk = await clerkClient();
+    const clerkUser = await clerk.users.getUser(id);
+    if (clerkUser.imageUrl) {
+      liveAvatar = clerkUser.imageUrl;
+      // Keep the DB in sync so followers/following lists also get the fresh URL.
+      if (liveAvatar !== user.avatar) {
+        await updateUser(id, { avatar: liveAvatar });
+      }
+    }
+  } catch {
+    // Clerk lookup failed — fall back to the DB value.
+  }
 
   const [counts, rating] = await Promise.all([
     getFollowCounts(id),
@@ -30,7 +47,7 @@ export async function GET(
   return NextResponse.json({
     id: user.id,
     name: user.name,
-    avatar: user.avatar,
+    avatar: liveAvatar,
     bio: user.bio,
     createdAt: user.createdAt,
     totalLikes: user.totalLikes,

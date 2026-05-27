@@ -205,11 +205,6 @@ function SearchInner() {
                         <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                           ${item.price}
                         </div>
-                        {item.originalPrice && (
-                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
-                            -{Math.round((1 - item.price / item.originalPrice) * 100)}%
-                          </div>
-                        )}
                       </div>
                       <div className="p-2.5">
                         <p className="font-semibold text-[#0A0A0A] text-sm truncate">{item.title}</p>

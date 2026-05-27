@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const {
-    title, description, price, originalPrice,
+    title, description, price,
     images, category, subcategory, styles, colors, size, brand, condition,
   } = body;
 
@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
     sellerName: displayName,
     title, description: description || '',
     price: priceNum,
-    originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
     images, category,
     subcategory: subcategory || category,
     styles: styles || [], colors: colors || [],

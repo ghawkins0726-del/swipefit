@@ -26,7 +26,7 @@ export default function StyleDnaCard({ dna, compact = false }: Props) {
     .filter(([, v]) => v > 0);
 
   const share = () => {
-    const text = `My Style DNA on SwipeFit: ${dna.archetype}\n${dna.keywords.join(' · ')}\n\nswipefit.app`;
+    const text = `My Style DNA on Wove: ${dna.archetype}\n${dna.keywords.join(' · ')}\n\nwove.app`;
     if (navigator.share) navigator.share({ title: 'My Style DNA', text });
     else navigator.clipboard.writeText(text);
   };

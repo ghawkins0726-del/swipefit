@@ -69,7 +69,7 @@ export default function SubscribePage() {
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <h1 className="font-black text-white text-3xl text-center tracking-tight leading-tight">
-            SwipeFit<br />
+            Wove<br />
             <span className="text-[#E63946]">Premium</span>
           </h1>
           <p className="text-white/40 text-center text-sm mt-2">

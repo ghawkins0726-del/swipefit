@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwipeFit Logo Options</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0A0A0A;
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 48px 32px 80px;
+  min-height: 100vh;
+}
+h1 {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+}
+.subtitle {
+  text-align: center;
+  color: #555;
+  font-size: 13px;
+  margin-bottom: 48px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.card {
+  background: #111;
+  border: 1.5px solid #222;
+  border-radius: 22px;
+  padding: 30px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.card:hover {
+  border-color: #FF2E47;
+  transform: translateY(-3px);
+  box-shadow: 0 0 40px rgba(255,46,71,0.15);
+}
+.card svg { width: 100%; height: auto; }
+.label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #FF2E47;
+}
+.name {
+  font-size: 16px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.02em;
+  margin-top: -4px;
+}
+.desc {
+  font-size: 11.5px;
+  color: #555;
+  text-align: center;
+  line-height: 1.55;
+}
+</style>
+</head>
+<body>
+
+<h1>SwipeFit Logo Options</h1>
+<p class="subtitle">Heart glow is locked in — pick your favorite hanger style &amp; proportions</p>
+
+<div class="grid">
+
+  <!-- A: Classic -->
+  <div class="card">
+    <div class="label">Option A</div>
+    <svg viewBox="0 0 150 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <defs>
+        <radialGradient id="aura-a" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.80"/>
+          <stop offset="48%"  stop-color="#FF2E47" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#FF2E47" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="bloom-a" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="3.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <circle cx="112" cy="56" r="35" fill="url(#aura-a)"/>
+      <g stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 35 52 L 35 28 C 35 20 44 12 52 14 C 60 16 63 25 60 31 C 57 37 51 37 48 34"/>
+        <path d="M 35 52 L 8 82"/>
+        <path d="M 35 52 L 62 82"/>
+        <path d="M 8 82 L 62 82"/>
+      </g>
+      <path d="M 112 46 C 109 39 98 39 98 51 C 98 61 105 68 112 74 C 119 68 126 61 126 51 C 126 39 115 39 112 46 Z" fill="#FF2E47" filter="url(#bloom-a)"/>
+    </svg>
+    <div class="name">Classic</div>
+    <div class="desc">Standard proportions, smooth hook loop, balanced triangle body</div>
+  </div>
+
+  <!-- B: Wide Shoulders -->
+  <div class="card">
+    <div class="label">Option B</div>
+    <svg viewBox="0 0 150 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <defs>
+        <radialGradient id="aura-b" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.80"/>
+          <stop offset="48%"  stop-color="#FF2E47" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#FF2E47" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="bloom-b" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="3.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <circle cx="118" cy="55" r="30" fill="url(#aura-b)"/>
+      <g stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 38 50 L 38 28 C 38 20 47 12 55 14 C 63 16 66 25 63 31 C 60 37 54 37 51 34"/>
+        <path d="M 38 50 L 4 82"/>
+        <path d="M 38 50 L 72 82"/>
+        <path d="M 4 82 L 72 82"/>
+      </g>
+      <path d="M 118 44 C 115 38 106 38 106 49 C 106 59 112 65 118 71 C 124 65 130 59 130 49 C 130 38 121 38 118 44 Z" fill="#FF2E47" filter="url(#bloom-b)"/>
+    </svg>
+    <div class="name">Wide Shoulders</div>
+    <div class="desc">Broad fashion-house silhouette, wider crossbar, smaller compact heart</div>
+  </div>
+
+  <!-- C: Bold / Thick -->
+  <div class="card">
+    <div class="label">Option C</div>
+    <svg viewBox="0 0 150 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <defs>
+        <radialGradient id="aura-c" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.80"/>
+          <stop offset="48%"  stop-color="#FF2E47" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#FF2E47" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="bloom-c" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="3.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <circle cx="112" cy="56" r="35" fill="url(#aura-c)"/>
+      <g stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 36 53 L 36 30 C 36 22 44 16 52 18 C 60 20 62 28 60 34 C 57 39 52 38 50 35"/>
+        <path d="M 36 53 L 10 80"/>
+        <path d="M 36 53 L 62 80"/>
+        <path d="M 10 80 L 62 80"/>
+      </g>
+      <path d="M 112 46 C 109 39 98 39 98 51 C 98 61 105 68 112 74 C 119 68 126 61 126 51 C 126 39 115 39 112 46 Z" fill="#FF2E47" filter="url(#bloom-c)"/>
+    </svg>
+    <div class="name">Bold</div>
+    <div class="desc">Heavy 8px strokes — chunkier, more impactful at small sizes</div>
+  </div>
+
+  <!-- D: Slim / Refined -->
+  <div class="card">
+    <div class="label">Option D</div>
+    <svg viewBox="0 0 150 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <defs>
+        <radialGradient id="aura-d" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.80"/>
+          <stop offset="48%"  stop-color="#FF2E47" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#FF2E47" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="bloom-d" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="3.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <circle cx="112" cy="56" r="35" fill="url(#aura-d)"/>
+      <g stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 35 52 L 35 28 C 35 20 44 12 52 14 C 60 16 63 25 60 31 C 57 37 51 37 48 34"/>
+        <path d="M 35 52 L 8 82"/>
+        <path d="M 35 52 L 62 82"/>
+        <path d="M 8 82 L 62 82"/>
+      </g>
+      <path d="M 112 46 C 109 39 98 39 98 51 C 98 61 105 68 112 74 C 119 68 126 61 126 51 C 126 39 115 39 112 46 Z" fill="#FF2E47" filter="url(#bloom-d)"/>
+    </svg>
+    <div class="name">Slim</div>
+    <div class="desc">Thin 2.5px strokes — delicate, editorial, luxury fashion feel</div>
+  </div>
+
+  <!-- E: Tall & Narrow -->
+  <div class="card">
+    <div class="label">Option E</div>
+    <svg viewBox="0 0 150 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <defs>
+        <radialGradient id="aura-e" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.80"/>
+          <stop offset="48%"  stop-color="#FF2E47" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#FF2E47" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="bloom-e" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="3.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <circle cx="112" cy="56" r="35" fill="url(#aura-e)"/>
+      <g stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Taller stem, narrower triangle -->
+        <path d="M 34 56 L 34 22 C 34 13 43 6 51 8 C 60 10 63 20 60 26 C 57 32 51 32 49 29"/>
+        <path d="M 34 56 L 14 84"/>
+        <path d="M 34 56 L 54 84"/>
+        <path d="M 14 84 L 54 84"/>
+      </g>
+      <path d="M 112 46 C 109 39 98 39 98 51 C 98 61 105 68 112 74 C 119 68 126 61 126 51 C 126 39 115 39 112 46 Z" fill="#FF2E47" filter="url(#bloom-e)"/>
+    </svg>
+    <div class="name">Tall &amp; Narrow</div>
+    <div class="desc">Elongated hook, steep narrow shoulders — tall elegant silhouette</div>
+  </div>
+
+  <!-- F: Heart Forward -->
+  <div class="card">
+    <div class="label">Option F</div>
+    <svg viewBox="0 0 150 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <defs>
+        <radialGradient id="aura-f" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#FF2E47" stop-opacity="0.85"/>
+          <stop offset="42%"  stop-color="#FF2E47" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#FF2E47" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="bloom-f" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- Larger, more intense aura -->
+      <circle cx="108" cy="56" r="44" fill="url(#aura-f)"/>
+      <!-- Smaller hanger -->
+      <g stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 28 54 L 28 33 C 28 24 36 18 43 20 C 50 22 53 30 50 35 C 48 39 43 39 41 36"/>
+        <path d="M 28 54 L 6 80"/>
+        <path d="M 28 54 L 50 80"/>
+        <path d="M 6 80 L 50 80"/>
+      </g>
+      <!-- Larger heart, more prominent, softer bloom -->
+      <path d="M 108 44 C 104 36 91 36 91 50 C 91 63 100 71 108 78 C 116 71 125 63 125 50 C 125 36 112 36 108 44 Z" fill="#FF2E47" filter="url(#bloom-f)"/>
+    </svg>
+    <div class="name">Heart Forward</div>
+    <div class="desc">Smaller hanger, large glowing heart as the hero — strong glow</div>
+  </div>
+
+</div>
+
+</body>
+</html>

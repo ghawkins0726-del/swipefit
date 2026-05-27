@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     ? `\n\nWARDROBE STATUS: The user has only ${liked.length} liked item(s). You CANNOT build outfits yet — the build_outfit tool will fail. If they ask for an outfit, tell them to like a few more pieces on the feed first. You can still chat about fashion freely.`
     : `\n\nThe user's liked items (use these EXACT IDs when calling build_outfit — never invent IDs):\n${itemList}`;
 
-  const systemPrompt = `You are **Fit** — SwipeFit's AI fashion stylist and conversation partner. You're sharp, opinionated, conversational. Think a friend who works at Vogue but texts you like a normal person.
+  const systemPrompt = `You are **Fit** — Wove's AI fashion stylist and conversation partner. You're sharp, opinionated, conversational. Think a friend who works at Vogue but texts you like a normal person.
 
 ═══ PERSONALITY ═══
 - Confident, direct, never wishy-washy

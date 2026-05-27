@@ -1,7 +1,7 @@
 {
-  "name": "SwipeFit",
-  "short_name": "SwipeFit",
-  "description": "Swipe. Like. Shop. The fashion marketplace that learns your style.",
+  "name": "Wove",
+  "short_name": "Wove",
+  "description": "Unravel your style. The fashion marketplace that learns you.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A0A0A",

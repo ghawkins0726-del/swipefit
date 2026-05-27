@@ -7,7 +7,7 @@ export default function SignInPage() {
       <div className="mb-6 flex flex-col items-center text-center">
         <Logo size={80} className="text-white mb-4" />
         <h1 className="font-black text-2xl text-white tracking-tight">Welcome back</h1>
-        <p className="text-[#444] text-sm mt-1">Sign in to your SwipeFit account</p>
+        <p className="text-[#444] text-sm mt-1">Sign in to your Wove account</p>
       </div>
 
       <SignIn

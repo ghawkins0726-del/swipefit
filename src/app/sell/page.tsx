@@ -34,7 +34,7 @@ export default function SellPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [form, setForm] = useState({
-    title: '', description: '', price: '', originalPrice: '',
+    title: '', description: '', price: '',
     category: '', brand: '', size: '', condition: '',
     styles: [] as string[], colors: '',
   });
@@ -84,7 +84,6 @@ export default function SellPage() {
       body: JSON.stringify({
         ...form,
         price: form.price,
-        originalPrice: form.originalPrice || undefined,
         images,
         subcategory: form.category,
         colors: form.colors.split(',').map(c => c.trim()).filter(Boolean),
@@ -100,9 +99,6 @@ export default function SellPage() {
   };
 
   const canSubmit = !loading && !uploading && form.title && form.price && form.category && images.length > 0;
-  const discount = form.price && form.originalPrice
-    ? Math.round((1 - parseFloat(form.price) / parseFloat(form.originalPrice)) * 100)
-    : null;
 
   /* ── Success screen ── */
   if (success) {
@@ -225,34 +221,13 @@ export default function SellPage() {
 
         {/* ── Price ── */}
         <Section label="Price" required>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-wider mb-1 block">Asking</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0A0A0A] font-black text-base">$</span>
-                <input type="number" min="1" step="0.01" placeholder="0"
-                  value={form.price}
-                  onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-                  className="sf-input pl-8 text-lg font-black" required />
-              </div>
-            </div>
-            <div className="flex-1">
-              <label className="text-[10px] text-[#AAAAAA] font-bold uppercase tracking-wider mb-1 block">Original</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#AAAAAA] font-bold text-base">$</span>
-                <input type="number" min="1" step="0.01" placeholder="0"
-                  value={form.originalPrice}
-                  onChange={e => setForm(f => ({ ...f, originalPrice: e.target.value }))}
-                  className="sf-input pl-8 text-lg font-black" />
-              </div>
-            </div>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0A0A0A] font-black text-base">$</span>
+            <input type="number" min="1" step="0.01" placeholder="0"
+              value={form.price}
+              onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+              className="sf-input pl-8 text-lg font-black" required />
           </div>
-          {discount !== null && discount > 0 && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-xs font-black text-[#E63946] bg-red-50 px-2.5 py-1 rounded-full">-{discount}% off retail</span>
-              <span className="text-xs text-[#AAAAAA]">Buyers love a deal</span>
-            </div>
-          )}
         </Section>
 
         {/* ── Category ── */}
