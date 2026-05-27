@@ -133,76 +133,20 @@ export default function ProfilePage() {
   const [editingBio, setEditingBio] = useState(false);
   const [bioInput, setBioInput] = useState('');
 
-  // Avatar upload with EXIF orientation correction
+  // Avatar upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
 
-  /** Read EXIF orientation tag from raw bytes (no library needed) */
-  function readExifOrientation(buffer: ArrayBuffer): number {
-    const view = new DataView(buffer);
-    if (view.getUint16(0, false) !== 0xFFD8) return 1;
-    let offset = 2;
-    while (offset < view.byteLength) {
-      const marker = view.getUint16(offset, false);
-      offset += 2;
-      if (marker === 0xFFE1) {
-        if (view.getUint32(offset + 2, false) !== 0x45786966) return 1;
-        const little = view.getUint16(offset + 8, false) === 0x4949;
-        // TIFF header starts at offset+8. IFD0 relative offset is at bytes 4-7
-        // of the TIFF header (offset+12). Absolute IFD0 = TIFF base + IFD0 offset.
-        const ifdOffset = offset + 8 + view.getUint32(offset + 12, little);
-        const tags = view.getUint16(ifdOffset, little);
-        for (let i = 0; i < tags; i++) {
-          if (view.getUint16(ifdOffset + 2 + i * 12, little) === 0x0112) {
-            return view.getUint16(ifdOffset + 2 + i * 12 + 8, little);
-          }
-        }
-        return 1;
-      } else if ((marker & 0xFF00) !== 0xFF00) break;
-      else offset += view.getUint16(offset, false);
-    }
-    return 1;
-  }
-
-  /** Draw image onto canvas with EXIF orientation corrected, return corrected Blob */
-  async function correctOrientation(file: File): Promise<Blob> {
-    const buf = await file.arrayBuffer();
-    const orientation = readExifOrientation(buf);
-    const img = new Image();
-    const blobUrl = URL.createObjectURL(file);
-    await new Promise<void>(r => { img.onload = () => r(); img.src = blobUrl; });
-    URL.revokeObjectURL(blobUrl);
-
-    const swapped = orientation >= 5;
-    const canvas = document.createElement('canvas');
-    canvas.width  = swapped ? img.height : img.width;
-    canvas.height = swapped ? img.width  : img.height;
-    const ctx = canvas.getContext('2d')!;
-
-    // Apply the inverse of the EXIF transform so pixels render correctly
-    switch (orientation) {
-      case 2: ctx.transform(-1, 0,  0,  1, img.width,  0);           break;
-      case 3: ctx.transform(-1, 0,  0, -1, img.width,  img.height);  break;
-      case 4: ctx.transform( 1, 0,  0, -1, 0,           img.height); break;
-      case 5: ctx.transform( 0, 1,  1,  0, 0,           0);          break;
-      case 6: ctx.transform( 0, 1, -1,  0, img.height,  0);          break;
-      case 7: ctx.transform( 0,-1, -1,  0, img.height,  img.width);  break;
-      case 8: ctx.transform( 0,-1,  1,  0, 0,            img.width); break;
-    }
-    ctx.drawImage(img, 0, 0);
-    return new Promise((resolve, reject) =>
-      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('canvas.toBlob returned null'))), 'image/jpeg', 0.92)
-    );
-  }
-
+  // Upload the original file directly. Browsers + the displaying <img> tag
+  // (which has `imageOrientation: from-image`) already honor EXIF orientation,
+  // so any manual canvas correction here would just double-rotate and cause
+  // the mirror/flip artifacts the user was seeing.
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !clerkUser) return;
     setAvatarLoading(true);
     try {
-      const corrected = await correctOrientation(file);
-      const correctedFile = new File([corrected], file.name, { type: 'image/jpeg' });
-      await clerkUser.setProfileImage({ file: correctedFile });
+      await clerkUser.setProfileImage({ file });
       // Reload so clerkUser.imageUrl reflects the new photo immediately.
       await clerkUser.reload();
     } catch (err) {
