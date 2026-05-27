@@ -57,7 +57,7 @@ type ItemLike = {
   priceRange: number;
 };
 
-const WEIGHTS = { superlike: 5, like: 1, dislike: -1.5 } as const;
+const WEIGHTS = { superlike: 5, purchase: 5, like: 1, dislike: -1.5 } as const;
 
 export function computeStyleDna(
   swipes: SwipeRecord[],

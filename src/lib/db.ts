@@ -133,6 +133,20 @@ export async function initDb(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_messages_item ON messages(item_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC)`;
+  // Migrations — idempotent
+  await db`ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id TEXT`;
+  await db`ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_text TEXT`;
+  await db`ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_sender TEXT`;
+  await db`
+    CREATE TABLE IF NOT EXISTS message_reactions (
+      message_id TEXT NOT NULL,
+      user_id    TEXT NOT NULL,
+      emoji      TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (message_id, user_id, emoji)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_reactions_msg ON message_reactions(message_id)`;
   await db`
     CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
@@ -841,24 +855,55 @@ export async function updateOrderTracking(orderId: string, trackingNumber: strin
 export async function sendMessage(message: Message): Promise<void> {
   const db = sql();
   await db`
-    INSERT INTO messages (id, sender_id, sender_name, receiver_id, item_id, text, read, created_at)
-    VALUES (${message.id}, ${message.senderId}, ${message.senderName}, ${message.receiverId}, ${message.itemId}, ${message.text}, false, ${message.createdAt})
+    INSERT INTO messages (id, sender_id, sender_name, receiver_id, item_id, text, read, created_at, reply_to_id, reply_to_text, reply_to_sender)
+    VALUES (
+      ${message.id}, ${message.senderId}, ${message.senderName}, ${message.receiverId},
+      ${message.itemId}, ${message.text}, false, ${message.createdAt},
+      ${message.replyToId ?? null}, ${message.replyToText ?? null}, ${message.replyToSender ?? null}
+    )
   `;
 }
 
 export async function getConversation(userId: string, itemId: string, otherUserId: string, limit = 50): Promise<Message[]> {
   const db = sql();
-  const rows = await db`
-    SELECT * FROM messages
-    WHERE item_id = ${itemId}
-      AND (
-        (sender_id = ${userId} AND receiver_id = ${otherUserId})
-        OR (sender_id = ${otherUserId} AND receiver_id = ${userId})
-      )
-    ORDER BY created_at ASC
-    LIMIT ${limit}
-  `;
-  return rows.map(rowToMessage);
+  const [msgRows, reactRows] = await Promise.all([
+    db`
+      SELECT * FROM messages
+      WHERE item_id = ${itemId}
+        AND (
+          (sender_id = ${userId} AND receiver_id = ${otherUserId})
+          OR (sender_id = ${otherUserId} AND receiver_id = ${userId})
+        )
+      ORDER BY created_at ASC
+      LIMIT ${limit}
+    `,
+    db`
+      SELECT r.message_id, r.user_id, r.emoji
+      FROM message_reactions r
+      JOIN messages m ON m.id = r.message_id
+      WHERE m.item_id = ${itemId}
+        AND (
+          (m.sender_id = ${userId} AND m.receiver_id = ${otherUserId})
+          OR (m.sender_id = ${otherUserId} AND m.receiver_id = ${userId})
+        )
+    `,
+  ]);
+
+  // Build emoji → userIds map per message
+  const reactionMap: Record<string, Record<string, string[]>> = {};
+  for (const r of reactRows) {
+    const mid = r.message_id as string;
+    const emoji = r.emoji as string;
+    const uid = r.user_id as string;
+    if (!reactionMap[mid]) reactionMap[mid] = {};
+    if (!reactionMap[mid][emoji]) reactionMap[mid][emoji] = [];
+    reactionMap[mid][emoji].push(uid);
+  }
+
+  return msgRows.map(row => ({
+    ...rowToMessage(row),
+    reactions: reactionMap[row.id as string] ?? {},
+  }));
 }
 
 export async function markMessagesRead(userId: string, senderId: string, itemId: string): Promise<void> {
@@ -891,6 +936,7 @@ export async function getConversationList(userId: string): Promise<ConversationP
         m.created_at AS last_message_at,
         CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END AS other_user_id,
         CASE WHEN m.sender_id = ${userId} THEN COALESCE(u.name, 'User') ELSE m.sender_name END AS other_user_name,
+        u.avatar AS other_user_avatar,
         COALESCE(i.title, 'Item') AS item_title,
         (m.receiver_id = ${userId} AND NOT m.read) AS unread
       FROM messages m
@@ -910,10 +956,25 @@ export async function getConversationList(userId: string): Promise<ConversationP
     itemTitle: r.item_title as string,
     otherUserId: r.other_user_id as string,
     otherUserName: r.other_user_name as string,
+    otherUserAvatar: (r.other_user_avatar as string | null) ?? null,
     lastMessage: r.last_message as string,
     lastMessageAt: Number(r.last_message_at),
     unread: r.unread as boolean,
   }));
+}
+
+export async function toggleReaction(messageId: string, userId: string, emoji: string): Promise<'added' | 'removed'> {
+  const db = sql();
+  const existing = await db`
+    SELECT 1 FROM message_reactions WHERE message_id = ${messageId} AND user_id = ${userId} AND emoji = ${emoji}
+  `;
+  if (existing.length > 0) {
+    await db`DELETE FROM message_reactions WHERE message_id = ${messageId} AND user_id = ${userId} AND emoji = ${emoji}`;
+    return 'removed';
+  } else {
+    await db`INSERT INTO message_reactions (message_id, user_id, emoji, created_at) VALUES (${messageId}, ${userId}, ${emoji}, ${Date.now()})`;
+    return 'added';
+  }
 }
 
 export async function getUnreadMessageCount(userId: string): Promise<number> {
@@ -953,6 +1014,10 @@ function rowToMessage(row: Record<string, unknown>): Message {
     text: row.text as string,
     read: row.read as boolean,
     createdAt: Number(row.created_at),
+    replyToId: (row.reply_to_id as string | null) ?? null,
+    replyToText: (row.reply_to_text as string | null) ?? null,
+    replyToSender: (row.reply_to_sender as string | null) ?? null,
+    reactions: {},
   };
 }
 

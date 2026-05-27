@@ -26,6 +26,7 @@ const ALPHA = 0.85; // EMA decay — higher = slower taste change
 const ACTION_STRENGTH: Record<string, number> = {
   superlike: 1.0,
   like:       0.7,
+  purchase:   1.0,  // strongest signal — same weight as superlike
   dislike:   -0.4,
   pass:      -0.2,
 };

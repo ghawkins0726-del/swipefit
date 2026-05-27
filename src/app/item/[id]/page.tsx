@@ -11,6 +11,8 @@ import {
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { Item } from '@/lib/types';
+import { VerifiedBadge } from '@/components/Badges';
+import { isVerified } from '@/lib/badges';
 
 const CONDITION_LABELS: Record<string, string> = {
   new: 'New with tags',
@@ -284,7 +286,10 @@ export default function ItemPage() {
                 {item.sellerName[0]?.toUpperCase()}
               </div>
               <div>
-                <p className="font-black text-[#0A0A0A] text-sm">{item.sellerName}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-black text-[#0A0A0A] text-sm">{item.sellerName}</p>
+                  {isVerified(item.sellerId) && <VerifiedBadge size="xs" />}
+                </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <div className="flex items-center gap-0.5">
                     {[...Array(5)].map((_, i) => (

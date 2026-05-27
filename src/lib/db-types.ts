@@ -38,6 +38,7 @@ export interface ConversationPreview {
   itemTitle: string;
   otherUserId: string;
   otherUserName: string;
+  otherUserAvatar: string | null;
   lastMessage: string;
   lastMessageAt: number;
   unread: boolean;
@@ -52,6 +53,12 @@ export interface Message {
   text: string;
   read: boolean;
   createdAt: number;
+  // Reply-to
+  replyToId: string | null;
+  replyToText: string | null;
+  replyToSender: string | null;
+  // Reactions: emoji → userIds[]
+  reactions: Record<string, string[]>;
 }
 
 // ─── Recommendation engine ─────────────────────────────────────────────────────

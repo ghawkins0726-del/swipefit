@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Heart, X, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Item } from '@/lib/types';
+import { VerifiedBadge } from '@/components/Badges';
+import { isVerified } from '@/lib/badges';
 
 interface Props {
   item: Item & { _reason?: string; matchScore?: number };
@@ -115,7 +117,7 @@ export default function SwipeCard({ item, onSwipe, isTop }: Props) {
             <div className="flex-1 min-w-0">
               <p className="font-black text-[#0A0A0A] text-base leading-snug truncate">{item.title}</p>
               <p className="text-[11px] text-[#AAAAAA] font-medium mt-0.5 uppercase tracking-wide">
-                {item.brand} · {item.size} · {item.sellerName}
+                {item.brand} · {item.size} · {item.sellerName}{isVerified(item.sellerId) && <> <VerifiedBadge size="xs" /></>}
               </p>
             </div>
             <div className="text-right flex-shrink-0">

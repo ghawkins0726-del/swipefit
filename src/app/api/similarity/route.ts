@@ -46,29 +46,30 @@ export async function POST(req: NextRequest) {
   const profiles = await Promise.all(userIds.map(id => getTasteProfile(id)));
   const profileMap = new Map(userIds.map((id, i) => [id, profiles[i]]));
 
-  let pairs = 0;
+  // Build a full similarity list for every user by computing the upper triangle
+  // once and populating both sides — so each user's top-N is their true top-N.
+  const userSimMap = new Map<string, Array<{ userId: string; score: number }>>();
+  for (const id of userIds) userSimMap.set(id, []);
 
-  // For every (A, B) pair (upper triangle only — similarity is symmetric)
   for (let i = 0; i < userIds.length; i++) {
     const userA = userIds[i];
     const profA = profileMap.get(userA)!;
-
-    // Collect all similarities for userA so we can trim to top-N
-    const similarities: Array<{ userId: string; score: number }> = [];
-
     for (let j = i + 1; j < userIds.length; j++) {
       const userB = userIds[j];
       const profB = profileMap.get(userB)!;
       const score = profileSimilarity(profA, profB);
-      similarities.push({ userId: userB, score });
+      userSimMap.get(userA)!.push({ userId: userB, score });
+      userSimMap.get(userB)!.push({ userId: userA, score });
     }
+  }
 
-    // Sort descending and keep only top-N per user
-    similarities.sort((a, b) => b.score - a.score);
-    const topNeighbours = similarities.slice(0, TOP_N);
-
-    for (const { userId: userB, score } of topNeighbours) {
-      await saveUserSimilarity(userA, userB, score);
+  // For each user, persist only their true top-N neighbours
+  let pairs = 0;
+  for (const [userId, sims] of userSimMap) {
+    sims.sort((a, b) => b.score - a.score);
+    const topNeighbours = sims.slice(0, TOP_N);
+    for (const { userId: neighbourId, score } of topNeighbours) {
+      await saveUserSimilarity(userId, neighbourId, score);
       pairs++;
     }
   }

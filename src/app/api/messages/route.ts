@@ -3,6 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { sendMessage, getConversation, markMessagesRead, getItemById, createNotification, getConversationList, getUnreadMessageCount } from '@/lib/db';
 
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -13,11 +14,18 @@ export async function POST(req: NextRequest) {
     || 'SwipeFit User';
 
   const body = await req.json();
-  const { receiverId, itemId, text } = body;
+  const { receiverId, itemId, text, replyToId, replyToText, replyToSender } = body;
   if (!receiverId || !itemId || !text) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
-  const message = { id: uuid(), senderId: userId, senderName, receiverId, itemId, text, read: false, createdAt: Date.now() };
+  const message = {
+    id: uuid(), senderId: userId, senderName, receiverId, itemId, text,
+    read: false, createdAt: Date.now(),
+    replyToId: replyToId ?? null,
+    replyToText: replyToText ?? null,
+    replyToSender: replyToSender ?? null,
+    reactions: {},
+  };
   await sendMessage(message);
   const item = await getItemById(itemId);
   await createNotification({

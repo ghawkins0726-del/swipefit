@@ -2,196 +2,148 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MessageSquare, Users, Search, UserPlus, ChevronRight } from 'lucide-react';
-import Navbar from '@/components/Navbar';
-import Logo from '@/components/Logo';
 import { useUser } from '@clerk/nextjs';
+import { Camera, Search, UserPlus } from 'lucide-react';
+import Navbar from '@/components/Navbar';
+import { VerifiedBadge } from '@/components/Badges';
+import { isVerified } from '@/lib/badges';
 import { ConversationPreview } from '@/lib/db-types';
 import { UserProfile } from '@/lib/types';
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
   if (diff < 60000) return 'just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-  if (diff < 7 * 86400000) return `${Math.floor(diff / 86400000)}d`;
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (diff < 7 * 86400000) return `${Math.floor(diff / 86400000)}d ago`;
   return new Date(ts).toLocaleDateString();
 }
 
 type FriendUser = UserProfile & { followedAt: number };
 
+function Avatar({ src, name, size = 54 }: { src?: string | null; name: string; size?: number }) {
+  return (
+    <div
+      className="rounded-full bg-[#F2F2F2] overflow-hidden flex items-center justify-center flex-shrink-0"
+      style={{ width: size, height: size }}
+    >
+      {src
+        ? <img src={src} alt={name} className="w-full h-full object-cover" />
+        : <span className="font-black text-[#0A0A0A]" style={{ fontSize: size * 0.4 }}>{name[0]?.toUpperCase()}</span>}
+    </div>
+  );
+}
+
 export default function MessagesPage() {
   const { user: clerkUser, isLoaded } = useUser();
-  const [tab, setTab] = useState<'friends' | 'inbox'>('friends');
-
-  // Friends
   const [friends, setFriends] = useState<FriendUser[]>([]);
-  const [friendsLoading, setFriendsLoading] = useState(true);
-
-  // Inbox
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
-  const [inboxLoading, setInboxLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoaded || !clerkUser) return;
-    // Friends list = people I follow
-    fetch(`/api/users/${clerkUser.id}/following`)
-      .then(r => r.json())
-      .then(d => { setFriends(Array.isArray(d) ? d : []); setFriendsLoading(false); })
-      .catch(() => setFriendsLoading(false));
-    fetch('/api/messages?list=true')
-      .then(r => r.json())
-      .then(d => { setConversations(Array.isArray(d) ? d : []); setInboxLoading(false); })
-      .catch(() => setInboxLoading(false));
+    Promise.all([
+      fetch(`/api/users/${clerkUser.id}/following`).then(r => r.json()).catch(() => []),
+      fetch('/api/messages?list=true').then(r => r.json()).catch(() => []),
+    ]).then(([f, c]) => {
+      setFriends(Array.isArray(f) ? f : []);
+      setConversations(Array.isArray(c) ? c : []);
+      setLoading(false);
+    });
   }, [isLoaded, clerkUser]);
 
+  const getConvoLink = (c: ConversationPreview) => `/messages/${c.itemId}/${c.otherUserId}`;
+
+  const getFriendChatLink = (friendId: string) => {
+    const existing = conversations.find(c => c.otherUserId === friendId);
+    return existing ? getConvoLink(existing) : `/messages/dm/${friendId}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col min-h-screen bg-white">
 
-      {/* Header */}
-      <div className="bg-[#0A0A0A] pt-12 pb-5 px-5">
-        <Logo size={26} href="/feed" className="text-white mb-3" />
-        <h1 className="text-white font-black text-2xl">Messages</h1>
-        <p className="text-white/40 text-sm mt-0.5">
-          {tab === 'friends'
-            ? `${friends.length} friend${friends.length === 1 ? '' : 's'}`
-            : `${conversations.length} conversation${conversations.length === 1 ? '' : 's'}`}
-        </p>
-
-        {/* Tab pills */}
-        <div className="flex gap-1 bg-white/8 rounded-2xl p-1 mt-4">
-          {([
-            { id: 'friends', label: 'Friends', icon: Users },
-            { id: 'inbox',   label: 'Inbox',   icon: MessageSquare },
-          ] as const).map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-wide flex items-center justify-center gap-1.5 transition-all ${
-                tab === t.id
-                  ? 'bg-white text-[#0A0A0A] shadow-sm'
-                  : 'text-white/40'
-              }`}>
-              <t.icon size={12} />
-              {t.label}
-            </button>
-          ))}
-        </div>
+      {/* ── Top bar ── */}
+      <div className="pt-14 pb-2 px-4 flex items-center justify-between bg-white sticky top-0 z-10">
+        <Link href="/search?people=1" className="w-10 h-10 flex items-center justify-center">
+          <UserPlus size={22} className="text-[#0A0A0A]" />
+        </Link>
+        <h1 className="font-bold text-[17px] text-[#0A0A0A]">Inbox</h1>
+        <Link href="/search?people=1" className="w-10 h-10 flex items-center justify-center">
+          <Search size={20} className="text-[#0A0A0A]" />
+        </Link>
       </div>
 
-      <div className="flex-1 px-4 pt-4 pb-24">
+      {/* ── Friends stories row ── */}
+      {friends.length > 0 && (
+        <div className="pt-3 pb-4 border-b border-[#F2F2F2]">
+          <div className="flex gap-4 overflow-x-auto px-4 scrollbar-hide">
+            {friends.map(f => (
+              <Link key={f.id} href={getFriendChatLink(f.id)} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                <div className="w-[62px] h-[62px] rounded-full overflow-hidden border-[2.5px] border-[#EBEBEB] bg-[#F2F2F2] flex items-center justify-center">
+                  {f.avatar
+                    ? <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                    : <span className="text-[22px] font-black text-[#0A0A0A]">{f.name[0]?.toUpperCase()}</span>}
+                </div>
+                <span className="text-[11px] text-[#0A0A0A] font-medium w-[64px] text-center truncate leading-tight">
+                  {f.name.split(' ')[0]}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
-        {tab === 'friends' && (
-          <>
-            {/* Find friends CTA */}
-            <Link href="/search?people=1"
-              className="flex items-center gap-3 bg-[#0A0A0A] rounded-2xl px-4 py-3.5 mb-3 active:scale-[0.98] transition-transform">
-              <div className="w-9 h-9 bg-[#FF2E47]/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Search size={16} className="text-[#FF2E47]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-black text-sm">Find friends</p>
-                <p className="text-white/40 text-xs mt-0.5">Search for people to follow</p>
-              </div>
-              <ChevronRight size={16} className="text-white/30" />
-            </Link>
+      {/* ── DM list ── */}
+      <div className="flex-1 pb-28">
+        {conversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 px-8 text-center">
+            <p className="text-[#0A0A0A] font-bold text-base mb-1">No messages yet</p>
+            <p className="text-[#888] text-sm mt-0.5">Follow people and start chatting</p>
+          </div>
+        ) : (
+          conversations.map(c => (
+            <div key={`${c.itemId}-${c.otherUserId}`} className="flex items-center px-4 py-3 active:bg-[#F9F9F9]">
 
-            {friendsLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : friends.length === 0 ? (
-              <div className="text-center py-12">
-                <Users size={36} className="text-[#EBEBEB] mx-auto mb-3" />
-                <p className="text-[#0A0A0A] font-black text-base mb-1">No friends yet</p>
-                <p className="text-[#AAAAAA] text-sm">Tap &ldquo;Find friends&rdquo; above to discover people</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {friends.map(f => (
-                  <Link key={f.id} href={`/user/${f.id}`}
-                    className="flex items-center gap-3 bg-white rounded-2xl p-3 active:scale-[0.98] transition-transform shadow-sm">
-                    <div className="w-12 h-12 rounded-2xl bg-[#0A0A0A] overflow-hidden flex items-center justify-center text-white font-black text-lg flex-shrink-0">
-                      {f.avatar
-                        ? <img src={f.avatar} alt="" className="w-full h-full object-cover" />
-                        : <span>{f.name[0]?.toUpperCase()}</span>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-[#0A0A0A] text-sm truncate">{f.name}</p>
-                      {f.bio
-                        ? <p className="text-[#AAAAAA] text-xs truncate mt-0.5">{f.bio}</p>
-                        : <p className="text-[#AAAAAA] text-xs mt-0.5">{f.totalListings} listing{f.totalListings === 1 ? '' : 's'}</p>}
-                    </div>
-                    <ChevronRight size={16} className="text-[#EBEBEB] flex-shrink-0" />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+              {/* Avatar → profile */}
+              <Link
+                href={`/user/${c.otherUserId}`}
+                className="flex-shrink-0 mr-3"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="relative">
+                  <Avatar src={c.otherUserAvatar} name={c.otherUserName} size={54} />
+                  {c.unread && (
+                    <div className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-[#FF2E47] rounded-full border-2 border-white" />
+                  )}
+                </div>
+              </Link>
 
-        {tab === 'inbox' && (
-          <>
-            {inboxLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="text-center py-16">
-                <MessageSquare size={40} className="text-[#EBEBEB] mx-auto mb-3" />
-                <p className="text-[#0A0A0A] font-semibold text-base mb-1">No messages yet</p>
-                <p className="text-[#AAAAAA] text-sm">Message sellers about items you love</p>
-                <Link href="/feed" className="inline-block mt-5 bg-[#0A0A0A] text-white px-6 py-2.5 rounded-full font-semibold text-sm">
-                  Browse Feed
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {conversations.map(c => (
-                  /*
-                   * TikTok-style split row:
-                   *   ■ Left  — avatar → opens the other user's profile
-                   *   ■ Right — message preview → opens the conversation
-                   */
-                  <div
-                    key={`${c.itemId}-${c.otherUserId}`}
-                    className={`flex items-center rounded-2xl overflow-hidden transition-shadow ${
-                      c.unread ? 'bg-red-50 border border-red-100' : 'bg-white shadow-sm'
-                    }`}
-                  >
-                    {/* Left: avatar → profile */}
-                    <Link
-                      href={`/user/${c.otherUserId}`}
-                      className="flex-shrink-0 p-4 pr-0"
-                      aria-label={`View ${c.otherUserName}'s profile`}
-                    >
-                      <div className="w-12 h-12 rounded-2xl bg-[#0A0A0A] flex items-center justify-center text-white font-black text-lg select-none">
-                        {c.otherUserName[0]?.toUpperCase()}
-                      </div>
-                    </Link>
-
-                    {/* Right: message info → conversation */}
-                    <Link
-                      href={`/messages/${c.itemId}/${c.otherUserId}`}
-                      className="flex-1 min-w-0 flex items-center gap-2 px-4 py-4"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between mb-0.5">
-                          <p className={`text-sm truncate ${c.unread ? 'font-black text-[#0A0A0A]' : 'font-bold text-[#0A0A0A]'}`}>
-                            {c.otherUserName}
-                          </p>
-                          <span className="text-xs text-[#AAAAAA] flex-shrink-0 ml-2">{timeAgo(c.lastMessageAt)}</span>
-                        </div>
-                        <p className="text-xs text-[#E63946] font-semibold truncate mb-0.5">{c.itemTitle}</p>
-                        <p className={`text-xs truncate ${c.unread ? 'text-[#0A0A0A] font-semibold' : 'text-[#AAAAAA]'}`}>
-                          {c.lastMessage}
-                        </p>
-                      </div>
-                      {c.unread && <div className="w-2.5 h-2.5 bg-[#E63946] rounded-full flex-shrink-0" />}
-                    </Link>
+              {/* Message preview → chat */}
+              <Link href={getConvoLink(c)} className="flex-1 min-w-0 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <p className={`text-[15px] leading-snug truncate ${c.unread ? 'font-bold text-[#0A0A0A]' : 'font-semibold text-[#0A0A0A]'}`}>
+                      {c.otherUserName}
+                    </p>
+                    {isVerified(c.otherUserId) && <VerifiedBadge size="xs" />}
                   </div>
-                ))}
-              </div>
-            )}
-          </>
+                  <p className={`text-[13px] truncate mt-0.5 ${c.unread ? 'text-[#0A0A0A] font-medium' : 'text-[#888888]'}`}>
+                    {c.lastMessage} · {timeAgo(c.lastMessageAt)}
+                  </p>
+                </div>
+                <Camera size={20} className="text-[#CCCCCC] flex-shrink-0" />
+              </Link>
+
+            </div>
+          ))
         )}
       </div>
 

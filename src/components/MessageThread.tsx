@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { MessageSquare } from 'lucide-react';
 import { Message } from '@/lib/db-types';
 import MessageBubble from './MessageBubble';
 
@@ -9,10 +8,13 @@ interface Props {
   userId: string;
   itemId: string;
   otherUserId: string;
+  otherName: string;
+  otherAvatar: string | null;
   refreshSignal?: number;
+  onReplySelect: (msg: Message | null) => void;
 }
 
-export default function MessageThread({ userId, itemId, otherUserId, refreshSignal = 0 }: Props) {
+export default function MessageThread({ userId, itemId, otherUserId, otherAvatar, refreshSignal = 0, onReplySelect }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -25,7 +27,6 @@ export default function MessageThread({ userId, itemId, otherUserId, refreshSign
   }, [itemId, otherUserId]);
 
   useEffect(() => {
-    // Mark messages from the other user as read
     fetch('/api/messages', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -45,22 +46,48 @@ export default function MessageThread({ userId, itemId, otherUserId, refreshSign
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
+      <div className="flex-1 flex items-center justify-center bg-white">
+        <div className="w-7 h-7 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  // Group messages: show timestamp header every 30 min gap
+  const groups: { showTime: boolean; msg: Message }[] = [];
+  messages.forEach((msg, i) => {
+    const prev = messages[i - 1];
+    const showTime = !prev || msg.createdAt - prev.createdAt > 30 * 60 * 1000;
+    groups.push({ showTime, msg });
+  });
+
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 bg-[#F5F4F0]">
+    <div className="flex-1 overflow-y-auto bg-white px-3 py-4">
       {messages.length === 0 ? (
-        <div className="text-center py-16">
-          <MessageSquare size={40} className="text-[#EBEBEB] mx-auto mb-3" />
-          <p className="text-[#AAAAAA] text-sm">No messages yet — start the conversation!</p>
+        <div className="flex flex-col items-center justify-center h-full pb-8">
+          <p className="text-[#888] text-[13px]">No messages yet — say hi!</p>
         </div>
       ) : (
-        messages.map(msg => (
-          <MessageBubble key={msg.id} message={msg} isOwn={msg.senderId === userId} />
+        groups.map(({ showTime, msg }) => (
+          <div key={msg.id}>
+            {showTime && (
+              <div className="flex justify-center my-3">
+                <span className="text-[11px] text-[#999] font-medium">
+                  {new Date(msg.createdAt).toLocaleString([], {
+                    month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
+            <MessageBubble
+              message={msg}
+              isOwn={msg.senderId === userId}
+              otherAvatar={otherAvatar}
+              myUserId={userId}
+              onReply={onReplySelect}
+              onReactionChange={load}
+            />
+          </div>
         ))
       )}
       <div ref={bottomRef} />

@@ -9,6 +9,8 @@ import {
   DollarSign, Loader2, AlertCircle, Settings, Users, MessageSquare,
 } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
+import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
+import { isVerified, isCofounder } from '@/lib/badges';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -375,6 +377,7 @@ export default function ProfilePage() {
             ) : (
               <button onClick={() => setEditingName(true)} className="flex items-center gap-1.5 group">
                 <h1 className="font-black text-white text-2xl tracking-tight">{user.name}</h1>
+                {isVerified(user.id) && <VerifiedBadge size="md" />}
                 <Edit2 size={13} className="text-white/30 group-hover:text-white/70 transition-colors" />
               </button>
             )}
@@ -382,6 +385,13 @@ export default function ProfilePage() {
 
           {/* Handle (Clerk username) */}
           {handleAt && <p className="text-white/40 text-sm mt-0.5 font-medium">{handleAt}</p>}
+
+          {/* Co-founder badge */}
+          {isCofounder(user.id) && (
+            <div className="mt-2">
+              <CofounderBadge />
+            </div>
+          )}
 
           {/* Star rating */}
           <div className="mt-2 bg-white/8 rounded-full px-3 py-1 border border-white/10">

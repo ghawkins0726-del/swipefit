@@ -64,11 +64,13 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Blend & re-rank ─────────────────────────────────────────────────────────
+  // Compute normalisation denominator once, outside the map
+  const maxRaw = Math.max(...ranked.map(x => x.score), 1);
+
   const scored = ranked.map(r => {
     if (!tasteActive) return { ...r, _finalScore: r.score };
 
-    // Normalise the algorithm score to [0,1] using the max in this batch
-    const algoScore   = r.score;                            // already 0-1 from rankItems
+    const algoScore = r.score / maxRaw;
     const tasteScore  = tasteBoosts.get(r.itemId) ?? 0.5;  // 0.5 = neutral when no classification
     const collabBonus = collabItemIds.has(r.itemId) ? 1 : 0;
 
