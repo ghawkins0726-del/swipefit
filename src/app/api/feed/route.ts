@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getItems, getUserSwipes, getSwipedItemIds, getTasteProfile, getItemClassifications, getCollaborativeItemIds, getSimilarUsers } from '@/lib/db';
+import { getItems, getUserSwipes, getSwipedItemIds, getTasteProfile, getItemClassifications, getCollaborativeItemIds, getSimilarUsers, getPreferredSizes } from '@/lib/db';
 import { buildUserPreferences, rankItems } from '@/lib/algorithm';
 import { computeStyleDna, computeMatchScore } from '@/lib/styleDna';
 import { buildTasteBoosts } from '@/lib/scoring';
@@ -27,20 +27,27 @@ export async function GET(req: NextRequest) {
   const batchSize = parseInt(searchParams.get('batch') ?? '10');
 
   // ── Base data (always fetched) ──────────────────────────────────────────────
-  const [allItems, swipes, seenIds] = await Promise.all([
+  const [allItems, swipes, seenIds, preferredSizes] = await Promise.all([
     getItems(500),
     getUserSwipes(userId),
     getSwipedItemIds(userId),
+    getPreferredSizes(userId),
   ]);
 
-  const itemMap = new Map<string, Item>(allItems.map(i => [i.id, i]));
+  // Apply size filter: if user has selected sizes, exclude items that don't match.
+  // Items with no size (accessories, etc.) always pass through.
+  const sizeFiltered = preferredSizes.length > 0
+    ? allItems.filter(i => !i.size || i.size === 'One Size' || preferredSizes.includes(i.size))
+    : allItems;
+
+  const itemMap = new Map<string, Item>(sizeFiltered.map(i => [i.id, i]));
   const prefs   = buildUserPreferences(swipes, itemMap);
 
   const dnaItemMap = new Map(allItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
   const dna = computeStyleDna(swipes, dnaItemMap);
 
   // Existing algorithm produces a ranked list with a score per item
-  const ranked = rankItems(allItems, prefs, seenIds, allItems.length); // rank all, slice later
+  const ranked = rankItems(sizeFiltered, prefs, seenIds, sizeFiltered.length); // rank all, slice later
 
   // ── Taste layer (only if user has enough interaction history) ───────────────
   const tasteProfile = await getTasteProfile(userId);
@@ -98,8 +105,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     feed,
-    total: allItems.length - seenIds.size,
+    total: sizeFiltered.length - seenIds.size,
     dna,
     tasteActive,
+    preferredSizes,
   });
 }

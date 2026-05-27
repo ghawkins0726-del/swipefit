@@ -7,6 +7,7 @@ import Logo from '@/components/Logo';
 import {
   Heart, ShoppingBag, Bell, Edit2, Check, X, LogOut, Package2,
   DollarSign, Loader2, AlertCircle, Settings, Users, MessageSquare,
+  Bookmark, Ruler,
 } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
 import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
@@ -471,6 +472,9 @@ export default function ProfilePage() {
             <Link href="/orders" className="btn-halo-ghost flex-1 text-xs">
               <Package2 size={13} /> My Orders
             </Link>
+            <Link href="/boards" className="btn-halo-ghost flex-1 text-xs">
+              <Bookmark size={13} /> My Boards
+            </Link>
 
             {/* Stripe Connect — compact halo button */}
             {connect && (
@@ -529,6 +533,9 @@ export default function ProfilePage() {
 
       {/* ── Tab content (light bg from here down) ── */}
       <div className="flex-1 bg-[#F5F4F0] px-3 pt-3 pb-28">
+
+        {/* SIZE PREFS — compact chip row shown above listings */}
+        {tab === 'listings' && <SizePrefsRow userId={user.id} initialSizes={(user as UserProfile & { preferredSizes?: string[] }).preferredSizes ?? []} />}
 
         {/* LISTINGS */}
         {tab === 'listings' && (
@@ -607,6 +614,60 @@ export default function ProfilePage() {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '6', '7', '8', '9', '10', '11', '12'];
+
+function SizePrefsRow({ userId, initialSizes }: { userId: string; initialSizes: string[] }) {
+  const [selected, setSelected] = useState<string[]>(initialSizes);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (s: string) => setSelected(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+
+  const save = async () => {
+    setSaving(true);
+    await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferredSizes: selected }),
+    });
+    setSaving(false);
+    setOpen(false);
+  };
+
+  return (
+    <div className="mb-3 bg-white rounded-2xl px-4 py-3 shadow-sm">
+      <button onClick={() => setOpen(o => !o)} className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-2">
+          <Ruler size={14} className="text-[#AAAAAA]" />
+          <span className="font-bold text-[13px] text-[#0A0A0A]">Size filter</span>
+          {selected.length > 0 && (
+            <span className="text-[11px] font-bold text-[#E63946]">{selected.join(', ')}</span>
+          )}
+        </div>
+        <span className="text-[11px] text-[#AAAAAA] font-medium">{open ? 'Done ↑' : 'Edit ↓'}</span>
+      </button>
+      {open && (
+        <div className="mt-3">
+          <div className="flex flex-wrap gap-2 mb-3">
+            {ALL_SIZES.map(s => (
+              <button key={s} onClick={() => toggle(s)}
+                className={`px-3 py-1.5 rounded-lg border-2 text-xs font-bold transition-all ${
+                  selected.includes(s) ? 'border-[#E63946] bg-red-50 text-[#E63946]' : 'border-[#EBEBEB] text-[#5A5A5A]'
+                }`}>
+                {s}
+              </button>
+            ))}
+          </div>
+          <button onClick={save} disabled={saving}
+            className="w-full bg-[#E63946] text-white rounded-xl py-2.5 font-bold text-sm">
+            {saving ? 'Saving…' : 'Save sizes'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EmptyState({
   icon: Icon, title, sub, children,

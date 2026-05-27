@@ -257,6 +257,30 @@ async function _runInitDb(): Promise<void> {
   `;
   await db`CREATE INDEX IF NOT EXISTS idx_sim_a ON user_similarities(user_a_id, similarity_score DESC)`;
 
+  // ── User preferences ──────────────────────────────────────────────────────
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_sizes TEXT DEFAULT '[]'`;
+
+  // ── Collections / boards ──────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS collections (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      emoji TEXT DEFAULT '🗂️',
+      created_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id)`;
+  await db`
+    CREATE TABLE IF NOT EXISTS collection_items (
+      collection_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      added_at BIGINT NOT NULL,
+      PRIMARY KEY (collection_id, item_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_col_items_col  ON collection_items(collection_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_col_items_item ON collection_items(item_id)`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -1307,6 +1331,130 @@ export async function getAllTasteProfileUserIds(): Promise<string[]> {
   const db = sql();
   const rows = await db`SELECT user_id FROM user_taste_profiles_v2 WHERE total_interactions >= 3`;
   return rows.map(r => r.user_id as string);
+}
+
+// ─── Preferred sizes ─────────────────────────────────────────────────────────
+
+export async function savePreferredSizes(userId: string, sizes: string[]): Promise<void> {
+  const db = sql();
+  await db`UPDATE users SET preferred_sizes = ${JSON.stringify(sizes)} WHERE id = ${userId}`;
+}
+
+export async function getPreferredSizes(userId: string): Promise<string[]> {
+  const db = sql();
+  const rows = await db`SELECT preferred_sizes FROM users WHERE id = ${userId}`;
+  if (!rows[0]) return [];
+  const raw = rows[0].preferred_sizes as string | null;
+  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+
+// ─── Collections / boards ─────────────────────────────────────────────────────
+
+export interface Collection {
+  id: string;
+  userId: string;
+  name: string;
+  emoji: string;
+  createdAt: number;
+  itemCount: number;
+  previewImages: string[];
+}
+
+export async function getCollections(userId: string): Promise<Collection[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT c.id, c.user_id, c.name, c.emoji, c.created_at,
+           COUNT(ci.item_id)::int AS item_count
+    FROM collections c
+    LEFT JOIN collection_items ci ON ci.collection_id = c.id
+    WHERE c.user_id = ${userId}
+    GROUP BY c.id
+    ORDER BY c.created_at DESC
+  `;
+  // Fetch preview images for each collection (first 3 items)
+  const result: Collection[] = [];
+  for (const r of rows) {
+    const colId = r.id as string;
+    const imgRows = await db`
+      SELECT i.images FROM collection_items ci
+      JOIN items i ON i.id = ci.item_id
+      WHERE ci.collection_id = ${colId}
+      ORDER BY ci.added_at DESC LIMIT 3
+    `;
+    const previews = imgRows.map(ir => {
+      const imgs = typeof ir.images === 'string' ? JSON.parse(ir.images) : ir.images as string[];
+      return imgs[0] ?? '';
+    }).filter(Boolean);
+    result.push({
+      id: colId,
+      userId: r.user_id as string,
+      name: r.name as string,
+      emoji: r.emoji as string,
+      createdAt: Number(r.created_at),
+      itemCount: Number(r.item_count),
+      previewImages: previews,
+    });
+  }
+  return result;
+}
+
+export async function createCollection(userId: string, name: string, emoji: string): Promise<Collection> {
+  const db = sql();
+  const id = `col_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const now = Date.now();
+  await db`INSERT INTO collections (id, user_id, name, emoji, created_at) VALUES (${id}, ${userId}, ${name}, ${emoji}, ${now})`;
+  return { id, userId, name, emoji, createdAt: now, itemCount: 0, previewImages: [] };
+}
+
+export async function deleteCollection(id: string, userId: string): Promise<void> {
+  const db = sql();
+  await db`DELETE FROM collections WHERE id = ${id} AND user_id = ${userId}`;
+}
+
+export async function addItemToCollection(collectionId: string, itemId: string): Promise<void> {
+  const db = sql();
+  await db`INSERT INTO collection_items (collection_id, item_id, added_at) VALUES (${collectionId}, ${itemId}, ${Date.now()}) ON CONFLICT (collection_id, item_id) DO NOTHING`;
+}
+
+export async function removeItemFromCollection(collectionId: string, itemId: string): Promise<void> {
+  const db = sql();
+  await db`DELETE FROM collection_items WHERE collection_id = ${collectionId} AND item_id = ${itemId}`;
+}
+
+export async function getCollectionItems(collectionId: string): Promise<Item[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT i.* FROM items i
+    JOIN collection_items ci ON i.id = ci.item_id
+    WHERE ci.collection_id = ${collectionId}
+    ORDER BY ci.added_at DESC
+  `;
+  return rows.map(rowToItem);
+}
+
+/** Returns the collection IDs that contain a given item (for the current user) */
+export async function getItemCollections(userId: string, itemId: string): Promise<string[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT ci.collection_id FROM collection_items ci
+    JOIN collections c ON c.id = ci.collection_id
+    WHERE c.user_id = ${userId} AND ci.item_id = ${itemId}
+  `;
+  return rows.map(r => r.collection_id as string);
+}
+
+// ─── Undo swipe ───────────────────────────────────────────────────────────────
+
+/** Removes a previously recorded swipe and corrects the like counter. */
+export async function undoSwipe(userId: string, itemId: string): Promise<void> {
+  const db = sql();
+  const existing = await db`SELECT action FROM swipes WHERE user_id = ${userId} AND item_id = ${itemId} LIMIT 1`;
+  if (!existing[0]) return;
+  const action = existing[0].action as string;
+  await db`DELETE FROM swipes WHERE user_id = ${userId} AND item_id = ${itemId}`;
+  if (action === 'like' || action === 'superlike') {
+    await db`UPDATE items SET likes = GREATEST(0, likes - 1) WHERE id = ${itemId}`;
+  }
 }
 
 /** Item IDs liked by similar users that the target user hasn't seen */

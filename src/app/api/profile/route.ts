@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { getOrCreateUser, getLikedItems, getNotifications, getUnreadCount, markAllRead, updateUser, getSellerItems, getOrderCount, getFollowCounts, getSellerRating } from '@/lib/db';
+import { getOrCreateUser, getLikedItems, getNotifications, getUnreadCount, markAllRead, updateUser, getSellerItems, getOrderCount, getFollowCounts, getSellerRating, getPreferredSizes, savePreferredSizes, getCollections } from '@/lib/db';
 
 export async function GET() {
   const { userId } = await auth();
@@ -12,7 +12,7 @@ export async function GET() {
     || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
     || 'SwipeFit User';
 
-  const [user, liked, listings, notifications, unreadCount, purchaseCount, follow, rating] = await Promise.all([
+  const [user, liked, listings, notifications, unreadCount, purchaseCount, follow, rating, preferredSizes, collections] = await Promise.all([
     getOrCreateUser(userId, displayName),
     getLikedItems(userId),
     getSellerItems(userId),
@@ -21,9 +21,11 @@ export async function GET() {
     getOrderCount(userId, 'buyer'),
     getFollowCounts(userId),
     getSellerRating(userId),
+    getPreferredSizes(userId),
+    getCollections(userId),
   ]);
   return NextResponse.json({
-    user,
+    user: { ...user, preferredSizes },
     liked,
     listings,
     notifications,
@@ -33,6 +35,7 @@ export async function GET() {
     following: follow.following,
     ratingAverage: rating.average,
     ratingCount: rating.count,
+    collections,
   });
 }
 
@@ -41,8 +44,9 @@ export async function PATCH(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { name, bio, markNotificationsRead } = body;
+  const { name, bio, markNotificationsRead, preferredSizes } = body;
   if (name !== undefined || bio !== undefined) await updateUser(userId, { name, bio });
   if (markNotificationsRead) await markAllRead(userId);
+  if (preferredSizes !== undefined) await savePreferredSizes(userId, preferredSizes);
   return NextResponse.json({ ok: true });
 }

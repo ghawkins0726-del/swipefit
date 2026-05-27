@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Heart, X, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, X, Zap, ChevronLeft, ChevronRight, BookmarkPlus } from 'lucide-react';
 import { Item } from '@/lib/types';
 import { VerifiedBadge } from '@/components/Badges';
 import { isVerified } from '@/lib/badges';
@@ -11,13 +11,14 @@ interface Props {
   item: Item & { _reason?: string; matchScore?: number };
   onSwipe: (action: 'like' | 'dislike' | 'superlike') => void;
   isTop: boolean;
+  onSave?: () => void;
 }
 
 const CONDITION_LABELS = {
   new: 'NWT', like_new: 'Like New', good: 'Good', fair: 'Fair',
 };
 
-export default function SwipeCard({ item, onSwipe, isTop }: Props) {
+export default function SwipeCard({ item, onSwipe, isTop, onSave }: Props) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-280, 0, 280], [-18, 0, 18]);
   const likeOpacity = useTransform(x, [30, 120], [0, 1]);
@@ -136,9 +137,9 @@ export default function SwipeCard({ item, onSwipe, isTop }: Props) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex justify-center items-center gap-4 pb-4 pt-0">
+        <div className="flex justify-center items-center gap-3 pb-4 pt-0">
           <button onClick={() => onSwipe('dislike')}
-            className="w-13 h-13 w-[52px] h-[52px] rounded-full bg-white border border-[#EBEBEB] flex items-center justify-center hover:border-[#E63946] hover:bg-[#FDECED] active:scale-95 transition-all shadow-sm">
+            className="w-[52px] h-[52px] rounded-full bg-white border border-[#EBEBEB] flex items-center justify-center hover:border-[#E63946] hover:bg-[#FDECED] active:scale-95 transition-all shadow-sm">
             <X size={22} className="text-[#E63946]" strokeWidth={2.5} />
           </button>
           <button onClick={() => onSwipe('superlike')}
@@ -149,6 +150,12 @@ export default function SwipeCard({ item, onSwipe, isTop }: Props) {
             className="w-[52px] h-[52px] rounded-full bg-white border border-[#EBEBEB] flex items-center justify-center hover:border-[#00C851] hover:bg-[#EDFAF1] active:scale-95 transition-all shadow-sm">
             <Heart size={22} className="text-[#00C851]" strokeWidth={2.5} />
           </button>
+          {onSave && (
+            <button onClick={onSave}
+              className="w-[42px] h-[42px] rounded-full bg-white border border-[#EBEBEB] flex items-center justify-center hover:border-[#FF8C00] hover:bg-orange-50 active:scale-95 transition-all shadow-sm">
+              <BookmarkPlus size={17} className="text-[#FF8C00]" />
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

@@ -43,6 +43,8 @@ export interface UserProfile {
   stripeAccountId?: string;
   /** True once Stripe confirms the connected account can accept charges + payouts. */
   stripeAccountReady?: boolean;
+  /** Sizes the user wants shown in their feed (e.g. ["M", "L", "32"]) */
+  preferredSizes?: string[];
 }
 
 export interface UserPreferences {
