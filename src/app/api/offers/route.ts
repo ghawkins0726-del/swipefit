@@ -24,9 +24,10 @@ export async function POST(req: NextRequest) {
 
   const parsedAmount = parseFloat(amount);
   const now = Date.now();
+  const offerId = uuid();
 
   await createOffer({
-    id: uuid(),
+    id: offerId,
     buyerId,
     sellerId: item.sellerId,
     itemId,
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     type: 'offer_received',
     title: `New offer on "${item.title}"`,
     body: `${buyerName} offered $${parsedAmount}`,
-    payload: JSON.stringify({ offerId: uuid(), itemId, buyerId, amount: parsedAmount }),
+    payload: JSON.stringify({ offerId, itemId, buyerId, amount: parsedAmount }),
     createdAt: now,
   });
 

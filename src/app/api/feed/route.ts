@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   // ── Base data (always fetched) ──────────────────────────────────────────────
   const [allItems, swipes, seenIds, preferredSizes] = await Promise.all([
-    getItems(500),
+    getItems(200),
     getUserSwipes(userId),
     getSwipedItemIds(userId),
     getPreferredSizes(userId),

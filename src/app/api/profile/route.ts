@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { getOrCreateUser, getLikedItems, getNotifications, getUnreadCount, markAllRead, updateUser, getSellerItems, getOrderCount, getFollowCounts, getSellerRating, getPreferredSizes, savePreferredSizes, getCollections } from '@/lib/db';
+import { getOrCreateUser, getLikedItems, getNotifications, markAllRead, updateUser, getSellerItems, getOrderCount, getFollowCounts, getSellerRating, getPreferredSizes, savePreferredSizes } from '@/lib/db';
 
 export async function GET() {
   const { userId } = await auth();
@@ -12,18 +12,20 @@ export async function GET() {
     || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
     || 'SwipeFit User';
 
-  const [user, liked, listings, notifications, unreadCount, purchaseCount, follow, rating, preferredSizes, collections] = await Promise.all([
+  const [user, liked, listings, notifications, purchaseCount, follow, rating, preferredSizes] = await Promise.all([
     getOrCreateUser(userId, displayName),
     getLikedItems(userId),
     getSellerItems(userId),
     getNotifications(userId),
-    getUnreadCount(userId),
     getOrderCount(userId, 'buyer'),
     getFollowCounts(userId),
     getSellerRating(userId),
     getPreferredSizes(userId),
-    getCollections(userId),
   ]);
+
+  // Derive unread count from the returned notifications — avoids a separate DB round trip
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   return NextResponse.json({
     user: { ...user, preferredSizes },
     liked,
@@ -35,7 +37,6 @@ export async function GET() {
     following: follow.following,
     ratingAverage: rating.average,
     ratingCount: rating.count,
-    collections,
   });
 }
 

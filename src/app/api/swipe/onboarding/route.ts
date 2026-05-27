@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   await saveTasteProfile(profile);
 
   // ── Bootstrap initial swipes ───────────────────────────────────────────────
-  const allItems = await getItems(500);
+  const allItems = await getItems(200);
   const now = Date.now();
 
   const scored = allItems.map(item => {

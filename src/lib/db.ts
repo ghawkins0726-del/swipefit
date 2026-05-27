@@ -401,7 +401,7 @@ export async function recordSwipe(swipe: SwipeRecord): Promise<void> {
 
 export async function getUserSwipes(userId: string): Promise<SwipeRecord[]> {
   const db = sql();
-  const rows = await db`SELECT * FROM swipes WHERE user_id = ${userId} ORDER BY timestamp DESC`;
+  const rows = await db`SELECT * FROM swipes WHERE user_id = ${userId} ORDER BY timestamp DESC LIMIT 500`;
   return rows.map(r => ({
     id: r.id as string,
     userId: r.user_id as string,
@@ -778,6 +778,7 @@ export async function getLikedItems(userId: string): Promise<Item[]> {
     JOIN swipes s ON i.id = s.item_id
     WHERE s.user_id = ${userId} AND s.action IN ('like', 'superlike')
     ORDER BY s.timestamp DESC
+    LIMIT 60
   `;
   return rows.map(rowToItem);
 }
@@ -785,7 +786,7 @@ export async function getLikedItems(userId: string): Promise<Item[]> {
 // ─── Seller ───────────────────────────────────────────────────────────────────
 export async function getSellerItems(sellerId: string): Promise<Item[]> {
   const db = sql();
-  const rows = await db`SELECT * FROM items WHERE seller_id = ${sellerId} ORDER BY created_at DESC`;
+  const rows = await db`SELECT * FROM items WHERE seller_id = ${sellerId} ORDER BY created_at DESC LIMIT 60`;
   return rows.map(rowToItem);
 }
 
