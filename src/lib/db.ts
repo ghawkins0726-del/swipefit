@@ -230,6 +230,7 @@ export async function initDb(): Promise<void> {
     )
   `;
   await db`CREATE INDEX IF NOT EXISTS idx_sim_a ON user_similarities(user_a_id, similarity_score DESC)`;
+
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -247,8 +248,14 @@ export async function getItemById(id: string): Promise<Item | null> {
 
 export async function createItem(item: Item): Promise<void> {
   const db = sql();
+  // Use explicit column names so adding/removing nullable columns doesn't
+  // silently shift positional values and cause a Postgres column-count error.
   await db`
-    INSERT INTO items VALUES (
+    INSERT INTO items (
+      id, seller_id, seller_name, title, description, price,
+      images, category, subcategory, styles, colors,
+      size, brand, condition, price_range, created_at, likes, views, sold
+    ) VALUES (
       ${item.id}, ${item.sellerId}, ${item.sellerName}, ${item.title},
       ${item.description}, ${item.price},
       ${JSON.stringify(item.images)}, ${item.category}, ${item.subcategory},
@@ -1206,3 +1213,4 @@ export async function getCollaborativeItemIds(
   `;
   return new Set(rows.map(r => r.item_id as string));
 }
+

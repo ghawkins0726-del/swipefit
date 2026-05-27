@@ -1,34 +1,55 @@
-import { NextResponse } from 'next/server';
-import { getItems, createItem, ensureSchema } from '@/lib/db';
-import { getSeedItems } from '@/lib/seed';
+import { NextRequest, NextResponse } from 'next/server';
+import { getItems, createItem, ensureSchema, getOrCreateUser, updateUser } from '@/lib/db';
+import { getSeedItems, getSeedUsers } from '@/lib/seed';
 
-// Seed endpoint is development-only
-function devOnly() {
-  if (process.env.NODE_ENV === 'production') {
+/**
+ * Guard: dev always passes; production requires `x-admin-secret` header
+ * matching the ADMIN_SECRET env var.
+ */
+function checkAuth(req: NextRequest): NextResponse | null {
+  if (process.env.NODE_ENV !== 'production') return null;
+  const secret = req.headers.get('x-admin-secret');
+  if (!secret || secret !== process.env.ADMIN_SECRET) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   return null;
 }
 
-export async function POST() {
-  const guard = devOnly();
+export async function POST(req: NextRequest) {
+  const guard = checkAuth(req);
   if (guard) return guard;
 
   await ensureSchema();
+
+  // Check if already seeded (avoid double-seeding)
   const existing = await getItems(1);
   if (existing.length > 0) {
     const all = await getItems(500);
     return NextResponse.json({ message: 'Already seeded', count: all.length });
   }
+
+  // 1. Seed seller user records first so FK relationships are valid
+  const users = getSeedUsers();
+  for (const user of users) {
+    await getOrCreateUser(user.id, user.name);
+    await updateUser(user.id, { bio: user.bio, avatar: user.avatar });
+  }
+
+  // 2. Seed items
   const items = getSeedItems();
   for (const item of items) {
     await createItem(item);
   }
-  return NextResponse.json({ message: 'Seeded', count: items.length });
+
+  return NextResponse.json({
+    message: 'Seeded',
+    users: users.length,
+    items: items.length,
+  });
 }
 
-export async function GET() {
-  const guard = devOnly();
+export async function GET(req: NextRequest) {
+  const guard = checkAuth(req);
   if (guard) return guard;
 
   await ensureSchema();

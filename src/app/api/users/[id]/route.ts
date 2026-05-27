@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
-import { getUserById, getFollowCounts, isFollowing, getSellerRating, updateUser } from '@/lib/db';
+import { getUserById, getFollowCounts, isFollowing, getSellerRating, getSellerItems, updateUser } from '@/lib/db';
 
 /**
  * Public-ish user lookup. Returns basic profile + social-graph stats and,
  * if a viewer is signed in, whether they follow this user.
+ * Append ?listings=1 to also include the user's active listings.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -31,9 +32,12 @@ export async function GET(
     // Clerk lookup failed — fall back to the DB value.
   }
 
-  const [counts, rating] = await Promise.all([
+  const withListings = req.nextUrl.searchParams.get('listings') === '1';
+
+  const [counts, rating, listings] = await Promise.all([
     getFollowCounts(id),
     getSellerRating(id),
+    withListings ? getSellerItems(id) : Promise.resolve(null),
   ]);
 
   const { userId: viewerId } = await auth();
@@ -58,5 +62,6 @@ export async function GET(
     ratingCount: rating.count,
     viewerFollows,
     isSelf,
+    ...(listings ? { listings } : {}),
   });
 }

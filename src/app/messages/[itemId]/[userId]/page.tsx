@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Package2 } from 'lucide-react';
 import { useUser } from '@clerk/nextjs';
 import MessageThread from '@/components/MessageThread';
@@ -49,9 +50,13 @@ export default function ConversationPage() {
         >
           <ArrowLeft size={18} className="text-white" />
         </button>
-        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white font-black flex-shrink-0">
+        {/* Clickable avatar → other user's profile (mirrors TikTok) */}
+        <Link href={`/user/${otherUserId}`}
+          className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white font-black flex-shrink-0 active:opacity-70 transition-opacity"
+          aria-label={`View ${otherName}'s profile`}
+        >
           {(otherName || '?')[0].toUpperCase()}
-        </div>
+        </Link>
         <div className="flex-1 min-w-0">
           <p className="font-black text-white text-base truncate">{otherName || '…'}</p>
           {itemTitle && (
