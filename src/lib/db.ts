@@ -17,7 +17,19 @@ function sql(): NeonQueryFunction<false, false> {
 }
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
+// Module-level guard: DDL runs only once per serverless instance, not on every cold start.
+let _schemaInitialized: Promise<void> | null = null;
+
 export async function initDb(): Promise<void> {
+  if (_schemaInitialized) return _schemaInitialized;
+  _schemaInitialized = _runInitDb().catch(err => {
+    _schemaInitialized = null; // allow retry on failure
+    throw err;
+  });
+  return _schemaInitialized;
+}
+
+async function _runInitDb(): Promise<void> {
   const db = sql();
   await db`
     CREATE TABLE IF NOT EXISTS users (
@@ -285,33 +297,31 @@ export async function searchItems(query: string, filters: {
   condition?: string; sort?: string;
 } = {}): Promise<Item[]> {
   const db = sql();
-  // Build dynamic query safely
-  let rows;
-  const q = `%${query}%`;
-  const orderBy = filters.sort === 'price_asc' ? 'price ASC'
-    : filters.sort === 'price_desc' ? 'price DESC'
-    : filters.sort === 'popular' ? 'likes DESC'
-    : 'created_at DESC';
+  const pattern = query ? `%${query.toLowerCase()}%` : null;
 
-  // Use a comprehensive query and filter in JS to avoid complex dynamic SQL
-  const all = await db`SELECT * FROM items WHERE NOT sold ORDER BY created_at DESC LIMIT 200`;
-  return all
-    .map(rowToItem)
-    .filter(i => {
-      if (query && !`${i.title} ${i.brand} ${i.description} ${i.subcategory}`.toLowerCase().includes(query.toLowerCase())) return false;
-      if (filters.category && i.category !== filters.category) return false;
-      if (filters.minPrice != null && i.price < filters.minPrice) return false;
-      if (filters.maxPrice != null && i.price > filters.maxPrice) return false;
-      if (filters.condition && i.condition !== filters.condition) return false;
-      return true;
-    })
-    .sort((a, b) =>
-      filters.sort === 'price_asc' ? a.price - b.price
-      : filters.sort === 'price_desc' ? b.price - a.price
-      : filters.sort === 'popular' ? b.likes - a.likes
-      : b.createdAt - a.createdAt
-    )
-    .slice(0, 60);
+  // Push all filtering and sorting into Postgres — no JS-side 200-row cap
+  const rows = await db`
+    SELECT * FROM items
+    WHERE NOT sold
+      AND (
+        ${pattern} IS NULL
+        OR LOWER(title)       LIKE ${pattern ?? ''}
+        OR LOWER(brand)       LIKE ${pattern ?? ''}
+        OR LOWER(description) LIKE ${pattern ?? ''}
+        OR LOWER(subcategory) LIKE ${pattern ?? ''}
+      )
+      AND (${filters.category ?? null} IS NULL OR category = ${filters.category ?? null})
+      AND (${filters.minPrice ?? null} IS NULL OR price    >= ${filters.minPrice ?? null})
+      AND (${filters.maxPrice ?? null} IS NULL OR price    <= ${filters.maxPrice ?? null})
+      AND (${filters.condition ?? null} IS NULL OR condition = ${filters.condition ?? null})
+    ORDER BY
+      CASE WHEN ${filters.sort ?? ''} = 'price_asc'  THEN price        END ASC  NULLS LAST,
+      CASE WHEN ${filters.sort ?? ''} = 'price_desc' THEN price        END DESC NULLS LAST,
+      CASE WHEN ${filters.sort ?? ''} = 'popular'    THEN likes        END DESC NULLS LAST,
+      created_at DESC
+    LIMIT 60
+  `;
+  return rows.map(rowToItem);
 }
 
 export async function getTrendingItems(limit = 20): Promise<Item[]> {
@@ -333,15 +343,33 @@ export async function getTrendingItems(limit = 20): Promise<Item[]> {
 // ─── Swipes ───────────────────────────────────────────────────────────────────
 export async function recordSwipe(swipe: SwipeRecord): Promise<void> {
   const db = sql();
+
+  // Check for an existing swipe so we can correctly adjust the like counter.
+  const existing = await db`SELECT action FROM swipes WHERE user_id = ${swipe.userId} AND item_id = ${swipe.itemId} LIMIT 1`;
+  const prevAction = (existing[0]?.action as string | undefined) ?? null;
+
   await db`
     INSERT INTO swipes (id, user_id, item_id, action, timestamp)
     VALUES (${swipe.id}, ${swipe.userId}, ${swipe.itemId}, ${swipe.action}, ${swipe.timestamp})
     ON CONFLICT (user_id, item_id) DO UPDATE SET action = ${swipe.action}, timestamp = ${swipe.timestamp}
   `;
-  if (swipe.action === 'like' || swipe.action === 'superlike') {
+
+  const wasLike = prevAction === 'like' || prevAction === 'superlike';
+  const isLike  = swipe.action === 'like' || swipe.action === 'superlike';
+
+  if (!wasLike && isLike) {
+    // Brand-new like — increment
     await db`UPDATE items SET likes = likes + 1 WHERE id = ${swipe.itemId}`;
+  } else if (wasLike && !isLike) {
+    // Changed from like → dislike — decrement (floor at 0)
+    await db`UPDATE items SET likes = GREATEST(0, likes - 1) WHERE id = ${swipe.itemId}`;
   }
-  await db`UPDATE items SET views = views + 1 WHERE id = ${swipe.itemId}`;
+  // Same action repeated: no change to likes counter.
+
+  // Only count views on the first-ever swipe to avoid inflation
+  if (!prevAction) {
+    await db`UPDATE items SET views = views + 1 WHERE id = ${swipe.itemId}`;
+  }
 }
 
 export async function getUserSwipes(userId: string): Promise<SwipeRecord[]> {
@@ -459,10 +487,19 @@ export async function getUserByStripeAccount(stripeAccountId: string): Promise<U
 }
 
 export async function updateUser(userId: string, data: { name?: string; bio?: string; avatar?: string }): Promise<void> {
+  if (!data.name && data.bio === undefined && !data.avatar) return;
   const db = sql();
-  if (data.name !== undefined) await db`UPDATE users SET name = ${data.name} WHERE id = ${userId}`;
-  if (data.bio !== undefined) await db`UPDATE users SET bio = ${data.bio} WHERE id = ${userId}`;
-  if (data.avatar !== undefined) await db`UPDATE users SET avatar = ${data.avatar} WHERE id = ${userId}`;
+  const hasName   = data.name   !== undefined;
+  const hasBio    = data.bio    !== undefined;
+  const hasAvatar = data.avatar !== undefined;
+  // Single UPDATE — CASE keeps unchanged columns untouched
+  await db`
+    UPDATE users SET
+      name   = CASE WHEN ${hasName}   THEN ${data.name   ?? ''} ELSE name   END,
+      bio    = CASE WHEN ${hasBio}    THEN ${data.bio    ?? ''} ELSE bio    END,
+      avatar = CASE WHEN ${hasAvatar} THEN ${data.avatar ?? ''} ELSE avatar END
+    WHERE id = ${userId}
+  `;
 }
 
 // ─── Seller ratings ──────────────────────────────────────────────────────────
@@ -769,17 +806,23 @@ export async function createOffer(offer: Offer): Promise<void> {
 
 export async function getOffersByUser(userId: string, role: 'buyer' | 'seller'): Promise<(Offer & { item: Item | null })[]> {
   const db = sql();
-  const col = role === 'buyer' ? 'buyer_id' : 'seller_id';
   const rows = role === 'buyer'
-    ? await db`SELECT * FROM offers WHERE buyer_id = ${userId} ORDER BY created_at DESC`
+    ? await db`SELECT * FROM offers WHERE buyer_id  = ${userId} ORDER BY created_at DESC`
     : await db`SELECT * FROM offers WHERE seller_id = ${userId} ORDER BY created_at DESC`;
 
-  return Promise.all(rows.map(async r => ({
+  // Batch-fetch all referenced items in one query instead of N individual lookups
+  const itemIds = [...new Set(rows.map(r => r.item_id as string))];
+  const itemRows = itemIds.length > 0
+    ? await db`SELECT * FROM items WHERE id = ANY(${itemIds})`
+    : [];
+  const itemMap = new Map(itemRows.map(r => [r.id as string, rowToItem(r)]));
+
+  return rows.map(r => ({
     id: r.id as string, buyerId: r.buyer_id as string, sellerId: r.seller_id as string,
     itemId: r.item_id as string, amount: r.amount as number, message: r.message as string,
     status: r.status as Offer['status'], createdAt: Number(r.created_at),
-    item: await getItemById(r.item_id as string),
-  })));
+    item: itemMap.get(r.item_id as string) ?? null,
+  }));
 }
 
 export async function updateOfferStatus(offerId: string, status: 'accepted' | 'declined'): Promise<void> {
@@ -827,12 +870,20 @@ export async function createOrder(order: Order): Promise<void> {
 export async function getOrdersByUser(userId: string, role: 'buyer' | 'seller'): Promise<(Order & { item: Item | null })[]> {
   const db = sql();
   const rows = role === 'buyer'
-    ? await db`SELECT * FROM orders WHERE buyer_id = ${userId} ORDER BY created_at DESC`
+    ? await db`SELECT * FROM orders WHERE buyer_id  = ${userId} ORDER BY created_at DESC`
     : await db`SELECT * FROM orders WHERE seller_id = ${userId} ORDER BY created_at DESC`;
-  return Promise.all(rows.map(async r => ({
+
+  // Batch-fetch all referenced items in one query instead of N individual lookups
+  const itemIds = [...new Set(rows.map(r => r.item_id as string))];
+  const itemRows = itemIds.length > 0
+    ? await db`SELECT * FROM items WHERE id = ANY(${itemIds})`
+    : [];
+  const itemMap = new Map(itemRows.map(r => [r.id as string, rowToItem(r)]));
+
+  return rows.map(r => ({
     ...rowToOrder(r),
-    item: await getItemById(r.item_id as string),
-  })));
+    item: itemMap.get(r.item_id as string) ?? null,
+  }));
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {

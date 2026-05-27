@@ -3,13 +3,13 @@ import { getItems, createItem, ensureSchema, getOrCreateUser, updateUser } from 
 import { getSeedItems, getSeedUsers } from '@/lib/seed';
 
 /**
- * Guard: dev always passes; production requires `x-admin-secret` header
- * matching the ADMIN_SECRET env var.
+ * Guard: always requires the ADMIN_SECRET header (both dev and prod).
+ * This route is NOT in the Clerk public-routes list, so it also requires
+ * a valid Clerk session — the admin secret is a second layer on top.
  */
 function checkAuth(req: NextRequest): NextResponse | null {
-  if (process.env.NODE_ENV !== 'production') return null;
   const secret = req.headers.get('x-admin-secret');
-  if (!secret || secret !== process.env.ADMIN_SECRET) {
+  if (!secret || !process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   return null;

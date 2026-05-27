@@ -7,7 +7,6 @@ const isPublicRoute = createRouteMatcher([
   '/api/items(.*)',
   '/api/search(.*)',
   '/api/trending(.*)',
-  '/api/seed(.*)',
   '/api/classify-batch(.*)',
   '/api/migrate(.*)',
   '/api/stripe/webhook',
