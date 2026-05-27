@@ -256,12 +256,16 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isLoaded || !clerkUser) return;
     refreshConnect();
-    fetch('/api/profile').then(r => r.json()).then(d => {
-      setData(d);
-      setNameInput(d.user.name);
-      setBioInput(d.user.bio ?? '');
-      setLoading(false);
-    });
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(d => {
+        if (!d?.user) throw new Error('Invalid profile response');
+        setData(d);
+        setNameInput(d.user.name ?? '');
+        setBioInput(d.user.bio ?? '');
+      })
+      .catch(err => console.error('Profile load error:', err))
+      .finally(() => setLoading(false));
   }, [isLoaded, clerkUser]);
 
   const saveName = async () => {
@@ -299,7 +303,23 @@ export default function ProfilePage() {
     );
   }
 
-  const { user, liked, listings, notifications, unreadCount, followers, following, ratingAverage, ratingCount } = data!;
+  // API failed — show a retry screen instead of crashing
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-[#0A0A0A] gap-4 px-8 text-center">
+        <p className="text-white font-black text-lg">Couldn&apos;t load profile</p>
+        <p className="text-white/40 text-sm">There was a problem connecting. Check your connection and try again.</p>
+        <button
+          onClick={() => { setLoading(true); fetch('/api/profile').then(r => r.json()).then(d => { if (d?.user) { setData(d); setNameInput(d.user.name ?? ''); setBioInput(d.user.bio ?? ''); } }).catch(() => {}).finally(() => setLoading(false)); }}
+          className="bg-[#E63946] text-white font-black px-6 py-3 rounded-2xl text-sm"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const { user, liked, listings, notifications, unreadCount, followers, following, ratingAverage, ratingCount } = data;
   const handleAt = clerkUser?.username ? `@${clerkUser.username}` : null;
 
   return (
