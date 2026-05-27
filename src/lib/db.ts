@@ -17,17 +17,22 @@ function sql(): NeonQueryFunction<false, false> {
 }
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
-// Module-level guard: DDL runs only once per serverless instance, not on every cold start.
+// Module-level guard: DDL runs only once per serverless instance lifetime.
+// Fired automatically at module load so every route that imports from db.ts
+// gets the schema guaranteed without needing per-route initDb() calls.
 let _schemaInitialized: Promise<void> | null = null;
 
 export async function initDb(): Promise<void> {
   if (_schemaInitialized) return _schemaInitialized;
   _schemaInitialized = _runInitDb().catch(err => {
-    _schemaInitialized = null; // allow retry on failure
+    _schemaInitialized = null; // allow retry on next call
     throw err;
   });
   return _schemaInitialized;
 }
+
+// Auto-fire on module load — runs once per cold start, cached thereafter.
+void initDb();
 
 async function _runInitDb(): Promise<void> {
   const db = sql();
@@ -419,6 +424,7 @@ export async function getSwipedItemIds(userId: string): Promise<Set<string>> {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 export async function getOrCreateUser(userId: string, displayName?: string): Promise<UserProfile> {
+  await initDb();
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE id = ${userId}`;
   if (rows[0]) {
@@ -1369,11 +1375,13 @@ export async function getAllTasteProfileUserIds(): Promise<string[]> {
 // ─── Preferred sizes ─────────────────────────────────────────────────────────
 
 export async function savePreferredSizes(userId: string, sizes: string[]): Promise<void> {
+  await initDb();
   const db = sql();
   await db`UPDATE users SET preferred_sizes = ${JSON.stringify(sizes)} WHERE id = ${userId}`;
 }
 
 export async function getPreferredSizes(userId: string): Promise<string[]> {
+  await initDb();
   const db = sql();
   const rows = await db`SELECT preferred_sizes FROM users WHERE id = ${userId}`;
   if (!rows[0]) return [];
