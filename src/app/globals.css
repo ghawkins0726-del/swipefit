@@ -55,6 +55,12 @@ button, a {
   touch-action: manipulation;
 }
 
+/* ─── Co-founder badge pulse (used via inline style, not Tailwind) ─────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 0.3; }
+}
+
 /* ─── Card ─────────────────────────────────────────────────────────────────── */
 .sf-card {
   background: var(--sf-surface);

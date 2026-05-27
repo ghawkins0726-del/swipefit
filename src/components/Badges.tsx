@@ -16,7 +16,8 @@ export function VerifiedBadge({ size = 'sm' }: { size?: VSize }) {
   const { ring, icon } = V_CFG[size];
   return (
     <span
-      className={`inline-flex items-center justify-center ${ring} rounded-full bg-[#1D9BF0] flex-shrink-0`}
+      className={`inline-flex items-center justify-center ${ring} rounded-full flex-shrink-0`}
+      style={{ backgroundColor: '#1D9BF0' }}
       title="Verified"
     >
       <Check size={icon} strokeWidth={3.5} className="text-white" />
@@ -24,15 +25,47 @@ export function VerifiedBadge({ size = 'sm' }: { size?: VSize }) {
   );
 }
 
-// ── Co-founder glow badge (profile-level display) ─────────────────────────────
+// ── Co-founder glow badge — uses inline styles to guarantee rendering ─────────
+const GRADIENT = 'linear-gradient(to right, #FF2E47, #FF8C00, #FFD700)';
+
 export function CofounderBadge() {
   return (
-    <div className="relative inline-flex items-center">
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       {/* animated glow halo */}
-      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#FF2E47] via-[#FF8C00] to-[#FFD700] blur-[8px] opacity-75 animate-pulse" />
+      <div
+        style={{
+          position: 'absolute',
+          inset: '-4px',
+          borderRadius: '9999px',
+          background: GRADIENT,
+          filter: 'blur(8px)',
+          opacity: 0.7,
+          animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite',
+        }}
+      />
       {/* pill */}
-      <div className="relative flex items-center gap-1 px-3 py-[3px] rounded-full bg-gradient-to-r from-[#FF2E47] via-[#FF8C00] to-[#FFD700] shadow-lg">
-        <span className="text-[9.5px] text-white font-black uppercase tracking-[0.18em] drop-shadow">
+      <div
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '3px 12px',
+          borderRadius: '9999px',
+          background: GRADIENT,
+          boxShadow: '0 4px 15px rgba(255,46,71,0.4)',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '9.5px',
+            color: 'white',
+            fontWeight: 900,
+            textTransform: 'uppercase',
+            letterSpacing: '0.18em',
+            textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+          }}
+        >
           ✦ Co-Founder
         </span>
       </div>
@@ -40,9 +73,8 @@ export function CofounderBadge() {
   );
 }
 
-// ── Profile-page badge row (verified + cofounder stacked neatly) ──────────────
+// ── Profile-page badge row ─────────────────────────────────────────────────────
 export function ProfileBadges({ userId }: { userId: string }) {
-  // Import lazily so this client component doesn't bundle server-only code
   const { isVerified, isCofounder } = require('@/lib/badges') as typeof import('@/lib/badges');
   const verified   = isVerified(userId);
   const cofounder  = isCofounder(userId);
