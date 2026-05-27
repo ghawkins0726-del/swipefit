@@ -109,6 +109,9 @@ export async function initDb(): Promise<void> {
       created_at BIGINT NOT NULL
     )
   `;
+  // Live column migrations — safe to run repeatedly
+  await db`ALTER TABLE offers ADD COLUMN IF NOT EXISTS counter_amount FLOAT`;
+
   // Indexes (IF NOT EXISTS handled via CREATE INDEX … IF NOT EXISTS)
   await db`CREATE INDEX IF NOT EXISTS idx_swipes_user ON swipes(user_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_swipes_item ON swipes(item_id)`;
@@ -734,37 +737,65 @@ export async function getSellerAnalytics(sellerId: string) {
 // ─── Offers ───────────────────────────────────────────────────────────────────
 export async function createOffer(offer: Offer): Promise<void> {
   const db = sql();
-  await db`INSERT INTO offers VALUES (${offer.id}, ${offer.buyerId}, ${offer.sellerId}, ${offer.itemId}, ${offer.amount}, ${offer.message}, ${offer.status}, ${offer.createdAt})`;
+  await db`
+    INSERT INTO offers (id, buyer_id, seller_id, item_id, amount, message, status, created_at, counter_amount)
+    VALUES (${offer.id}, ${offer.buyerId}, ${offer.sellerId}, ${offer.itemId}, ${offer.amount}, ${offer.message}, ${offer.status}, ${offer.createdAt}, ${offer.counterAmount ?? null})
+  `;
   const item = await getItemById(offer.itemId);
   await createNotification({
     id: `notif_${Date.now()}`,
     userId: offer.sellerId,
     type: 'offer',
     title: `New offer on ${item?.title ?? 'your item'}`,
-    body: `Someone offered $${offer.amount}`,
-    payload: JSON.stringify({ offerId: offer.id, itemId: offer.itemId }),
+    body: `$${offer.amount} offer${offer.message ? ` — "${offer.message}"` : ''}`,
+    payload: JSON.stringify({ offerId: offer.id, itemId: offer.itemId, buyerId: offer.buyerId, amount: offer.amount }),
     createdAt: Date.now(),
   });
 }
 
+function rowToOffer(r: Record<string, unknown>): Offer {
+  return {
+    id: r.id as string,
+    buyerId: r.buyer_id as string,
+    sellerId: r.seller_id as string,
+    itemId: r.item_id as string,
+    amount: Number(r.amount),
+    counterAmount: r.counter_amount != null ? Number(r.counter_amount) : undefined,
+    message: r.message as string,
+    status: r.status as Offer['status'],
+    createdAt: Number(r.created_at),
+  };
+}
+
 export async function getOffersByUser(userId: string, role: 'buyer' | 'seller'): Promise<(Offer & { item: Item | null })[]> {
   const db = sql();
-  const col = role === 'buyer' ? 'buyer_id' : 'seller_id';
   const rows = role === 'buyer'
     ? await db`SELECT * FROM offers WHERE buyer_id = ${userId} ORDER BY created_at DESC`
     : await db`SELECT * FROM offers WHERE seller_id = ${userId} ORDER BY created_at DESC`;
 
   return Promise.all(rows.map(async r => ({
-    id: r.id as string, buyerId: r.buyer_id as string, sellerId: r.seller_id as string,
-    itemId: r.item_id as string, amount: r.amount as number, message: r.message as string,
-    status: r.status as Offer['status'], createdAt: Number(r.created_at),
+    ...rowToOffer(r),
     item: await getItemById(r.item_id as string),
   })));
 }
 
-export async function updateOfferStatus(offerId: string, status: 'accepted' | 'declined'): Promise<void> {
+export async function getOfferById(offerId: string): Promise<Offer | null> {
   const db = sql();
-  await db`UPDATE offers SET status = ${status} WHERE id = ${offerId}`;
+  const rows = await db`SELECT * FROM offers WHERE id = ${offerId}`;
+  return rows[0] ? rowToOffer(rows[0]) : null;
+}
+
+export async function updateOfferStatus(
+  offerId: string,
+  status: 'accepted' | 'declined' | 'countered',
+  counterAmount?: number,
+): Promise<void> {
+  const db = sql();
+  if (status === 'countered' && counterAmount != null) {
+    await db`UPDATE offers SET status = ${status}, counter_amount = ${counterAmount} WHERE id = ${offerId}`;
+  } else {
+    await db`UPDATE offers SET status = ${status} WHERE id = ${offerId}`;
+  }
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────

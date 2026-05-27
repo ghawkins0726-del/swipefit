@@ -4,8 +4,9 @@ export interface Offer {
   sellerId: string;
   itemId: string;
   amount: number;
+  counterAmount?: number;   // set when seller counters
   message: string;
-  status: 'pending' | 'accepted' | 'declined';
+  status: 'pending' | 'accepted' | 'declined' | 'countered';
   createdAt: number;
 }
 
