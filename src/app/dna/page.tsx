@@ -24,17 +24,6 @@ type Message =
   | { role: 'user'; text: string }
   | { role: 'ai'; text: string; outfit: OutfitItem[] };
 
-const OCCASIONS = [
-  { label: 'Date night', emoji: '🌙' },
-  { label: 'Job interview', emoji: '💼' },
-  { label: 'Beach day', emoji: '🏄' },
-  { label: 'Night out', emoji: '🕺' },
-  { label: 'Streetwear fit', emoji: '🔥' },
-  { label: 'Travel fit', emoji: '✈️' },
-  { label: 'Sunday brunch', emoji: '☕' },
-  { label: 'Gallery opening', emoji: '🎨' },
-];
-
 const GENRES = [
   { label: 'Streetwear', emoji: '🔥' },
   { label: 'Minimal', emoji: '🤍' },
@@ -416,10 +405,9 @@ export default function DnaPage() {
         {/* ── OUTFIT ARCHITECT TAB ── */}
         {tab === 'outfit' && (
           <>
-            {/* Genre selector + Occasion chips */}
+            {/* Aesthetic genre selector */}
             <div className="flex-shrink-0 bg-white border-b border-[#EBEBEB]">
-              {/* Genre row */}
-              <div className="pt-3 px-4 pb-2">
+              <div className="pt-3 px-4 pb-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#AAAAAA] mb-2">Aesthetic</p>
                 <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                   {GENRES.map(g => (
@@ -432,21 +420,6 @@ export default function DnaPage() {
                       }`}>
                       <span>{g.emoji}</span>
                       {g.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Occasion chips */}
-              <div className="px-4 pb-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#AAAAAA] mb-2">Occasion</p>
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-                  {OCCASIONS.map(o => (
-                    <button key={o.label} onClick={() => sendMessage(o.label)}
-                      disabled={chatLoading}
-                      className="flex-shrink-0 flex items-center gap-1.5 bg-[#F5F4F0] border border-[#EBEBEB] rounded-full px-3.5 py-1.5 text-xs font-bold text-[#0A0A0A] disabled:opacity-40 active:scale-95 transition-all whitespace-nowrap">
-                      <span>{o.emoji}</span>
-                      {o.label}
                     </button>
                   ))}
                 </div>
