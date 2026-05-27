@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import {
   createOffer, getOffersByUser, getOfferById,
-  updateOfferStatus, getItemById, createNotification,
+  updateOfferStatus, getItemById, createNotification, sendMessage,
 } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
@@ -17,16 +17,56 @@ export async function POST(req: NextRequest) {
   const item = await getItemById(itemId);
   if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
 
+  const clerkUser = await currentUser();
+  const buyerName = clerkUser?.username
+    || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
+    || 'SwipeFit User';
+
+  const parsedAmount = parseFloat(amount);
+  const now = Date.now();
+
   await createOffer({
     id: uuid(),
     buyerId,
     sellerId: item.sellerId,
     itemId,
-    amount: parseFloat(amount),
+    amount: parsedAmount,
     message: message || '',
     status: 'pending',
-    createdAt: Date.now(),
+    createdAt: now,
   });
+
+  // Auto-send a message to open the conversation thread
+  const autoText = message
+    ? `I would like to purchase "${item.title}" for $${parsedAmount}. ${message}`
+    : `I would like to purchase "${item.title}" for $${parsedAmount}.`;
+
+  await sendMessage({
+    id: uuid(),
+    senderId: buyerId,
+    senderName: buyerName,
+    receiverId: item.sellerId,
+    itemId,
+    text: autoText,
+    read: false,
+    createdAt: now,
+    replyToId: null,
+    replyToText: null,
+    replyToSender: null,
+    reactions: {},
+  });
+
+  // Notify seller of new offer
+  await createNotification({
+    id: `notif_${now}_${uuid().slice(0, 8)}`,
+    userId: item.sellerId,
+    type: 'offer_received',
+    title: `New offer on "${item.title}"`,
+    body: `${buyerName} offered $${parsedAmount}`,
+    payload: JSON.stringify({ offerId: uuid(), itemId, buyerId, amount: parsedAmount }),
+    createdAt: now,
+  });
+
   return NextResponse.json({ ok: true });
 }
 
