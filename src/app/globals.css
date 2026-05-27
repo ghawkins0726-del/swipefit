@@ -240,3 +240,22 @@ button, a {
 }
 .sf-input:focus { border-color: var(--sf-ink); }
 .sf-input::placeholder { color: var(--sf-ink-3); }
+
+/* Dark variant — for use on black backgrounds with red glow accent */
+.sf-input-dark {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 14px;
+  padding: 13px 16px;
+  font-size: 14px;
+  color: #FFFFFF;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.sf-input-dark:focus {
+  border-color: rgba(230, 57, 70, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.12);
+}
+.sf-input-dark::placeholder { color: rgba(255, 255, 255, 0.30); }
