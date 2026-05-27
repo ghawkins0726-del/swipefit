@@ -280,16 +280,24 @@ export default function SellPage() {
 
         {/* ── Price ── */}
         <Section label="Price" required>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#E63946] font-black text-lg leading-none">$</span>
+          {/* Flex container styled like sf-input-dark so the $ is a real sibling
+              of the number and can never overlap, no matter how bold/long */}
+          <label
+            className="flex items-center gap-2.5 w-full rounded-[14px] px-4 py-3 border transition-colors focus-within:border-[#E63946]/70"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              borderColor: 'rgba(255,255,255,0.10)',
+            }}
+          >
+            <span className="text-[#E63946] font-black text-lg leading-none select-none">$</span>
             <input
               type="number" min="1" step="0.01" placeholder="0"
               value={form.price}
               onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-              className="sf-input-dark pl-11 text-lg font-black"
+              className="flex-1 bg-transparent outline-none border-0 text-white text-lg font-black placeholder-white/30 min-w-0 p-0"
               required
             />
-          </div>
+          </label>
         </Section>
 
         {/* ── Category ── */}
