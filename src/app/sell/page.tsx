@@ -58,7 +58,7 @@ export default function SellPage() {
 
   const [form, setForm] = useState({
     title: '', description: '', price: '',
-    category: '', brand: '', size: '', condition: '',
+    category: '', customType: '', brand: '', size: '', condition: '',
     styles: [] as string[], colors: '',
   });
 
@@ -100,17 +100,24 @@ export default function SellPage() {
       styles: f.styles.includes(s) ? f.styles.filter(x => x !== s) : [...f.styles, s].slice(0, 4),
     }));
 
-  /** When category changes, clear the size since it likely doesn't apply anymore */
+  /** When category changes, clear size + customType so stale values don't leak */
   const setCategory = (value: string) => {
-    setForm(f => ({ ...f, category: value, size: '' }));
+    setForm(f => ({ ...f, category: value, size: '', customType: value === 'other' ? f.customType : '' }));
   };
 
   /* ── Submit ─────────────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.price || !form.category || images.length === 0) return;
+    if (form.category === 'other' && !form.customType.trim()) return;
     setLoading(true);
     setError('');
+
+    // For 'other', the user's typed item type becomes the subcategory
+    const subcategory = form.category === 'other' && form.customType.trim()
+      ? form.customType.trim().toLowerCase()
+      : form.category;
+
     const res = await fetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -118,7 +125,7 @@ export default function SellPage() {
         ...form,
         price: form.price,
         images,
-        subcategory: form.category,
+        subcategory,
         colors: form.colors.split(',').map(c => c.trim()).filter(Boolean),
       }),
     });
@@ -131,7 +138,8 @@ export default function SellPage() {
     }
   };
 
-  const canSubmit = !loading && !uploading && form.title && form.price && form.category && images.length > 0;
+  const otherTypeMissing = form.category === 'other' && !form.customType.trim();
+  const canSubmit = !loading && !uploading && form.title && form.price && form.category && !otherTypeMissing && images.length > 0;
 
   /* ── Success screen ────────────────────────────────────────────────────── */
   if (success) {
@@ -273,12 +281,12 @@ export default function SellPage() {
         {/* ── Price ── */}
         <Section label="Price" required>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white font-black text-base">$</span>
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#E63946] font-black text-lg leading-none">$</span>
             <input
               type="number" min="1" step="0.01" placeholder="0"
               value={form.price}
               onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-              className="sf-input-dark pl-9 text-lg font-black"
+              className="sf-input-dark pl-11 text-lg font-black"
               required
             />
           </div>
@@ -308,6 +316,24 @@ export default function SellPage() {
               );
             })}
           </div>
+
+          {/* Custom item-type field — only when 'Other' is picked */}
+          {form.category === 'other' && (
+            <div className="mt-3">
+              <label className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-1.5 block">
+                What kind of item? <span className="text-[#E63946]">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Hat, Bag, Belt, Watch…"
+                value={form.customType}
+                onChange={e => setForm(f => ({ ...f, customType: e.target.value }))}
+                className="sf-input-dark"
+                maxLength={40}
+                autoFocus
+              />
+            </div>
+          )}
         </Section>
 
         {/* ── Brand & Size (smart per category) ── */}
@@ -473,11 +499,13 @@ export default function SellPage() {
               : 'List for Sale'}
           </button>
 
-          {(!form.title || !form.category || images.length === 0) && (
+          {(!form.title || !form.category || otherTypeMissing || images.length === 0) && (
             <p className="text-center text-xs text-white/40 mt-2.5">
               {images.length === 0 ? 'Add at least one photo to continue' :
                 !form.title ? 'Add a title to continue' :
-                'Select a category to continue'}
+                !form.category ? 'Select a category to continue' :
+                otherTypeMissing ? 'Tell us what kind of item it is' :
+                'Almost there…'}
             </p>
           )}
         </div>
