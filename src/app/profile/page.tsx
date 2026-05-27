@@ -5,9 +5,9 @@ import { useUser, useClerk } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
 import Logo from '@/components/Logo';
 import {
-  Heart, ShoppingBag, Bell, Edit2, Check, X, LogOut, Package2,
+  Heart, ShoppingBag, Edit2, Check, X, LogOut, Package2,
   DollarSign, Loader2, AlertCircle, Settings, Users, MessageSquare,
-  Bookmark, Ruler,
+  Bookmark,
 } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
 import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
@@ -21,28 +21,15 @@ interface FollowerEntry {
   avatar: string;
 }
 
-interface NotificationRow {
-  id: string; title: string; body: string; read: boolean; createdAt: number; type: string;
-}
-
 interface ProfileData {
   user: UserProfile;
   liked: Item[];
   listings: Item[];
-  notifications: NotificationRow[];
-  unreadCount: number;
   purchaseCount: number;
   followers: number;
   following: number;
   ratingAverage: number;
   ratingCount: number;
-}
-
-function timeAgo(ts: number) {
-  const d = Math.floor((Date.now() - ts) / 86400000);
-  if (d === 0) return 'Today';
-  if (d === 1) return 'Yesterday';
-  return `${d}d ago`;
 }
 
 type SheetMode = 'followers' | 'following' | null;
@@ -136,7 +123,7 @@ export default function ProfilePage() {
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut, openUserProfile } = useClerk();
   const [data, setData] = useState<ProfileData | null>(null);
-  const [tab, setTab] = useState<'listings' | 'liked' | 'activity'>('listings');
+  const [tab, setTab] = useState<'listings' | 'liked'>('listings');
   const [loading, setLoading] = useState(true);
   const [sheetMode, setSheetMode] = useState<SheetMode>(null);
 
@@ -287,13 +274,6 @@ export default function ProfilePage() {
     setBioInput(trimmed);
     setEditingBio(false);
   };
-  const markRead = async () => {
-    await fetch('/api/profile', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ markNotificationsRead: true }),
-    });
-    setData(d => d ? { ...d, unreadCount: 0, notifications: d.notifications.map(n => ({ ...n, read: true })) } : d);
-  };
 
   if (loading || !isLoaded) {
     return (
@@ -319,7 +299,7 @@ export default function ProfilePage() {
     );
   }
 
-  const { user, liked, listings, notifications, unreadCount, followers, following, ratingAverage, ratingCount } = data;
+  const { user, liked, listings, followers, following, ratingAverage, ratingCount } = data;
   const handleAt = clerkUser?.username ? `@${clerkUser.username}` : null;
 
   return (
@@ -524,25 +504,17 @@ export default function ProfilePage() {
 
       {/* ── Tabs ── */}
       <div className="sticky top-0 z-20 bg-[#0A0A0A] border-y border-white/8 flex">
-        {[
-          { id: 'listings', icon: ShoppingBag, label: 'Listings', count: listings.length },
-          { id: 'liked',    icon: Heart,       label: 'Liked',    count: liked.length },
-          { id: 'activity', icon: Bell,        label: 'Activity', count: unreadCount },
-        ].map(({ id, icon: Icon, label, count }) => (
+        {([
+          { id: 'listings', icon: ShoppingBag, label: 'Listings' },
+          { id: 'liked',    icon: Heart,       label: 'Liked'    },
+        ] as const).map(({ id, icon: Icon, label }) => (
           <button key={id}
-            onClick={() => { setTab(id as typeof tab); if (id === 'activity' && unreadCount > 0) markRead(); }}
+            onClick={() => setTab(id)}
             className={`flex-1 flex flex-col items-center gap-1 py-3.5 transition-colors relative ${
               tab === id ? 'text-white' : 'text-white/30'
             }`}
           >
-            <div className="relative">
-              <Icon size={20} strokeWidth={tab === id ? 2.4 : 1.8} />
-              {id === 'activity' && unreadCount > 0 && (
-                <span className="absolute -top-1 -right-2 w-3.5 h-3.5 bg-[#E63946] rounded-full text-white text-[8px] font-black flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </div>
+            <Icon size={20} strokeWidth={tab === id ? 2.4 : 1.8} />
             <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
             {tab === id && (
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-[2px] bg-[#E63946] rounded-full" />
@@ -553,9 +525,6 @@ export default function ProfilePage() {
 
       {/* ── Tab content (light bg from here down) ── */}
       <div className="flex-1 bg-[#F5F4F0] px-3 pt-3 pb-28">
-
-        {/* SIZE PREFS — compact chip row shown above listings */}
-        {tab === 'listings' && <SizePrefsRow userId={user.id} initialSizes={(user as UserProfile & { preferredSizes?: string[] }).preferredSizes ?? []} />}
 
         {/* LISTINGS */}
         {tab === 'listings' && (
@@ -608,24 +577,6 @@ export default function ProfilePage() {
           )
         )}
 
-        {/* ACTIVITY */}
-        {tab === 'activity' && (
-          notifications.length === 0 ? (
-            <EmptyState icon={Bell} title="No activity yet" sub="Likes, offers, and sales will appear here" />
-          ) : (
-            <div className="space-y-2 px-1">
-              {notifications.map(n => (
-                <div key={n.id} className={`rounded-2xl p-4 ${n.read ? 'bg-white' : 'bg-[#E63946]/8 border border-[#E63946]/20'} shadow-sm`}>
-                  <div className="flex items-start justify-between gap-2 mb-0.5">
-                    <p className="text-sm font-black text-[#0A0A0A]">{n.title}</p>
-                    <span className="text-[10px] text-[#AAAAAA] flex-shrink-0">{timeAgo(n.createdAt)}</span>
-                  </div>
-                  <p className="text-xs text-[#5A5A5A] leading-relaxed">{n.body}</p>
-                </div>
-              ))}
-            </div>
-          )
-        )}
       </div>
 
       <Navbar />
@@ -634,60 +585,6 @@ export default function ProfilePage() {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '6', '7', '8', '9', '10', '11', '12'];
-
-function SizePrefsRow({ userId, initialSizes }: { userId: string; initialSizes: string[] }) {
-  const [selected, setSelected] = useState<string[]>(initialSizes);
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const toggle = (s: string) => setSelected(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
-
-  const save = async () => {
-    setSaving(true);
-    await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ preferredSizes: selected }),
-    });
-    setSaving(false);
-    setOpen(false);
-  };
-
-  return (
-    <div className="mb-3 bg-white rounded-2xl px-4 py-3 shadow-sm">
-      <button onClick={() => setOpen(o => !o)} className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-2">
-          <Ruler size={14} className="text-[#AAAAAA]" />
-          <span className="font-bold text-[13px] text-[#0A0A0A]">Size filter</span>
-          {selected.length > 0 && (
-            <span className="text-[11px] font-bold text-[#E63946]">{selected.join(', ')}</span>
-          )}
-        </div>
-        <span className="text-[11px] text-[#AAAAAA] font-medium">{open ? 'Done ↑' : 'Edit ↓'}</span>
-      </button>
-      {open && (
-        <div className="mt-3">
-          <div className="flex flex-wrap gap-2 mb-3">
-            {ALL_SIZES.map(s => (
-              <button key={s} onClick={() => toggle(s)}
-                className={`px-3 py-1.5 rounded-lg border-2 text-xs font-bold transition-all ${
-                  selected.includes(s) ? 'border-[#E63946] bg-red-50 text-[#E63946]' : 'border-[#EBEBEB] text-[#5A5A5A]'
-                }`}>
-                {s}
-              </button>
-            ))}
-          </div>
-          <button onClick={save} disabled={saving}
-            className="w-full bg-[#E63946] text-white rounded-xl py-2.5 font-bold text-sm">
-            {saving ? 'Saving…' : 'Save sizes'}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function EmptyState({
   icon: Icon, title, sub, children,
