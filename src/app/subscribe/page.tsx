@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Check, Crown, Zap, Lock, ChevronLeft } from 'lucide-react';
+import { Sparkles, Check, Crown, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 
 const FEATURES = [
   { icon: '⚡', label: 'Daily Drop', desc: 'AI-curated picks matched to your Style DNA every day' },
@@ -41,8 +41,9 @@ export default function SubscribePage() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
 
-      {/* Back button */}
-      <div className="pt-12 px-4 flex-shrink-0">
+      {/* Header: Logo + back */}
+      <div className="pt-12 px-4 flex items-center justify-between flex-shrink-0">
+        <Logo size={26} href="/feed" className="text-white" />
         <button onClick={() => router.back()}
           className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-sm font-medium">
           <ChevronLeft size={16} />
@@ -111,7 +112,7 @@ export default function SubscribePage() {
         <button
           onClick={handleSubscribe}
           disabled={loading}
-          className="w-full bg-gradient-to-r from-[#E63946] to-[#ff5c68] text-white font-black py-5 rounded-2xl text-base uppercase tracking-widest disabled:opacity-50 transition-all active:scale-[0.98] shadow-xl shadow-[#E63946]/40 flex items-center justify-center gap-2"
+          className="btn-halo w-full text-base"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

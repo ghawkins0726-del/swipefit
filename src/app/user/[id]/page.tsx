@@ -12,11 +12,14 @@ interface PublicProfile {
   name: string;
   avatar: string;
   bio: string;
-  followerCount: number;
-  followingCount: number;
-  itemCount: number;
-  isFollowing: boolean;
-  listings: Item[];
+  followers: number;
+  following: number;
+  totalListings: number;
+  viewerFollows: boolean;
+  isSelf: boolean;
+  ratingAverage: number;
+  ratingCount: number;
+  listings?: Item[];
 }
 
 export default function UserProfilePage() {
@@ -27,11 +30,11 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
 
-  const isOwnProfile = clerkUser?.id === targetId;
+  const isOwnProfile = profile?.isSelf ?? clerkUser?.id === targetId;
 
   useEffect(() => {
     if (!targetId) return;
-    fetch(`/api/users/${targetId}?full=1`)
+    fetch(`/api/users/${targetId}?listings=1`)
       .then(r => r.json())
       .then(d => { setProfile(d); setLoading(false); });
   }, [targetId]);
@@ -39,7 +42,7 @@ export default function UserProfilePage() {
   const toggleFollow = async () => {
     if (!profile || followLoading) return;
     setFollowLoading(true);
-    const action = profile.isFollowing ? 'unfollow' : 'follow';
+    const action = profile.viewerFollows ? 'unfollow' : 'follow';
     await fetch('/api/follow', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,8 +50,8 @@ export default function UserProfilePage() {
     });
     setProfile(p => p ? {
       ...p,
-      isFollowing: !p.isFollowing,
-      followerCount: p.followerCount + (p.isFollowing ? -1 : 1),
+      viewerFollows: !p.viewerFollows,
+      followers: p.followers + (p.viewerFollows ? -1 : 1),
     } : p);
     setFollowLoading(false);
   };
@@ -102,12 +105,12 @@ export default function UserProfilePage() {
                 onClick={toggleFollow}
                 disabled={followLoading}
                 className={`px-4 py-2 rounded-2xl font-bold text-sm transition-all ${
-                  profile.isFollowing
+                  profile.viewerFollows
                     ? 'bg-white/10 text-white/70 border border-white/10'
                     : 'bg-[#E63946] text-white'
                 }`}
               >
-                {profile.isFollowing ? 'Following' : 'Follow'}
+                {profile.viewerFollows ? 'Following' : 'Follow'}
               </button>
               <Link
                 href={`/messages/item-direct/${targetId}`}
@@ -134,9 +137,9 @@ export default function UserProfilePage() {
         {/* Social stats */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { value: profile.followerCount, label: 'Followers' },
-            { value: profile.followingCount, label: 'Following' },
-            { value: profile.itemCount, label: 'Items' },
+            { value: profile.followers, label: 'Followers' },
+            { value: profile.following, label: 'Following' },
+            { value: profile.totalListings, label: 'Items' },
           ].map(({ value, label }) => (
             <div key={label} className="bg-white/8 border border-white/8 rounded-2xl py-3 text-center">
               <div className="font-black text-[22px] text-white leading-none">{value}</div>
@@ -148,7 +151,7 @@ export default function UserProfilePage() {
 
       {/* ── Listings grid ── */}
       <div className="flex-1 pb-8">
-        {profile.listings.length === 0 ? (
+        {(profile.listings ?? []).length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-8">
             <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-sm">
               <ShoppingBag size={24} className="text-[#EBEBEB]" />
@@ -161,11 +164,11 @@ export default function UserProfilePage() {
             <div className="flex items-center gap-2 px-5 py-4">
               <Users size={14} className="text-[#AAAAAA]" />
               <span className="text-xs font-bold text-[#AAAAAA] uppercase tracking-wide">
-                {profile.listings.length} listing{profile.listings.length !== 1 ? 's' : ''}
+                {(profile.listings ?? []).length} listing{(profile.listings ?? []).length !== 1 ? 's' : ''}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-px bg-[#EBEBEB]">
-              {profile.listings.map(item => (
+              {(profile.listings ?? []).map(item => (
                 <Link key={item.id} href={`/item/${item.id}`} className="bg-white">
                   <div className="relative aspect-[3/4] bg-[#F5F4F0]">
                     {item.images[0] && (

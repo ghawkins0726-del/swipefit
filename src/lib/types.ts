@@ -40,6 +40,10 @@ export interface UserProfile {
   isPremium: boolean;
   premiumUntil?: number;
   stripeCustomerId?: string;
+  /** Stripe Connect Express account id (acct_...). Set when the user starts seller onboarding. */
+  stripeAccountId?: string;
+  /** True once Stripe confirms the connected account can accept charges + payouts. */
+  stripeAccountReady?: boolean;
 }
 
 export interface UserPreferences {

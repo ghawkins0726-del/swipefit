@@ -1,15 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
 import { TrendingUp, Eye, Heart, ShoppingBag, DollarSign, ArrowLeft, ChevronRight, Clock } from 'lucide-react';
 import { Item } from '@/lib/types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-function getUserId(): string {
-  return localStorage.getItem('swipefit_user_id') || 'anonymous';
-}
 
 interface Analytics {
   items: Item[];
@@ -30,22 +27,23 @@ interface OfferWithItem {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [offers, setOffers] = useState<OfferWithItem[]>([]);
   const [tab, setTab] = useState<'overview' | 'listings' | 'offers'>('overview');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userId = getUserId();
+    if (!isLoaded || !user) return;
     Promise.all([
-      fetch(`/api/analytics?sellerId=${userId}`).then(r => r.json()),
-      fetch(`/api/offers?userId=${userId}&role=seller`).then(r => r.json()),
+      fetch(`/api/analytics?sellerId=${user.id}`).then(r => r.json()),
+      fetch('/api/offers?role=seller').then(r => r.json()),
     ]).then(([a, o]) => {
       setAnalytics(a);
       setOffers(o);
       setLoading(false);
     });
-  }, []);
+  }, [isLoaded, user]);
 
   const handleOfferAction = async (offerId: string, status: 'accepted' | 'declined') => {
     await fetch('/api/offers', {
@@ -56,7 +54,7 @@ export default function DashboardPage() {
     setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status } : o));
   };
 
-  if (loading) {
+  if (loading || !isLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F5F4F0]">
         <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />

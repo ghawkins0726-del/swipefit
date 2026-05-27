@@ -30,13 +30,27 @@ export async function initDb(): Promise<void> {
       total_listings INT DEFAULT 0,
       is_premium BOOLEAN DEFAULT FALSE,
       premium_until BIGINT,
-      stripe_customer_id TEXT
+      stripe_customer_id TEXT,
+      stripe_account_id TEXT,
+      stripe_account_ready BOOLEAN DEFAULT FALSE
     )
   `;
-  // Migration: add premium columns to existing tables
+  // Migration: add columns to existing tables
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until BIGINT`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_id TEXT`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_account_ready BOOLEAN DEFAULT FALSE`;
+  await db`
+    CREATE TABLE IF NOT EXISTS follows (
+      follower_id TEXT NOT NULL,
+      following_id TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (follower_id, following_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`;
   await db`
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY,
@@ -217,16 +231,6 @@ export async function initDb(): Promise<void> {
   `;
   await db`CREATE INDEX IF NOT EXISTS idx_sim_a ON user_similarities(user_a_id, similarity_score DESC)`;
 
-  // ── Social graph ──────────────────────────────────────────────────────────
-  await db`
-    CREATE TABLE IF NOT EXISTS user_follows (
-      follower_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      following_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      created_at   BIGINT NOT NULL,
-      PRIMARY KEY  (follower_id, following_id)
-    )
-  `;
-  await db`CREATE INDEX IF NOT EXISTS idx_follows_following ON user_follows(following_id)`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -346,7 +350,20 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
     const r = rows[0];
     const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
     const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-    return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil, stripeCustomerId: r.stripe_customer_id as string | undefined };
+    return {
+      id: r.id as string,
+      name: r.name as string,
+      avatar: r.avatar as string,
+      bio: r.bio as string,
+      createdAt: Number(r.created_at),
+      totalLikes: r.total_likes as number,
+      totalListings: r.total_listings as number,
+      isPremium,
+      premiumUntil,
+      stripeCustomerId: r.stripe_customer_id as string | undefined,
+      stripeAccountId: r.stripe_account_id as string | undefined,
+      stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
+    };
   }
   const user: UserProfile = {
     id: userId, name: displayName || 'SwipeFit User',
@@ -369,7 +386,56 @@ export async function getUserByStripeCustomer(stripeCustomerId: string): Promise
   const r = rows[0];
   const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
   const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-  return { id: r.id as string, name: r.name as string, avatar: r.avatar as string, bio: r.bio as string, createdAt: Number(r.created_at), totalLikes: r.total_likes as number, totalListings: r.total_listings as number, isPremium, premiumUntil };
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium,
+    premiumUntil,
+    stripeCustomerId: r.stripe_customer_id as string | undefined,
+    stripeAccountId: r.stripe_account_id as string | undefined,
+    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
+  };
+}
+
+/** Set or update a user's Stripe Connect (Express) account id. */
+export async function setStripeAccountId(userId: string, accountId: string): Promise<void> {
+  const db = sql();
+  await db`UPDATE users SET stripe_account_id = ${accountId} WHERE id = ${userId}`;
+}
+
+/** Mark a user's connected account as ready (or not) for charges + payouts. */
+export async function setStripeAccountReady(userId: string, ready: boolean): Promise<void> {
+  const db = sql();
+  await db`UPDATE users SET stripe_account_ready = ${ready} WHERE id = ${userId}`;
+}
+
+/** Look up a user by their Stripe Connect account id — used by webhook handlers. */
+export async function getUserByStripeAccount(stripeAccountId: string): Promise<UserProfile | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM users WHERE stripe_account_id = ${stripeAccountId}`;
+  if (!rows[0]) return null;
+  const r = rows[0];
+  const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
+  const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium,
+    premiumUntil,
+    stripeCustomerId: r.stripe_customer_id as string | undefined,
+    stripeAccountId: r.stripe_account_id as string | undefined,
+    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
+  };
 }
 
 export async function updateUser(userId: string, data: { name?: string; bio?: string; avatar?: string }): Promise<void> {
@@ -377,6 +443,248 @@ export async function updateUser(userId: string, data: { name?: string; bio?: st
   if (data.name !== undefined) await db`UPDATE users SET name = ${data.name} WHERE id = ${userId}`;
   if (data.bio !== undefined) await db`UPDATE users SET bio = ${data.bio} WHERE id = ${userId}`;
   if (data.avatar !== undefined) await db`UPDATE users SET avatar = ${data.avatar} WHERE id = ${userId}`;
+}
+
+// ─── Seller ratings ──────────────────────────────────────────────────────────
+let _ratingsSchemaReady: Promise<void> | null = null;
+async function ensureRatingsSchema(): Promise<void> {
+  if (_ratingsSchemaReady) return _ratingsSchemaReady;
+  _ratingsSchemaReady = (async () => {
+    const db = sql();
+    await db`
+      CREATE TABLE IF NOT EXISTS ratings (
+        order_id TEXT PRIMARY KEY,
+        buyer_id TEXT NOT NULL,
+        seller_id TEXT NOT NULL,
+        stars INT NOT NULL CHECK (stars >= 1 AND stars <= 5),
+        comment TEXT,
+        created_at BIGINT NOT NULL
+      )
+    `;
+    await db`CREATE INDEX IF NOT EXISTS idx_ratings_seller ON ratings(seller_id)`;
+    await db`CREATE INDEX IF NOT EXISTS idx_ratings_buyer  ON ratings(buyer_id)`;
+  })().catch(err => { _ratingsSchemaReady = null; throw err; });
+  return _ratingsSchemaReady;
+}
+
+/** Create or update a rating for an order. Returns the saved row. */
+export async function createOrUpdateRating(
+  orderId: string, buyerId: string, sellerId: string, stars: number, comment?: string,
+): Promise<void> {
+  await ensureRatingsSchema();
+  if (stars < 1 || stars > 5) throw new Error('stars must be 1..5');
+  const db = sql();
+  await db`
+    INSERT INTO ratings (order_id, buyer_id, seller_id, stars, comment, created_at)
+    VALUES (${orderId}, ${buyerId}, ${sellerId}, ${stars}, ${comment ?? null}, ${Date.now()})
+    ON CONFLICT (order_id) DO UPDATE SET
+      stars = EXCLUDED.stars,
+      comment = EXCLUDED.comment,
+      created_at = EXCLUDED.created_at
+  `;
+}
+
+/** Returns the existing rating for an order, if any. */
+export async function getRatingForOrder(orderId: string): Promise<{ stars: number; comment: string | null; createdAt: number } | null> {
+  await ensureRatingsSchema();
+  const db = sql();
+  const rows = await db`SELECT stars, comment, created_at FROM ratings WHERE order_id = ${orderId}`;
+  if (!rows[0]) return null;
+  return {
+    stars: rows[0].stars as number,
+    comment: (rows[0].comment as string | null) ?? null,
+    createdAt: Number(rows[0].created_at),
+  };
+}
+
+/**
+ * Algorithmic average rating for a seller.
+ *
+ * average = SUM(stars) / COUNT(*)        — simple arithmetic mean
+ * count   = number of distinct rated orders
+ *
+ * Returns { average: 0, count: 0 } for new sellers with no ratings yet.
+ */
+export async function getSellerRating(sellerId: string): Promise<{ average: number; count: number }> {
+  await ensureRatingsSchema();
+  const db = sql();
+  const rows = await db`
+    SELECT COUNT(*)::int AS c, COALESCE(AVG(stars), 0)::float AS avg
+    FROM ratings
+    WHERE seller_id = ${sellerId}
+  `;
+  const r = rows[0];
+  return {
+    average: r ? Number(r.avg) : 0,
+    count:   r ? Number(r.c)   : 0,
+  };
+}
+
+// ─── Social graph (follows) ──────────────────────────────────────────────────
+// Lazy schema bootstrap — runs once per serverless instance.
+// CREATE TABLE/INDEX IF NOT EXISTS are no-ops after the first successful call.
+let _followsSchemaReady: Promise<void> | null = null;
+async function ensureFollowsSchema(): Promise<void> {
+  if (_followsSchemaReady) return _followsSchemaReady;
+  _followsSchemaReady = (async () => {
+    const db = sql();
+    await db`
+      CREATE TABLE IF NOT EXISTS follows (
+        follower_id TEXT NOT NULL,
+        following_id TEXT NOT NULL,
+        created_at BIGINT NOT NULL,
+        PRIMARY KEY (follower_id, following_id)
+      )
+    `;
+    await db`CREATE INDEX IF NOT EXISTS idx_follows_follower  ON follows(follower_id)`;
+    await db`CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)`;
+  })().catch(err => {
+    // If migration fails, reset so the next call retries
+    _followsSchemaReady = null;
+    throw err;
+  });
+  return _followsSchemaReady;
+}
+
+/** Returns user public profile by id (no auth required — for public profiles). */
+export async function getUserById(userId: string): Promise<UserProfile | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM users WHERE id = ${userId}`;
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false, // Don't leak premium status on public lookups
+  };
+}
+
+/** Make followerId follow followingId. Idempotent — duplicate follows are silently ignored. */
+export async function followUser(followerId: string, followingId: string): Promise<void> {
+  if (followerId === followingId) return; // Can't follow yourself
+  await ensureFollowsSchema();
+  const db = sql();
+  await db`INSERT INTO follows (follower_id, following_id, created_at) VALUES (${followerId}, ${followingId}, ${Date.now()}) ON CONFLICT (follower_id, following_id) DO NOTHING`;
+}
+
+export async function unfollowUser(followerId: string, followingId: string): Promise<void> {
+  await ensureFollowsSchema();
+  const db = sql();
+  await db`DELETE FROM follows WHERE follower_id = ${followerId} AND following_id = ${followingId}`;
+}
+
+export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
+  await ensureFollowsSchema();
+  const db = sql();
+  const rows = await db`SELECT 1 FROM follows WHERE follower_id = ${followerId} AND following_id = ${followingId} LIMIT 1`;
+  return rows.length > 0;
+}
+
+/** Counts of followers/following for a user. */
+export async function getFollowCounts(userId: string): Promise<{ followers: number; following: number }> {
+  await ensureFollowsSchema();
+  const db = sql();
+  const [f, g] = await Promise.all([
+    db`SELECT COUNT(*)::int AS c FROM follows WHERE following_id = ${userId}`,
+    db`SELECT COUNT(*)::int AS c FROM follows WHERE follower_id  = ${userId}`,
+  ]);
+  return {
+    followers: (f[0]?.c as number) ?? 0,
+    following: (g[0]?.c as number) ?? 0,
+  };
+}
+
+/** Users that followerId follows. Most recent first. */
+export async function getFollowing(userId: string, limit = 100): Promise<(UserProfile & { followedAt: number })[]> {
+  await ensureFollowsSchema();
+  const db = sql();
+  const rows = await db`
+    SELECT u.*, f.created_at AS followed_at
+    FROM follows f
+    JOIN users u ON u.id = f.following_id
+    WHERE f.follower_id = ${userId}
+    ORDER BY f.created_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map(r => ({
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false,
+    followedAt: Number(r.followed_at),
+  }));
+}
+
+/** Users that follow userId. Most recent first. */
+export async function getFollowers(userId: string, limit = 100): Promise<(UserProfile & { followedAt: number })[]> {
+  await ensureFollowsSchema();
+  const db = sql();
+  const rows = await db`
+    SELECT u.*, f.created_at AS followed_at
+    FROM follows f
+    JOIN users u ON u.id = f.follower_id
+    WHERE f.following_id = ${userId}
+    ORDER BY f.created_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map(r => ({
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false,
+    followedAt: Number(r.followed_at),
+  }));
+}
+
+/** Find users by name. Case-insensitive prefix-then-substring match. */
+export async function searchUsers(query: string, excludeUserId?: string, limit = 30): Promise<UserProfile[]> {
+  if (!query.trim()) return [];
+  const db = sql();
+  const q = query.trim();
+  const pattern = `%${q.toLowerCase()}%`;
+  const rows = excludeUserId
+    ? await db`
+        SELECT * FROM users
+        WHERE LOWER(name) LIKE ${pattern}
+          AND id != ${excludeUserId}
+        ORDER BY
+          CASE WHEN LOWER(name) LIKE ${q.toLowerCase() + '%'} THEN 0 ELSE 1 END,
+          total_listings DESC,
+          total_likes DESC
+        LIMIT ${limit}
+      `
+    : await db`
+        SELECT * FROM users
+        WHERE LOWER(name) LIKE ${pattern}
+        ORDER BY
+          CASE WHEN LOWER(name) LIKE ${q.toLowerCase() + '%'} THEN 0 ELSE 1 END,
+          total_listings DESC,
+          total_likes DESC
+        LIMIT ${limit}
+      `;
+  return rows.map(r => ({
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    createdAt: Number(r.created_at),
+    totalLikes: r.total_likes as number,
+    totalListings: r.total_listings as number,
+    isPremium: false,
+  }));
 }
 
 export async function getLikedItems(userId: string): Promise<Item[]> {
@@ -901,93 +1209,3 @@ export async function getCollaborativeItemIds(
   return new Set(rows.map(r => r.item_id as string));
 }
 
-// ─── Social graph ─────────────────────────────────────────────────────────────
-
-export async function followUser(followerId: string, followingId: string): Promise<void> {
-  const db = sql();
-  await db`
-    INSERT INTO user_follows (follower_id, following_id, created_at)
-    VALUES (${followerId}, ${followingId}, ${Date.now()})
-    ON CONFLICT DO NOTHING
-  `;
-}
-
-export async function unfollowUser(followerId: string, followingId: string): Promise<void> {
-  const db = sql();
-  await db`DELETE FROM user_follows WHERE follower_id = ${followerId} AND following_id = ${followingId}`;
-}
-
-export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
-  const db = sql();
-  const rows = await db`
-    SELECT 1 FROM user_follows WHERE follower_id = ${followerId} AND following_id = ${followingId}
-  `;
-  return rows.length > 0;
-}
-
-export async function getFollowerCount(userId: string): Promise<number> {
-  const db = sql();
-  const rows = await db`SELECT COUNT(*)::int AS cnt FROM user_follows WHERE following_id = ${userId}`;
-  return Number(rows[0]?.cnt ?? 0);
-}
-
-export async function getFollowingCount(userId: string): Promise<number> {
-  const db = sql();
-  const rows = await db`SELECT COUNT(*)::int AS cnt FROM user_follows WHERE follower_id = ${userId}`;
-  return Number(rows[0]?.cnt ?? 0);
-}
-
-/** Returns the list of users who follow `userId`, with their names and avatars */
-export async function getFollowers(userId: string): Promise<Array<{ userId: string; name: string; avatar: string }>> {
-  const db = sql();
-  const rows = await db`
-    SELECT u.id, u.name, u.avatar
-    FROM user_follows f
-    JOIN users u ON u.id = f.follower_id
-    WHERE f.following_id = ${userId}
-    ORDER BY f.created_at DESC
-  `;
-  return rows.map(r => ({ userId: r.id as string, name: r.name as string, avatar: r.avatar as string }));
-}
-
-/** Returns the list of users that `userId` follows */
-export async function getFollowing(userId: string): Promise<Array<{ userId: string; name: string; avatar: string }>> {
-  const db = sql();
-  const rows = await db`
-    SELECT u.id, u.name, u.avatar
-    FROM user_follows f
-    JOIN users u ON u.id = f.following_id
-    WHERE f.follower_id = ${userId}
-    ORDER BY f.created_at DESC
-  `;
-  return rows.map(r => ({ userId: r.id as string, name: r.name as string, avatar: r.avatar as string }));
-}
-
-/** Public profile info for a user (used by /user/[id] page) */
-export async function getPublicProfile(
-  targetUserId: string,
-  viewerUserId?: string,
-): Promise<{ id: string; name: string; avatar: string; bio: string; followerCount: number; followingCount: number; itemCount: number; isFollowing: boolean } | null> {
-  const db = sql();
-  const rows = await db`SELECT id, name, avatar, bio FROM users WHERE id = ${targetUserId}`;
-  if (rows.length === 0) return null;
-  const r = rows[0];
-
-  const [followerCount, followingCount, itemCountRows, following] = await Promise.all([
-    getFollowerCount(targetUserId),
-    getFollowingCount(targetUserId),
-    db`SELECT COUNT(*)::int AS cnt FROM items WHERE seller_id = ${targetUserId} AND NOT sold`,
-    viewerUserId ? isFollowing(viewerUserId, targetUserId) : Promise.resolve(false),
-  ]);
-
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    avatar: r.avatar as string,
-    bio: r.bio as string,
-    followerCount,
-    followingCount,
-    itemCount: Number(itemCountRows[0]?.cnt ?? 0),
-    isFollowing: following,
-  };
-}

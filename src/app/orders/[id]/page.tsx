@@ -2,12 +2,13 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, MessageSquare, Package2, Loader2, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Package2, Loader2, Check, Sparkles, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { Order } from '@/lib/db-types';
 import { Item } from '@/lib/types';
 import OrderTracking from '@/components/OrderTracking';
+import RatingModal from '@/components/RatingModal';
 
 type OrderWithItem = Order & { item: Item | null };
 
@@ -39,6 +40,12 @@ function OrderDetailInner() {
   const [tracking, setTracking] = useState('');
   const [updating, setUpdating] = useState(false);
   const [updated, setUpdated] = useState(false);
+  const [sellerName, setSellerName] = useState('the seller');
+
+  // Rating state
+  const [showRating, setShowRating] = useState(false);
+  const [hasRated, setHasRated] = useState(false);
+  const [ratingStars, setRatingStars] = useState(0);
 
   const myId = clerkUser?.id ?? '';
   const searchParams = useSearchParams();
@@ -50,8 +57,32 @@ function OrderDetailInner() {
       .then(d => {
         setOrder(d);
         setTracking(d.trackingNumber ?? '');
+        if (d?.sellerId) {
+          fetch(`/api/users/${d.sellerId}`).then(r => r.json()).then(u => setSellerName(u.name || 'the seller')).catch(() => {});
+        }
       });
+
+    // Has the buyer already rated this order?
+    fetch(`/api/ratings?orderId=${id}`)
+      .then(r => r.json())
+      .then(rating => {
+        if (rating?.stars) {
+          setHasRated(true);
+          setRatingStars(rating.stars);
+        }
+      })
+      .catch(() => {});
   }, [id]);
+
+  // Auto-open the rating sheet right after a successful payment
+  useEffect(() => {
+    if (!order || !isLoaded || !paymentSuccess) return;
+    if (myId !== order.buyerId) return;
+    if (order.status === 'pending_payment' || order.status === 'cancelled') return;
+    if (hasRated) return;
+    const t = setTimeout(() => setShowRating(true), 800);
+    return () => clearTimeout(t);
+  }, [order, isLoaded, myId, paymentSuccess, hasRated]);
 
   const submitTracking = async () => {
     if (!tracking.trim() || !order) return;
@@ -91,6 +122,7 @@ function OrderDetailInner() {
   const canShip = isSeller && order.status === 'processing';
   const canDeliver = isSeller && order.status === 'shipped';
   const canConfirmDelivery = isBuyer && order.status === 'shipped';
+  const canRate = isBuyer && order.status !== 'pending_payment' && order.status !== 'cancelled';
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
@@ -201,6 +233,21 @@ function OrderDetailInner() {
           ))}
         </div>
 
+        {/* Buyer: Rate seller CTA */}
+        {canRate && (
+          <button
+            onClick={() => setShowRating(true)}
+            className={`flex items-center justify-center gap-2 w-full font-black py-3.5 rounded-2xl text-sm uppercase tracking-widest transition-all active:scale-[0.98] ${
+              hasRated
+                ? 'bg-white border-2 border-[#EBEBEB] text-[#0A0A0A]'
+                : 'btn-halo'
+            }`}
+          >
+            <Star size={16} className={hasRated ? 'text-[#FF2E47] fill-[#FF2E47]' : 'fill-white'} />
+            {hasRated ? `Your rating: ${ratingStars} ★ — Edit` : 'Rate the seller'}
+          </button>
+        )}
+
         {/* Message button */}
         {order.itemId && otherUserId && (
           <Link
@@ -212,6 +259,15 @@ function OrderDetailInner() {
           </Link>
         )}
       </div>
+
+      {/* Rating modal */}
+      <RatingModal
+        orderId={order.id}
+        sellerName={sellerName}
+        open={showRating}
+        onClose={() => setShowRating(false)}
+        onSubmitted={(stars) => { setHasRated(true); setRatingStars(stars); }}
+      />
     </div>
   );
 }

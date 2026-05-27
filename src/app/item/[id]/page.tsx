@@ -47,6 +47,7 @@ export default function ItemPage() {
   // Buy sheet
   const [showBuy, setShowBuy] = useState(false);
   const [buyState, setBuyState] = useState<'idle' | 'loading' | 'done'>('idle');
+  const [buyError, setBuyError] = useState('');
 
   // Share toast
   const [copied, setCopied] = useState(false);
@@ -95,6 +96,7 @@ export default function ItemPage() {
   const handleBuy = async () => {
     if (!item || !myId) return;
     setBuyState('loading');
+    setBuyError('');
     const res = await fetch('/api/stripe/item-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -104,7 +106,12 @@ export default function ItemPage() {
     if (data.url) {
       window.location.href = data.url; // hand off to Stripe checkout
     } else {
-      setBuyState('idle'); // e.g. item already sold
+      setBuyState('idle');
+      if (data.code === 'seller_not_onboarded') {
+        setBuyError("This seller hasn't set up payouts yet. We can't process payment until they do.");
+      } else {
+        setBuyError(data.error || 'Something went wrong. Try again.');
+      }
     }
   };
 
@@ -164,12 +171,10 @@ export default function ItemPage() {
 
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-12 pb-3">
-          <button onClick={() => router.back()}
-            className="w-9 h-9 bg-white/10 backdrop-blur rounded-full flex items-center justify-center border border-white/10">
+          <button onClick={() => router.back()} className="btn-halo-icon w-10 h-10">
             <ArrowLeft size={18} className="text-white" />
           </button>
-          <button onClick={share}
-            className="w-9 h-9 bg-white/10 backdrop-blur rounded-full flex items-center justify-center border border-white/10">
+          <button onClick={share} className="btn-halo-icon w-10 h-10">
             <Share2 size={16} className="text-white" />
           </button>
         </div>
@@ -353,27 +358,26 @@ export default function ItemPage() {
           <div className="flex gap-2.5">
             {/* Like */}
             <button onClick={handleLike}
-              className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all ${
+              className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)] ${
                 liked ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-white'
               }`}>
-              <Heart size={19} className={liked ? 'text-[#E63946] fill-[#E63946]' : 'text-[#AAAAAA]'} />
+              <Heart size={20} className={liked ? 'text-[#E63946] fill-[#E63946]' : 'text-[#AAAAAA]'} />
             </button>
 
             {/* Super like */}
             <button onClick={handleSuperLike}
-              className="w-12 h-12 rounded-2xl border-2 border-[#EBEBEB] bg-white flex items-center justify-center hover:border-blue-300 transition-colors">
-              <Zap size={19} className="text-blue-400" />
+              className="w-14 h-14 rounded-2xl border-2 border-[#EBEBEB] bg-white flex items-center justify-center hover:border-blue-300 transition-colors shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)]">
+              <Zap size={20} className="text-blue-400" />
             </button>
 
             {/* Make Offer */}
             <button onClick={() => setShowOffer(true)}
-              className="flex-1 bg-white border-2 border-[#0A0A0A] text-[#0A0A0A] font-black rounded-2xl flex items-center justify-center gap-1.5 text-sm hover:bg-[#F5F4F0] transition-colors">
-              Make Offer
+              className="flex-1 bg-white border-2 border-[#0A0A0A] text-[#0A0A0A] font-black rounded-2xl flex items-center justify-center gap-1.5 text-sm uppercase tracking-widest hover:bg-[#F5F4F0] transition-colors shadow-[0_8px_20px_-8px_rgba(0,0,0,0.2)]">
+              Offer
             </button>
 
             {/* Buy Now */}
-            <button onClick={() => setShowBuy(true)}
-              className="flex-1 bg-[#E63946] text-white font-black rounded-2xl flex items-center justify-center gap-1.5 text-sm shadow-lg shadow-[#E63946]/30 active:scale-95 transition-transform">
+            <button onClick={() => setShowBuy(true)} className="btn-halo flex-1 text-xs">
               <ShoppingBag size={16} />
               Buy ${item.price}
             </button>
@@ -563,10 +567,16 @@ export default function ItemPage() {
                     By placing this order you agree to pay the seller directly. SwipeFit buyer protection covers items significantly not as described.
                   </p>
 
+                  {buyError && (
+                    <div className="bg-[#FF2E47]/10 border border-[#FF2E47]/30 rounded-xl px-3 py-2.5 mb-3">
+                      <p className="text-[#FF2E47] text-xs font-semibold leading-snug">{buyError}</p>
+                    </div>
+                  )}
+
                   <button
                     onClick={handleBuy}
                     disabled={buyState === 'loading'}
-                    className="w-full bg-[#E63946] text-white font-black py-4 rounded-2xl disabled:opacity-60 active:scale-95 transition-all text-sm uppercase tracking-widest shadow-lg shadow-[#E63946]/30"
+                    className="btn-halo w-full text-base"
                   >
                     {buyState === 'loading' ? 'Placing order…' : `Confirm — $${item.price}`}
                   </button>

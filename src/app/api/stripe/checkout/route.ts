@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import Stripe from 'stripe';
-import { getOrCreateUser, setPremium } from '@/lib/db';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-04-22.dahlia' });
+import { getStripe } from '@/lib/stripe';
+import { getOrCreateUser } from '@/lib/db';
 
 export async function POST() {
   const { userId } = await auth();
@@ -17,6 +15,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Already premium' }, { status: 400 });
   }
 
+  const stripe = getStripe();
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],

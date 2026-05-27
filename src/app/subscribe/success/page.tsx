@@ -69,17 +69,15 @@ export default function SubscribeSuccessPage() {
         transition={{ delay: 0.65 }}
         className="w-full max-w-xs space-y-3"
       >
-        <Link href="/dna"
-          className="flex items-center justify-between bg-[#E63946] text-white rounded-2xl px-6 py-4 w-full font-black text-sm uppercase tracking-wider shadow-xl shadow-[#E63946]/30">
-          <div className="flex items-center gap-2">
+        <Link href="/dna" className="btn-halo w-full justify-between">
+          <span className="flex items-center gap-2">
             <Sparkles size={16} />
             Open Daily Drop
-          </div>
+          </span>
           <ArrowRight size={16} />
         </Link>
 
-        <Link href="/feed"
-          className="flex items-center justify-between bg-white/8 border border-white/10 text-white rounded-2xl px-6 py-4 w-full font-bold text-sm">
+        <Link href="/feed" className="btn-halo-ghost w-full justify-between">
           <span>Continue swiping</span>
           <ArrowRight size={16} className="text-white/40" />
         </Link>

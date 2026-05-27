@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import { Camera, X, Loader2, CheckCircle2, ChevronLeft } from 'lucide-react';
 
 const CATEGORIES = [
@@ -120,14 +121,17 @@ export default function SellPage() {
     <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
 
       {/* ── Header ── */}
-      <div className="bg-white border-b border-[#EBEBEB] px-5 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={() => router.back()}
-          className="w-9 h-9 bg-[#F5F4F0] rounded-xl flex items-center justify-center flex-shrink-0">
-          <ChevronLeft size={18} className="text-[#5A5A5A]" />
-        </button>
-        <div>
-          <h1 className="text-lg font-black text-[#0A0A0A] leading-none">List an Item</h1>
-          <p className="text-xs text-[#AAAAAA] mt-0.5 font-medium">Turn your closet into cash</p>
+      <div className="bg-white border-b border-[#EBEBEB] px-5 pt-12 pb-4">
+        <Logo size={26} href="/feed" className="text-[#0A0A0A] mb-3" />
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()}
+            className="w-9 h-9 bg-[#F5F4F0] rounded-xl flex items-center justify-center flex-shrink-0">
+            <ChevronLeft size={18} className="text-[#5A5A5A]" />
+          </button>
+          <div>
+            <h1 className="text-lg font-black text-[#0A0A0A] leading-none">List an Item</h1>
+            <p className="text-xs text-[#AAAAAA] mt-0.5 font-medium">Turn your closet into cash</p>
+          </div>
         </div>
       </div>
 
@@ -346,8 +350,7 @@ export default function SellPage() {
 
         {/* ── Submit ── */}
         <div className="pt-1">
-          <button type="submit" disabled={!canSubmit}
-            className="w-full bg-[#E63946] text-white font-black py-[18px] rounded-2xl disabled:opacity-35 active:scale-95 transition-all text-sm uppercase tracking-widest shadow-lg shadow-[#E63946]/20 flex items-center justify-center gap-2">
+          <button type="submit" disabled={!canSubmit} className="btn-halo w-full text-base">
             {loading
               ? <><Loader2 size={16} className="animate-spin" /> Listing…</>
               : 'List for Sale'}

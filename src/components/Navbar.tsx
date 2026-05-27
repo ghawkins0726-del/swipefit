@@ -39,14 +39,19 @@ export default function Navbar() {
           if (center) {
             return (
               <Link key={label} href={href} className="flex flex-col items-center -mt-5">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
+                <div className={`relative w-16 h-16 rounded-3xl flex items-center justify-center transition-all border ${
                   active
-                    ? 'bg-[#E63946] shadow-[#E63946]/40'
-                    : 'bg-[#0A0A0A] shadow-black/30'
-                }`}>
-                  <Icon size={22} strokeWidth={2} className="text-white" />
+                    ? 'bg-gradient-to-b from-[#FF3B47] to-[#E63946] border-white/15'
+                    : 'bg-gradient-to-b from-[#1a1a1a] to-[#0A0A0A] border-white/10'
+                }`}
+                style={{
+                  boxShadow: active
+                    ? '0 0 0 1px rgba(255,46,71,0.4), 0 0 36px 4px rgba(255,46,71,0.4), 0 14px 28px -8px rgba(255,46,71,0.55), inset 0 1px 0 rgba(255,255,255,0.25)'
+                    : '0 0 28px 0 rgba(0,0,0,0.35), 0 12px 24px -6px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1)',
+                }}>
+                  <Icon size={24} strokeWidth={2.2} className="text-white" />
                 </div>
-                <span className={`text-[9px] font-bold uppercase tracking-wide mt-1 ${active ? 'text-[#E63946]' : 'text-[#AAAAAA]'}`}>
+                <span className={`text-[9px] font-black uppercase tracking-wider mt-1 ${active ? 'text-[#E63946]' : 'text-[#0A0A0A]'}`}>
                   {label}
                 </span>
               </Link>

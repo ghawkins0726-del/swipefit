@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, RefreshCw, ShoppingBag, ChevronRight, Dna, Crown, Lock } from 'lucide-react';
+import { Sparkles, Send, RefreshCw, ShoppingBag, ChevronRight, Dna, Crown } from 'lucide-react';
 import StyleDnaCard from '@/components/StyleDnaCard';
 import { StyleDna } from '@/lib/styleDna';
 import Navbar from '@/components/Navbar';
+import Logo from '@/components/Logo';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 
@@ -104,12 +105,9 @@ export default function DnaPage() {
   };
 
   useEffect(() => {
-    if (tab === 'drop' && drop.length === 0 && !dropBlocked && premiumLoaded) {
-      if (isPremium) {
-        loadDrop();
-      } else {
-        setDropBlocked(true);
-      }
+    // Daily Drop is free for everyone right now — premium gate temporarily disabled.
+    if (tab === 'drop' && drop.length === 0 && !dropBlocked) {
+      loadDrop();
     }
     if (tab === 'outfit' && messages.length === 0) {
       setMessages([{
@@ -168,8 +166,9 @@ export default function DnaPage() {
 
       {/* ── Header ── */}
       <div className="bg-[#0A0A0A] pt-12 px-5 pb-0 flex-shrink-0">
+        <Logo size={26} href="/feed" className="text-white mb-3" />
         <div className="flex items-center gap-2 mb-4">
-          <Dna size={18} className="text-[#E63946]" />
+          <Dna size={18} className="text-[#FF2E47]" />
           <h1 className="font-black text-white text-xl tracking-tight">Style DNA</h1>
         </div>
 
@@ -186,9 +185,6 @@ export default function DnaPage() {
                   ? 'bg-white text-[#0A0A0A] shadow-sm'
                   : 'text-white/40'
               }`}>
-              {t.id === 'drop' && !isPremium && premiumLoaded && (
-                <Lock size={10} className={tab === t.id ? 'text-[#E63946]' : 'text-white/30'} />
-              )}
               {t.label}
             </button>
           ))}
@@ -214,13 +210,12 @@ export default function DnaPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setTab('drop')}
-                    className="flex-1 bg-[#0A0A0A] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider">
+                  <button onClick={() => setTab('drop')} className="btn-halo-dark flex-1 text-xs">
                     <Sparkles size={14} />
                     Daily Drop
                   </button>
                   <button onClick={() => setTab('outfit')}
-                    className="flex-1 border-2 border-[#0A0A0A] text-[#0A0A0A] font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider">
+                    className="flex-1 bg-white text-[#0A0A0A] font-black py-4 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest border-2 border-[#0A0A0A] active:scale-[0.97] transition-transform shadow-[0_8px_20px_-8px_rgba(0,0,0,0.25)]">
                     <ShoppingBag size={14} />
                     Build Outfit
                   </button>
@@ -313,8 +308,7 @@ export default function DnaPage() {
 
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
                   className="w-full max-w-xs">
-                  <Link href="/subscribe"
-                    className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#E63946] to-[#ff5c68] text-white font-black py-4 rounded-2xl text-sm uppercase tracking-widest shadow-lg shadow-[#E63946]/30">
+                  <Link href="/subscribe" className="btn-halo w-full">
                     <Crown size={16} />
                     Unlock Premium · $4.99/mo
                   </Link>
@@ -460,7 +454,7 @@ export default function DnaPage() {
             </div>
 
             {/* Chat — scrollable with bottom padding so messages clear the sticky input bar */}
-            <div className="flex-1 overflow-y-auto px-4 space-y-4 pt-4 pb-[200px] bg-[#F5F4F0]">
+            <div className="flex-1 overflow-y-auto px-4 space-y-4 pt-4 pb-[224px] bg-[#F5F4F0]">
               <AnimatePresence initial={false}>
                 {messages.map((msg, i) => {
                   if (msg.role === 'user') {
@@ -544,10 +538,10 @@ export default function DnaPage() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input — fixed above the navbar, always visible */}
+            {/* Input — fixed above the navbar, with clearance for the raised Swipe button */}
             <div
               className="fixed left-0 right-0 z-40 bg-white border-t border-[#EBEBEB] shadow-[0_-8px_24px_rgba(0,0,0,0.04)]"
-              style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+              style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}
             >
               {/* Label header — makes it obvious this is where to type */}
               <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
@@ -576,7 +570,7 @@ export default function DnaPage() {
                   className="flex-1 bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-4 py-3 text-sm text-[#0A0A0A] placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#E63946] focus:bg-white transition-colors"
                 />
                 <button onClick={() => sendMessage()} disabled={!input.trim() || chatLoading}
-                  className="w-12 h-12 bg-[#E63946] rounded-2xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all shadow-sm shadow-[#E63946]/30 flex-shrink-0">
+                  className="btn-halo-send w-12 h-12 flex-shrink-0">
                   <Send size={16} className="text-white" />
                 </button>
               </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { v4 as uuid } from 'uuid';
+import { getStripe } from '@/lib/stripe';
 import {
   setPremium,
   getUserByStripeCustomer,
@@ -8,9 +9,9 @@ import {
   getOrderById,
   getItemById,
   createNotification,
+  getUserByStripeAccount,
+  setStripeAccountReady,
 } from '@/lib/db';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-04-22.dahlia' });
 
 // 31 days from now in ms — premium window, refreshed on each invoice.paid
 const PREMIUM_MS = 31 * 24 * 3600 * 1000;
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get('stripe-signature')!;
 
+  const stripe = getStripe();
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
@@ -98,6 +100,33 @@ export async function POST(req: NextRequest) {
       if (cid3) {
         const user = await getUserByStripeCustomer(cid3);
         if (user) await setPremium(user.id, false);
+      }
+      break;
+    }
+
+    // ── Connect account status changed ────────────────────────────────────────
+    // Fires whenever a seller finishes onboarding, a requirement clears, or
+    // Stripe flags a restriction. We cache the ready-state in our DB so the
+    // checkout API can fail fast without round-tripping Stripe.
+    case 'account.updated': {
+      const account = event.data.object as Stripe.Account;
+      const user = await getUserByStripeAccount(account.id);
+      if (user) {
+        const ready = !!(account.charges_enabled && account.payouts_enabled && account.details_submitted);
+        if (ready !== user.stripeAccountReady) {
+          await setStripeAccountReady(user.id, ready);
+          if (ready) {
+            await createNotification({
+              id: `notif_${uuid()}`,
+              userId: user.id,
+              type: 'order',
+              title: 'Payouts unlocked 🎉',
+              body: 'Your Stripe account is verified. You can now accept payments on your listings.',
+              payload: JSON.stringify({}),
+              createdAt: Date.now(),
+            });
+          }
+        }
       }
       break;
     }

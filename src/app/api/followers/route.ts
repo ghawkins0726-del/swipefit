@@ -13,9 +13,9 @@ export async function GET(req: NextRequest) {
   const mode = new URL(req.url).searchParams.get('mode');
   if (mode === 'following') {
     const list = await getFollowing(userId);
-    return NextResponse.json(list);
+    return NextResponse.json(list.map(u => ({ userId: u.id, name: u.name, avatar: u.avatar })));
   }
   // default: followers
   const list = await getFollowers(userId);
-  return NextResponse.json(list);
+  return NextResponse.json(list.map(u => ({ userId: u.id, name: u.name, avatar: u.avatar })));
 }
