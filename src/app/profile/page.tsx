@@ -3,9 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
-import { Heart, ShoppingBag, Bell, TrendingUp, Edit2, Check, LogOut, Package2, ChevronRight } from 'lucide-react';
+import { Heart, ShoppingBag, Bell, TrendingUp, Edit2, Check, LogOut, Package2, ChevronRight, X, MessageSquare, Users } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+interface FollowerEntry {
+  userId: string;
+  name: string;
+  avatar: string;
+}
 
 interface ProfileData {
   user: UserProfile;
@@ -14,6 +21,8 @@ interface ProfileData {
   notifications: { id: string; title: string; body: string; read: boolean; createdAt: number; type: string }[];
   unreadCount: number;
   purchaseCount: number;
+  followerCount: number;
+  followingCount: number;
 }
 
 function timeAgo(ts: number) {
@@ -21,6 +30,96 @@ function timeAgo(ts: number) {
   if (d === 0) return 'Today';
   if (d === 1) return 'Yesterday';
   return `${d}d ago`;
+}
+
+type SheetMode = 'followers' | 'following' | null;
+
+function SocialSheet({
+  mode,
+  onClose,
+}: {
+  mode: SheetMode;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [list, setList] = useState<FollowerEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!mode) return;
+    setLoading(true);
+    fetch(`/api/followers?mode=${mode}`)
+      .then(r => r.json())
+      .then(d => { setList(Array.isArray(d) ? d : []); setLoading(false); });
+  }, [mode]);
+
+  if (!mode) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/40 z-40"
+        onClick={onClose}
+      />
+      {/* Sheet */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[75vh] flex flex-col">
+        {/* Handle + title */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EBEBEB]">
+          <div className="w-8 h-1 bg-[#EBEBEB] rounded-full absolute top-3 left-1/2 -translate-x-1/2" />
+          <h2 className="font-black text-[#0A0A0A] text-lg capitalize">{mode}</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 bg-[#F5F4F0] rounded-full flex items-center justify-center"
+          >
+            <X size={14} className="text-[#0A0A0A]" />
+          </button>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 pb-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-7 h-7 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : list.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Users size={32} className="text-[#EBEBEB] mb-3" />
+              <p className="text-[#0A0A0A] font-bold text-sm">No {mode} yet</p>
+            </div>
+          ) : (
+            list.map(person => (
+              <div key={person.userId} className="flex items-center gap-3 py-2">
+                {/* Left: avatar → profile */}
+                <button
+                  onClick={() => { onClose(); router.push(`/user/${person.userId}`); }}
+                  className="w-11 h-11 rounded-2xl bg-[#0A0A0A] flex items-center justify-center text-white font-black text-base flex-shrink-0 active:opacity-70 transition-opacity"
+                  aria-label={`View ${person.name}'s profile`}
+                >
+                  {person.name[0]?.toUpperCase()}
+                </button>
+
+                {/* Name */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[#0A0A0A] text-sm truncate">{person.name}</p>
+                </div>
+
+                {/* Right: Message button */}
+                <Link
+                  href={`/user/${person.userId}`}
+                  onClick={onClose}
+                  className="flex items-center gap-1.5 bg-[#0A0A0A] text-white text-xs font-bold px-3 py-2 rounded-xl"
+                >
+                  <MessageSquare size={12} />
+                  Message
+                </Link>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  );
 }
 
 export default function ProfilePage() {
@@ -31,6 +130,7 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sheetMode, setSheetMode] = useState<SheetMode>(null);
 
   useEffect(() => {
     if (!isLoaded || !clerkUser) return;
@@ -67,11 +167,14 @@ export default function ProfilePage() {
     );
   }
 
-  const { user, liked, listings, notifications, unreadCount, purchaseCount } = data!;
+  const { user, liked, listings, notifications, unreadCount, purchaseCount, followerCount, followingCount } = data!;
   const soldCount = listings.filter(i => i.sold).length;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+
+      {/* ── Followers / Following sheet ── */}
+      <SocialSheet mode={sheetMode} onClose={() => setSheetMode(null)} />
 
       {/* ── Header ── */}
       <div className="bg-[#0A0A0A] pt-14 pb-6 px-5">
@@ -134,8 +237,8 @@ export default function ProfilePage() {
           </p>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-4 gap-2 mb-4">
+        {/* Activity stats */}
+        <div className="grid grid-cols-4 gap-2 mb-3">
           {[
             { value: liked.length,    label: 'Liked' },
             { value: listings.length, label: 'Listed' },
@@ -147,6 +250,24 @@ export default function ProfilePage() {
               <div className="text-white/35 text-[10px] font-semibold mt-1 uppercase tracking-wide">{label}</div>
             </div>
           ))}
+        </div>
+
+        {/* Social stats — clickable to open followers/following sheet */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <button
+            onClick={() => setSheetMode('followers')}
+            className="bg-white/8 border border-white/8 rounded-2xl py-3 text-center active:bg-white/15 transition-colors"
+          >
+            <div className="font-black text-[22px] text-white leading-none">{followerCount}</div>
+            <div className="text-white/35 text-[10px] font-semibold mt-1 uppercase tracking-wide">Followers</div>
+          </button>
+          <button
+            onClick={() => setSheetMode('following')}
+            className="bg-white/8 border border-white/8 rounded-2xl py-3 text-center active:bg-white/15 transition-colors"
+          >
+            <div className="font-black text-[22px] text-white leading-none">{followingCount}</div>
+            <div className="text-white/35 text-[10px] font-semibold mt-1 uppercase tracking-wide">Following</div>
+          </button>
         </div>
 
         {/* Orders link */}

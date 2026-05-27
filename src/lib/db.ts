@@ -216,6 +216,17 @@ export async function initDb(): Promise<void> {
     )
   `;
   await db`CREATE INDEX IF NOT EXISTS idx_sim_a ON user_similarities(user_a_id, similarity_score DESC)`;
+
+  // ── Social graph ──────────────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS user_follows (
+      follower_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      following_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at   BIGINT NOT NULL,
+      PRIMARY KEY  (follower_id, following_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_follows_following ON user_follows(following_id)`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -888,4 +899,95 @@ export async function getCollaborativeItemIds(
     LIMIT ${limit}
   `;
   return new Set(rows.map(r => r.item_id as string));
+}
+
+// ─── Social graph ─────────────────────────────────────────────────────────────
+
+export async function followUser(followerId: string, followingId: string): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO user_follows (follower_id, following_id, created_at)
+    VALUES (${followerId}, ${followingId}, ${Date.now()})
+    ON CONFLICT DO NOTHING
+  `;
+}
+
+export async function unfollowUser(followerId: string, followingId: string): Promise<void> {
+  const db = sql();
+  await db`DELETE FROM user_follows WHERE follower_id = ${followerId} AND following_id = ${followingId}`;
+}
+
+export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
+  const db = sql();
+  const rows = await db`
+    SELECT 1 FROM user_follows WHERE follower_id = ${followerId} AND following_id = ${followingId}
+  `;
+  return rows.length > 0;
+}
+
+export async function getFollowerCount(userId: string): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS cnt FROM user_follows WHERE following_id = ${userId}`;
+  return Number(rows[0]?.cnt ?? 0);
+}
+
+export async function getFollowingCount(userId: string): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS cnt FROM user_follows WHERE follower_id = ${userId}`;
+  return Number(rows[0]?.cnt ?? 0);
+}
+
+/** Returns the list of users who follow `userId`, with their names and avatars */
+export async function getFollowers(userId: string): Promise<Array<{ userId: string; name: string; avatar: string }>> {
+  const db = sql();
+  const rows = await db`
+    SELECT u.id, u.name, u.avatar
+    FROM user_follows f
+    JOIN users u ON u.id = f.follower_id
+    WHERE f.following_id = ${userId}
+    ORDER BY f.created_at DESC
+  `;
+  return rows.map(r => ({ userId: r.id as string, name: r.name as string, avatar: r.avatar as string }));
+}
+
+/** Returns the list of users that `userId` follows */
+export async function getFollowing(userId: string): Promise<Array<{ userId: string; name: string; avatar: string }>> {
+  const db = sql();
+  const rows = await db`
+    SELECT u.id, u.name, u.avatar
+    FROM user_follows f
+    JOIN users u ON u.id = f.following_id
+    WHERE f.follower_id = ${userId}
+    ORDER BY f.created_at DESC
+  `;
+  return rows.map(r => ({ userId: r.id as string, name: r.name as string, avatar: r.avatar as string }));
+}
+
+/** Public profile info for a user (used by /user/[id] page) */
+export async function getPublicProfile(
+  targetUserId: string,
+  viewerUserId?: string,
+): Promise<{ id: string; name: string; avatar: string; bio: string; followerCount: number; followingCount: number; itemCount: number; isFollowing: boolean } | null> {
+  const db = sql();
+  const rows = await db`SELECT id, name, avatar, bio FROM users WHERE id = ${targetUserId}`;
+  if (rows.length === 0) return null;
+  const r = rows[0];
+
+  const [followerCount, followingCount, itemCountRows, following] = await Promise.all([
+    getFollowerCount(targetUserId),
+    getFollowingCount(targetUserId),
+    db`SELECT COUNT(*)::int AS cnt FROM items WHERE seller_id = ${targetUserId} AND NOT sold`,
+    viewerUserId ? isFollowing(viewerUserId, targetUserId) : Promise.resolve(false),
+  ]);
+
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    avatar: r.avatar as string,
+    bio: r.bio as string,
+    followerCount,
+    followingCount,
+    itemCount: Number(itemCountRows[0]?.cnt ?? 0),
+    isFollowing: following,
+  };
 }

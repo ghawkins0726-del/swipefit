@@ -55,30 +55,48 @@ export default function MessagesPage() {
         ) : (
           <div className="space-y-2">
             {conversations.map(c => (
-              <Link
+              /*
+               * TikTok-style split row:
+               *   ■ Left zone  — the avatar circle → opens the other user's profile
+               *   ■ Right zone — name/message preview  → opens the conversation
+               */
+              <div
                 key={`${c.itemId}-${c.otherUserId}`}
-                href={`/messages/${c.itemId}/${c.otherUserId}`}
-                className={`flex items-center gap-3 rounded-2xl p-4 transition-shadow ${
+                className={`flex items-center rounded-2xl overflow-hidden transition-shadow ${
                   c.unread ? 'bg-red-50 border border-red-100' : 'bg-white shadow-sm'
                 }`}
               >
-                <div className="w-12 h-12 rounded-2xl bg-[#0A0A0A] flex items-center justify-center text-white font-black text-lg flex-shrink-0">
-                  {c.otherUserName[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between mb-0.5">
-                    <p className={`text-sm truncate ${c.unread ? 'font-black text-[#0A0A0A]' : 'font-bold text-[#0A0A0A]'}`}>
-                      {c.otherUserName}
-                    </p>
-                    <span className="text-xs text-[#AAAAAA] flex-shrink-0 ml-2">{timeAgo(c.lastMessageAt)}</span>
+                {/* Left: avatar → profile */}
+                <Link
+                  href={`/user/${c.otherUserId}`}
+                  className="flex-shrink-0 p-4 pr-0"
+                  aria-label={`View ${c.otherUserName}'s profile`}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-[#0A0A0A] flex items-center justify-center text-white font-black text-lg select-none">
+                    {c.otherUserName[0]?.toUpperCase()}
                   </div>
-                  <p className="text-xs text-[#E63946] font-semibold truncate mb-0.5">{c.itemTitle}</p>
-                  <p className={`text-xs truncate ${c.unread ? 'text-[#0A0A0A] font-semibold' : 'text-[#AAAAAA]'}`}>
-                    {c.lastMessage}
-                  </p>
-                </div>
-                {c.unread && <div className="w-2.5 h-2.5 bg-[#E63946] rounded-full flex-shrink-0" />}
-              </Link>
+                </Link>
+
+                {/* Right: message info → conversation */}
+                <Link
+                  href={`/messages/${c.itemId}/${c.otherUserId}`}
+                  className="flex-1 min-w-0 flex items-center gap-2 px-4 py-4"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between mb-0.5">
+                      <p className={`text-sm truncate ${c.unread ? 'font-black text-[#0A0A0A]' : 'font-bold text-[#0A0A0A]'}`}>
+                        {c.otherUserName}
+                      </p>
+                      <span className="text-xs text-[#AAAAAA] flex-shrink-0 ml-2">{timeAgo(c.lastMessageAt)}</span>
+                    </div>
+                    <p className="text-xs text-[#E63946] font-semibold truncate mb-0.5">{c.itemTitle}</p>
+                    <p className={`text-xs truncate ${c.unread ? 'text-[#0A0A0A] font-semibold' : 'text-[#AAAAAA]'}`}>
+                      {c.lastMessage}
+                    </p>
+                  </div>
+                  {c.unread && <div className="w-2.5 h-2.5 bg-[#E63946] rounded-full flex-shrink-0" />}
+                </Link>
+              </div>
             ))}
           </div>
         )}

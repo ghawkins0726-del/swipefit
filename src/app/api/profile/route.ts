@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { getOrCreateUser, getLikedItems, getNotifications, getUnreadCount, markAllRead, updateUser, getSellerItems, getOrderCount } from '@/lib/db';
+import { getOrCreateUser, getLikedItems, getNotifications, getUnreadCount, markAllRead, updateUser, getSellerItems, getOrderCount, getFollowerCount, getFollowingCount } from '@/lib/db';
 
 export async function GET() {
   const { userId } = await auth();
@@ -12,15 +12,17 @@ export async function GET() {
     || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
     || 'SwipeFit User';
 
-  const [user, liked, listings, notifications, unreadCount, purchaseCount] = await Promise.all([
+  const [user, liked, listings, notifications, unreadCount, purchaseCount, followerCount, followingCount] = await Promise.all([
     getOrCreateUser(userId, displayName),
     getLikedItems(userId),
     getSellerItems(userId),
     getNotifications(userId),
     getUnreadCount(userId),
     getOrderCount(userId, 'buyer'),
+    getFollowerCount(userId),
+    getFollowingCount(userId),
   ]);
-  return NextResponse.json({ user, liked, listings, notifications, unreadCount, purchaseCount });
+  return NextResponse.json({ user, liked, listings, notifications, unreadCount, purchaseCount, followerCount, followingCount });
 }
 
 export async function PATCH(req: NextRequest) {
