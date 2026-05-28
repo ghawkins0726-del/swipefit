@@ -262,6 +262,15 @@ export async function initDb(): Promise<void> {
 
   // Prevent duplicate offers from same buyer on same item
   await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_offers_buyer_item ON offers(buyer_id, item_id) WHERE status NOT IN ('declined')`;
+
+  // GIN index for full-text search on items (used by searchItems)
+  await db`
+    CREATE INDEX IF NOT EXISTS idx_items_search ON items
+    USING GIN(to_tsvector('english',
+      coalesce(title,'') || ' ' || coalesce(brand,'') || ' ' ||
+      coalesce(description,'') || ' ' || coalesce(subcategory,'')
+    ))
+  `;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -289,40 +298,57 @@ export async function createItem(item: Item): Promise<void> {
       ${item.createdAt}, ${item.likes}, ${item.views}, ${item.sold}
     ) ON CONFLICT (id) DO NOTHING
   `;
+  await db`UPDATE users SET total_listings = total_listings + 1 WHERE id = ${item.sellerId}`;
 }
 
 export async function searchItems(query: string, filters: {
   category?: string; minPrice?: number; maxPrice?: number;
-  condition?: string; sort?: string;
+  condition?: string; sort?: string; limit?: number; offset?: number;
 } = {}): Promise<Item[]> {
   const db = sql();
-  // Build dynamic query safely
-  let rows;
-  const q = `%${query}%`;
-  const orderBy = filters.sort === 'price_asc' ? 'price ASC'
-    : filters.sort === 'price_desc' ? 'price DESC'
-    : filters.sort === 'popular' ? 'likes DESC'
-    : 'created_at DESC';
+  const limit = filters.limit ?? 60;
+  const offset = filters.offset ?? 0;
+  const cat  = filters.category  ?? null;
+  const minP = filters.minPrice  ?? null;
+  const maxP = filters.maxPrice  ?? null;
+  const cond = filters.condition ?? null;
+  const sort = filters.sort ?? '';
+  const q = query.trim();
 
-  // Use a comprehensive query and filter in JS to avoid complex dynamic SQL
-  const all = await db`SELECT * FROM items WHERE NOT sold ORDER BY created_at DESC LIMIT 200`;
-  return all
-    .map(rowToItem)
-    .filter(i => {
-      if (query && !`${i.title} ${i.brand} ${i.description} ${i.subcategory}`.toLowerCase().includes(query.toLowerCase())) return false;
-      if (filters.category && i.category !== filters.category) return false;
-      if (filters.minPrice != null && i.price < filters.minPrice) return false;
-      if (filters.maxPrice != null && i.price > filters.maxPrice) return false;
-      if (filters.condition && i.condition !== filters.condition) return false;
-      return true;
-    })
-    .sort((a, b) =>
-      filters.sort === 'price_asc' ? a.price - b.price
-      : filters.sort === 'price_desc' ? b.price - a.price
-      : filters.sort === 'popular' ? b.likes - a.likes
-      : b.createdAt - a.createdAt
-    )
-    .slice(0, 60);
+  const rows = q
+    ? await db`
+        SELECT * FROM items
+        WHERE NOT sold
+          AND to_tsvector('english',
+                coalesce(title,'') || ' ' || coalesce(brand,'') || ' ' ||
+                coalesce(description,'') || ' ' || coalesce(subcategory,''))
+              @@ plainto_tsquery('english', ${q})
+          AND (${cat}::text IS NULL OR category = ${cat})
+          AND (${minP}::float8 IS NULL OR price >= ${minP})
+          AND (${maxP}::float8 IS NULL OR price <= ${maxP})
+          AND (${cond}::text IS NULL OR condition = ${cond})
+        ORDER BY
+          CASE WHEN ${sort} = 'price_asc'  THEN price END ASC  NULLS LAST,
+          CASE WHEN ${sort} = 'price_desc' THEN price END DESC NULLS LAST,
+          CASE WHEN ${sort} = 'popular'    THEN likes END DESC NULLS LAST,
+          created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+    : await db`
+        SELECT * FROM items
+        WHERE NOT sold
+          AND (${cat}::text IS NULL OR category = ${cat})
+          AND (${minP}::float8 IS NULL OR price >= ${minP})
+          AND (${maxP}::float8 IS NULL OR price <= ${maxP})
+          AND (${cond}::text IS NULL OR condition = ${cond})
+        ORDER BY
+          CASE WHEN ${sort} = 'price_asc'  THEN price END ASC  NULLS LAST,
+          CASE WHEN ${sort} = 'price_desc' THEN price END DESC NULLS LAST,
+          CASE WHEN ${sort} = 'popular'    THEN likes END DESC NULLS LAST,
+          created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+  return rows.map(rowToItem);
 }
 
 export async function getTrendingItems(limit = 20): Promise<Item[]> {
@@ -351,6 +377,7 @@ export async function recordSwipe(swipe: SwipeRecord): Promise<void> {
   `;
   if (swipe.action === 'like' || swipe.action === 'superlike') {
     await db`UPDATE items SET likes = likes + 1 WHERE id = ${swipe.itemId}`;
+    await db`UPDATE users SET total_likes = total_likes + 1 WHERE id = (SELECT seller_id FROM items WHERE id = ${swipe.itemId})`;
   }
   await db`UPDATE items SET views = views + 1 WHERE id = ${swipe.itemId}`;
 }
@@ -883,6 +910,11 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 export async function updateOrderStatus(orderId: string, status: Order['status']): Promise<void> {
   const db = sql();
   await db`UPDATE orders SET status = ${status}, updated_at = ${Date.now()} WHERE id = ${orderId}`;
+}
+
+export async function updateOrderShippingAddress(orderId: string, address: string): Promise<void> {
+  const db = sql();
+  await db`UPDATE orders SET shipping_address = ${address}, updated_at = ${Date.now()} WHERE id = ${orderId}`;
 }
 
 export async function updateOrderTracking(orderId: string, trackingNumber: string): Promise<void> {

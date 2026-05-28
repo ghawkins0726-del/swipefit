@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       itemId,
       platformFeeCents: String(platformFeeCents),
     },
+    shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU'] },
     success_url: `${process.env.NEXT_PUBLIC_URL}/orders/${order.id}?payment=success`,
     cancel_url: `${process.env.NEXT_PUBLIC_URL}/item/${itemId}`,
   });
