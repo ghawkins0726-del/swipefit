@@ -6,6 +6,18 @@ import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
 import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier } from './db-types';
 
+export interface UserPref {
+  userId: string;
+  gender: string;
+  topSizes: string[];
+  bottomSizes: string[];
+  shoeSizes: string[];
+  styles: string[];
+  categories: string[];
+  budgetTier: number;
+  updatedAt: number;
+}
+
 let _sql: NeonQueryFunction<false, false> | null = null;
 
 function sql(): NeonQueryFunction<false, false> {
@@ -234,6 +246,22 @@ export async function initDb(): Promise<void> {
   `;
   await db`CREATE INDEX IF NOT EXISTS idx_sim_a ON user_similarities(user_a_id, similarity_score DESC)`;
 
+  await db`
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      gender TEXT DEFAULT 'all',
+      top_sizes TEXT DEFAULT '[]',
+      bottom_sizes TEXT DEFAULT '[]',
+      shoe_sizes TEXT DEFAULT '[]',
+      styles TEXT DEFAULT '[]',
+      categories TEXT DEFAULT '[]',
+      budget_tier INT DEFAULT 1,
+      updated_at BIGINT NOT NULL
+    )
+  `;
+
+  // Prevent duplicate offers from same buyer on same item
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_offers_buyer_item ON offers(buyer_id, item_id) WHERE status NOT IN ('declined')`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -1210,6 +1238,79 @@ export async function getSimilarUsers(userId: string, topN = 10): Promise<Array<
     LIMIT ${topN}
   `;
   return rows.map(r => ({ userId: r.user_b_id as string, similarityScore: Number(r.similarity_score) }));
+}
+
+// ─── User preferences ─────────────────────────────────────────────────────────
+
+export async function saveUserPreferences(prefs: UserPref): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO user_preferences (user_id, gender, top_sizes, bottom_sizes, shoe_sizes, styles, categories, budget_tier, updated_at)
+    VALUES (
+      ${prefs.userId}, ${prefs.gender},
+      ${JSON.stringify(prefs.topSizes)}, ${JSON.stringify(prefs.bottomSizes)}, ${JSON.stringify(prefs.shoeSizes)},
+      ${JSON.stringify(prefs.styles)}, ${JSON.stringify(prefs.categories)},
+      ${prefs.budgetTier}, ${prefs.updatedAt}
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      gender      = EXCLUDED.gender,
+      top_sizes   = EXCLUDED.top_sizes,
+      bottom_sizes = EXCLUDED.bottom_sizes,
+      shoe_sizes  = EXCLUDED.shoe_sizes,
+      styles      = EXCLUDED.styles,
+      categories  = EXCLUDED.categories,
+      budget_tier = EXCLUDED.budget_tier,
+      updated_at  = EXCLUDED.updated_at
+  `;
+}
+
+export async function getUserPreferences(userId: string): Promise<UserPref | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM user_preferences WHERE user_id = ${userId}`;
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    userId: r.user_id as string,
+    gender: r.gender as string,
+    topSizes: JSON.parse(r.top_sizes as string),
+    bottomSizes: JSON.parse(r.bottom_sizes as string),
+    shoeSizes: JSON.parse(r.shoe_sizes as string),
+    styles: JSON.parse(r.styles as string),
+    categories: JSON.parse(r.categories as string),
+    budgetTier: r.budget_tier as number,
+    updatedAt: Number(r.updated_at),
+  };
+}
+
+// ─── Item editing ─────────────────────────────────────────────────────────────
+
+type ItemUpdates = Partial<Pick<Item, 'title' | 'description' | 'price' | 'originalPrice' | 'images' | 'condition' | 'brand' | 'size' | 'styles' | 'colors'>>;
+
+export async function updateItem(itemId: string, sellerId: string, updates: ItemUpdates): Promise<Item | null> {
+  const db = sql();
+  // Each field updated separately so only changed fields touch the DB.
+  // All queries guard on seller_id so only the owner can edit.
+  if (updates.title !== undefined)
+    await db`UPDATE items SET title = ${updates.title} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.description !== undefined)
+    await db`UPDATE items SET description = ${updates.description} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.price !== undefined)
+    await db`UPDATE items SET price = ${updates.price} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.originalPrice !== undefined)
+    await db`UPDATE items SET original_price = ${updates.originalPrice} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.images !== undefined)
+    await db`UPDATE items SET images = ${JSON.stringify(updates.images)} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.condition !== undefined)
+    await db`UPDATE items SET condition = ${updates.condition} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.brand !== undefined)
+    await db`UPDATE items SET brand = ${updates.brand} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.size !== undefined)
+    await db`UPDATE items SET size = ${updates.size} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.styles !== undefined)
+    await db`UPDATE items SET styles = ${JSON.stringify(updates.styles)} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.colors !== undefined)
+    await db`UPDATE items SET colors = ${JSON.stringify(updates.colors)} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  return getItemById(itemId);
 }
 
 /** All user IDs that have taste profiles (for similarity batch job) */

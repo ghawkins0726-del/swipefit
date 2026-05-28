@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
-import { getItems, recordSwipe } from '@/lib/db';
+import { getItems, recordSwipe, saveUserPreferences } from '@/lib/db';
 import { Item } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { styles, categories, budget } = await req.json();
+  const { styles, categories, budget, gender, topSizes, bottomSizes, shoeSizes } = await req.json();
 
   const allItems = await getItems(500);
   const now = Date.now();
@@ -36,6 +36,19 @@ export async function POST(req: NextRequest) {
   for (const { item, action } of toSwipe) {
     await recordSwipe({ id: uuid(), userId, itemId: item.id, action, timestamp: now - Math.random() * 86400000 });
   }
+
+  // Persist preferences to DB so they survive device changes and power the feed size filter
+  await saveUserPreferences({
+    userId,
+    gender: gender ?? 'all',
+    topSizes: topSizes ?? [],
+    bottomSizes: bottomSizes ?? [],
+    shoeSizes: shoeSizes ?? [],
+    styles: styles ?? [],
+    categories: categories ?? [],
+    budgetTier: budget !== undefined ? parseInt(budget) : 1,
+    updatedAt: now,
+  });
 
   return NextResponse.json({ bootstrapped: toSwipe.length });
 }
