@@ -6,6 +6,18 @@ import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
 import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier } from './db-types';
 
+export interface UserPref {
+  userId: string;
+  gender: string;
+  topSizes: string[];
+  bottomSizes: string[];
+  shoeSizes: string[];
+  styles: string[];
+  categories: string[];
+  budgetTier: number;
+  updatedAt: number;
+}
+
 let _sql: NeonQueryFunction<false, false> | null = null;
 
 function sql(): NeonQueryFunction<false, false> {
@@ -265,30 +277,31 @@ async function _runInitDb(): Promise<void> {
   `;
   await db`CREATE INDEX IF NOT EXISTS idx_sim_a ON user_similarities(user_a_id, similarity_score DESC)`;
 
-  // ── User preferences ──────────────────────────────────────────────────────
-  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_sizes TEXT DEFAULT '[]'`;
+  await db`
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      gender TEXT DEFAULT 'all',
+      top_sizes TEXT DEFAULT '[]',
+      bottom_sizes TEXT DEFAULT '[]',
+      shoe_sizes TEXT DEFAULT '[]',
+      styles TEXT DEFAULT '[]',
+      categories TEXT DEFAULT '[]',
+      budget_tier INT DEFAULT 1,
+      updated_at BIGINT NOT NULL
+    )
+  `;
 
-  // ── Collections / boards ──────────────────────────────────────────────────
+  // Prevent duplicate offers from same buyer on same item
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_offers_buyer_item ON offers(buyer_id, item_id) WHERE status NOT IN ('declined')`;
+
+  // GIN index for full-text search on items (used by searchItems)
   await db`
-    CREATE TABLE IF NOT EXISTS collections (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      emoji TEXT DEFAULT '🗂️',
-      created_at BIGINT NOT NULL
-    )
+    CREATE INDEX IF NOT EXISTS idx_items_search ON items
+    USING GIN(to_tsvector('english',
+      coalesce(title,'') || ' ' || coalesce(brand,'') || ' ' ||
+      coalesce(description,'') || ' ' || coalesce(subcategory,'')
+    ))
   `;
-  await db`CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id)`;
-  await db`
-    CREATE TABLE IF NOT EXISTS collection_items (
-      collection_id TEXT NOT NULL,
-      item_id TEXT NOT NULL,
-      added_at BIGINT NOT NULL,
-      PRIMARY KEY (collection_id, item_id)
-    )
-  `;
-  await db`CREATE INDEX IF NOT EXISTS idx_col_items_col  ON collection_items(collection_id)`;
-  await db`CREATE INDEX IF NOT EXISTS idx_col_items_item ON collection_items(item_id)`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -322,37 +335,56 @@ export async function createItem(item: Item): Promise<void> {
       ${item.createdAt}, ${item.likes}, ${item.views}, ${item.sold}
     ) ON CONFLICT (id) DO NOTHING
   `;
+  await db`UPDATE users SET total_listings = total_listings + 1 WHERE id = ${item.sellerId}`;
 }
 
 export async function searchItems(query: string, filters: {
   category?: string; minPrice?: number; maxPrice?: number;
-  condition?: string; sort?: string;
+  condition?: string; sort?: string; limit?: number; offset?: number;
 } = {}): Promise<Item[]> {
   const db = sql();
-  const pattern = query ? `%${query.toLowerCase()}%` : null;
+  const limit = filters.limit ?? 60;
+  const offset = filters.offset ?? 0;
+  const cat  = filters.category  ?? null;
+  const minP = filters.minPrice  ?? null;
+  const maxP = filters.maxPrice  ?? null;
+  const cond = filters.condition ?? null;
+  const sort = filters.sort ?? '';
+  const q = query.trim();
 
-  // Push all filtering and sorting into Postgres — no JS-side 200-row cap
-  const rows = await db`
-    SELECT * FROM items
-    WHERE NOT sold
-      AND (
-        ${pattern} IS NULL
-        OR LOWER(title)       LIKE ${pattern ?? ''}
-        OR LOWER(brand)       LIKE ${pattern ?? ''}
-        OR LOWER(description) LIKE ${pattern ?? ''}
-        OR LOWER(subcategory) LIKE ${pattern ?? ''}
-      )
-      AND (${filters.category ?? null} IS NULL OR category = ${filters.category ?? null})
-      AND (${filters.minPrice ?? null} IS NULL OR price    >= ${filters.minPrice ?? null})
-      AND (${filters.maxPrice ?? null} IS NULL OR price    <= ${filters.maxPrice ?? null})
-      AND (${filters.condition ?? null} IS NULL OR condition = ${filters.condition ?? null})
-    ORDER BY
-      CASE WHEN ${filters.sort ?? ''} = 'price_asc'  THEN price        END ASC  NULLS LAST,
-      CASE WHEN ${filters.sort ?? ''} = 'price_desc' THEN price        END DESC NULLS LAST,
-      CASE WHEN ${filters.sort ?? ''} = 'popular'    THEN likes        END DESC NULLS LAST,
-      created_at DESC
-    LIMIT 60
-  `;
+  const rows = q
+    ? await db`
+        SELECT * FROM items
+        WHERE NOT sold
+          AND to_tsvector('english',
+                coalesce(title,'') || ' ' || coalesce(brand,'') || ' ' ||
+                coalesce(description,'') || ' ' || coalesce(subcategory,''))
+              @@ plainto_tsquery('english', ${q})
+          AND (${cat}::text IS NULL OR category = ${cat})
+          AND (${minP}::float8 IS NULL OR price >= ${minP})
+          AND (${maxP}::float8 IS NULL OR price <= ${maxP})
+          AND (${cond}::text IS NULL OR condition = ${cond})
+        ORDER BY
+          CASE WHEN ${sort} = 'price_asc'  THEN price END ASC  NULLS LAST,
+          CASE WHEN ${sort} = 'price_desc' THEN price END DESC NULLS LAST,
+          CASE WHEN ${sort} = 'popular'    THEN likes END DESC NULLS LAST,
+          created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
+    : await db`
+        SELECT * FROM items
+        WHERE NOT sold
+          AND (${cat}::text IS NULL OR category = ${cat})
+          AND (${minP}::float8 IS NULL OR price >= ${minP})
+          AND (${maxP}::float8 IS NULL OR price <= ${maxP})
+          AND (${cond}::text IS NULL OR condition = ${cond})
+        ORDER BY
+          CASE WHEN ${sort} = 'price_asc'  THEN price END ASC  NULLS LAST,
+          CASE WHEN ${sort} = 'price_desc' THEN price END DESC NULLS LAST,
+          CASE WHEN ${sort} = 'popular'    THEN likes END DESC NULLS LAST,
+          created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
   return rows.map(rowToItem);
 }
 
@@ -390,8 +422,9 @@ export async function recordSwipe(swipe: SwipeRecord): Promise<void> {
   const isLike  = swipe.action === 'like' || swipe.action === 'superlike';
 
   if (!wasLike && isLike) {
-    // Brand-new like — increment
+    // Brand-new like — increment item likes + seller total_likes
     await db`UPDATE items SET likes = likes + 1 WHERE id = ${swipe.itemId}`;
+    await db`UPDATE users SET total_likes = total_likes + 1 WHERE id = (SELECT seller_id FROM items WHERE id = ${swipe.itemId})`;
   } else if (wasLike && !isLike) {
     // Changed from like → dislike — decrement (floor at 0)
     await db`UPDATE items SET likes = GREATEST(0, likes - 1) WHERE id = ${swipe.itemId}`;
@@ -960,6 +993,11 @@ export async function updateOrderStatus(orderId: string, status: Order['status']
   await db`UPDATE orders SET status = ${status}, updated_at = ${Date.now()} WHERE id = ${orderId}`;
 }
 
+export async function updateOrderShippingAddress(orderId: string, address: string): Promise<void> {
+  const db = sql();
+  await db`UPDATE orders SET shipping_address = ${address}, updated_at = ${Date.now()} WHERE id = ${orderId}`;
+}
+
 export async function updateOrderTracking(orderId: string, trackingNumber: string): Promise<void> {
   const db = sql();
   await db`UPDATE orders SET tracking_number = ${trackingNumber}, status = 'shipped', updated_at = ${Date.now()} WHERE id = ${orderId}`;
@@ -1412,6 +1450,78 @@ export async function getSimilarUsers(userId: string, topN = 10): Promise<Array<
     LIMIT ${topN}
   `;
   return rows.map(r => ({ userId: r.user_b_id as string, similarityScore: Number(r.similarity_score) }));
+}
+
+// ─── User preferences ─────────────────────────────────────────────────────────
+
+export async function saveUserPreferences(prefs: UserPref): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO user_preferences (user_id, gender, top_sizes, bottom_sizes, shoe_sizes, styles, categories, budget_tier, updated_at)
+    VALUES (
+      ${prefs.userId}, ${prefs.gender},
+      ${JSON.stringify(prefs.topSizes)}, ${JSON.stringify(prefs.bottomSizes)}, ${JSON.stringify(prefs.shoeSizes)},
+      ${JSON.stringify(prefs.styles)}, ${JSON.stringify(prefs.categories)},
+      ${prefs.budgetTier}, ${prefs.updatedAt}
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      gender      = EXCLUDED.gender,
+      top_sizes   = EXCLUDED.top_sizes,
+      bottom_sizes = EXCLUDED.bottom_sizes,
+      shoe_sizes  = EXCLUDED.shoe_sizes,
+      styles      = EXCLUDED.styles,
+      categories  = EXCLUDED.categories,
+      budget_tier = EXCLUDED.budget_tier,
+      updated_at  = EXCLUDED.updated_at
+  `;
+}
+
+export async function getUserPreferences(userId: string): Promise<UserPref | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM user_preferences WHERE user_id = ${userId}`;
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    userId: r.user_id as string,
+    gender: r.gender as string,
+    topSizes: JSON.parse(r.top_sizes as string),
+    bottomSizes: JSON.parse(r.bottom_sizes as string),
+    shoeSizes: JSON.parse(r.shoe_sizes as string),
+    styles: JSON.parse(r.styles as string),
+    categories: JSON.parse(r.categories as string),
+    budgetTier: r.budget_tier as number,
+    updatedAt: Number(r.updated_at),
+  };
+}
+
+// ─── Item editing ─────────────────────────────────────────────────────────────
+
+type ItemUpdates = Partial<Pick<Item, 'title' | 'description' | 'price' | 'images' | 'condition' | 'brand' | 'size' | 'styles' | 'colors'>>;
+
+export async function updateItem(itemId: string, sellerId: string, updates: ItemUpdates): Promise<Item | null> {
+  const db = sql();
+  // Each field updated separately so only changed fields touch the DB.
+  // All queries guard on seller_id so only the owner can edit.
+  if (updates.title !== undefined)
+    await db`UPDATE items SET title = ${updates.title} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.description !== undefined)
+    await db`UPDATE items SET description = ${updates.description} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.price !== undefined)
+    await db`UPDATE items SET price = ${updates.price} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+
+  if (updates.images !== undefined)
+    await db`UPDATE items SET images = ${JSON.stringify(updates.images)} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.condition !== undefined)
+    await db`UPDATE items SET condition = ${updates.condition} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.brand !== undefined)
+    await db`UPDATE items SET brand = ${updates.brand} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.size !== undefined)
+    await db`UPDATE items SET size = ${updates.size} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.styles !== undefined)
+    await db`UPDATE items SET styles = ${JSON.stringify(updates.styles)} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  if (updates.colors !== undefined)
+    await db`UPDATE items SET colors = ${JSON.stringify(updates.colors)} WHERE id = ${itemId} AND seller_id = ${sellerId} AND NOT sold`;
+  return getItemById(itemId);
 }
 
 /** All user IDs that have taste profiles (for similarity batch job) */

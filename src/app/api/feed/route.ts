@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getItems, getUserSwipes, getSwipedItemIds, getTasteProfile, getItemClassifications, getCollaborativeItemIds, getSimilarUsers, getPreferredSizes } from '@/lib/db';
+import { getItems, getUserSwipes, getSwipedItemIds, getTasteProfile, getItemClassifications, getCollaborativeItemIds, getSimilarUsers, getUserPreferences } from '@/lib/db';
 import { buildUserPreferences, rankItems } from '@/lib/algorithm';
 import { computeStyleDna, computeMatchScore } from '@/lib/styleDna';
 import { buildTasteBoosts } from '@/lib/scoring';
@@ -27,27 +27,28 @@ export async function GET(req: NextRequest) {
   const batchSize = parseInt(searchParams.get('batch') ?? '10');
 
   // ── Base data (always fetched) ──────────────────────────────────────────────
-  const [allItems, swipes, seenIds, preferredSizes] = await Promise.all([
-    getItems(200),
+  const [allItems, swipes, seenIds, userPrefs] = await Promise.all([
+    getItems(500),
     getUserSwipes(userId),
     getSwipedItemIds(userId),
-    getPreferredSizes(userId),
+    getUserPreferences(userId),
   ]);
 
-  // Apply size filter: if user has selected sizes, exclude items that don't match.
-  // Items with no size (accessories, etc.) always pass through.
-  const sizeFiltered = preferredSizes.length > 0
-    ? allItems.filter(i => !i.size || i.size === 'One Size' || preferredSizes.includes(i.size))
-    : allItems;
+  // Build a flat set of all sizes the user wears for quick lookup
+  const userSizes = new Set<string>([
+    ...(userPrefs?.topSizes ?? []),
+    ...(userPrefs?.bottomSizes ?? []),
+    ...(userPrefs?.shoeSizes ?? []),
+  ]);
 
-  const itemMap = new Map<string, Item>(sizeFiltered.map(i => [i.id, i]));
+  const itemMap = new Map<string, Item>(allItems.map(i => [i.id, i]));
   const prefs   = buildUserPreferences(swipes, itemMap);
 
   const dnaItemMap = new Map(allItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
   const dna = computeStyleDna(swipes, dnaItemMap);
 
   // Existing algorithm produces a ranked list with a score per item
-  const ranked = rankItems(sizeFiltered, prefs, seenIds, sizeFiltered.length); // rank all, slice later
+  const ranked = rankItems(allItems, prefs, seenIds, allItems.length); // rank all, slice later
 
   // ── Taste layer (only if user has enough interaction history) ───────────────
   const tasteProfile = await getTasteProfile(userId);
@@ -71,17 +72,21 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Blend & re-rank ─────────────────────────────────────────────────────────
-  // Compute normalisation denominator once, outside the map
-  const maxRaw = Math.max(...ranked.map(x => x.score), 1);
-
   const scored = ranked.map(r => {
-    if (!tasteActive) return { ...r, _finalScore: r.score };
+    const item = itemMap.get(r.itemId);
 
-    const algoScore = r.score / maxRaw;
+    // Soft size boost: +0.1 when item size matches any of the user's stored sizes.
+    // Kept small so it nudges ranking without overriding freshness or taste signals.
+    const sizeBonus = (userSizes.size > 0 && item && userSizes.has(item.size)) ? 0.10 : 0;
+
+    if (!tasteActive) return { ...r, _finalScore: r.score + sizeBonus };
+
+    // Normalise the algorithm score to [0,1] using the max in this batch
+    const algoScore   = r.score;                            // already 0-1 from rankItems
     const tasteScore  = tasteBoosts.get(r.itemId) ?? 0.5;  // 0.5 = neutral when no classification
     const collabBonus = collabItemIds.has(r.itemId) ? 1 : 0;
 
-    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB;
+    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB + sizeBonus;
     return { ...r, _finalScore: finalScore };
   });
 
@@ -105,9 +110,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     feed,
-    total: sizeFiltered.length - seenIds.size,
+    total: allItems.length - seenIds.size,
     dna,
     tasteActive,
-    preferredSizes,
   });
 }

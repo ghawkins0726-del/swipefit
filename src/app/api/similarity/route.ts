@@ -24,13 +24,17 @@ import { profileSimilarity } from '@/lib/scoring';
 
 const TOP_N = 20; // neighbours to keep per user
 
-function isAdmin(req: NextRequest): boolean {
+function isAuthorized(req: NextRequest): boolean {
+  // Accept requests from Vercel Cron (authorization header set by Vercel)
+  // or manual calls with the admin secret header.
+  const cronAuth = req.headers.get('authorization');
+  if (cronAuth === `Bearer ${process.env.CRON_SECRET}`) return true;
   const secret = req.headers.get('x-admin-secret');
   return !!(process.env.ADMIN_SECRET && secret === process.env.ADMIN_SECRET);
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) {
+  if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

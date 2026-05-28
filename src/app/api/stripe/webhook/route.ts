@@ -6,6 +6,7 @@ import {
   setPremium,
   getUserByStripeCustomer,
   updateOrderStatus,
+  updateOrderShippingAddress,
   getOrderById,
   getItemById,
   createNotification,
@@ -47,6 +48,14 @@ export async function POST(req: NextRequest) {
         if (!orderId) break;
 
         await updateOrderStatus(orderId, 'processing');
+
+        // Persist shipping address collected during checkout
+        const addr = session.collected_information?.shipping_details?.address
+          ?? session.customer_details?.address;
+        if (addr) {
+          const parts = [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean);
+          await updateOrderShippingAddress(orderId, parts.join(', '));
+        }
 
         // Fire notifications for both parties
         const [order, item] = await Promise.all([
