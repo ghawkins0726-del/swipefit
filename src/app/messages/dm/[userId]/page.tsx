@@ -74,9 +74,9 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
         </button>
       </div>
 
+      {/* No itemId → loads all messages between these two users */}
       <MessageThread
         userId={myId}
-        itemId="dm"
         otherUserId={targetId}
         otherName={name}
         otherAvatar={avatar ?? null}

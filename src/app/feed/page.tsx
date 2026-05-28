@@ -78,7 +78,7 @@ export default function FeedPage() {
       </header>
 
       {/* Feed */}
-      <div className="flex-1 overflow-hidden px-4 py-3 pb-20">
+      <div className="flex-1 overflow-hidden px-4 py-3 pb-32">
         {seeded ? (
           <SwipeFeed userId={user.id} />
         ) : (

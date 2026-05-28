@@ -515,8 +515,10 @@ export default function MessagesPage() {
               >
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-[#0A0A0A] flex items-center justify-center text-white font-black text-lg">
-                    {c.otherUserName[0]?.toUpperCase()}
+                  <div className="w-12 h-12 rounded-full bg-[#0A0A0A] flex items-center justify-center text-white font-black text-lg overflow-hidden">
+                    {c.otherUserAvatar
+                      ? <img src={c.otherUserAvatar} alt="" className="w-full h-full object-cover" />
+                      : c.otherUserName[0]?.toUpperCase()}
                   </div>
                   {c.unread && (
                     <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#E63946] rounded-full border-2 border-white" />

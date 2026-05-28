@@ -1,15 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
 import SwipeCard from './SwipeCard';
 import { Item } from '@/lib/types';
 import Link from 'next/link';
-import { Dna, Undo2, BookmarkPlus, X, Check, Plus } from 'lucide-react';
+import { Dna, Undo2 } from 'lucide-react';
 
 interface Props { userId: string; }
-
-interface CollectionStub { id: string; name: string; emoji: string; }
 
 export default function SwipeFeed({ userId }: Props) {
   const [stack, setStack] = useState<(Item & { _reason?: string; matchScore?: number })[]>([]);
@@ -24,16 +22,15 @@ export default function SwipeFeed({ userId }: Props) {
   const [showUndo, setShowUndo] = useState(false);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Save-to-board state
-  const [savingItem, setSavingItem] = useState<Item | null>(null);
-  const [collections, setCollections] = useState<CollectionStub[]>([]);
-  const [newBoardName, setNewBoardName] = useState('');
-  const [creatingBoard, setCreatingBoard] = useState(false);
-  const [savedToIds, setSavedToIds] = useState<Set<string>>(new Set());
+  // ─── Background glow — updated every drag frame via motion values (no re-renders)
+  const cardX = useMotionValue(0);
+  const bgGreenOpacity = useTransform(cardX, [0, 5, 200], [0, 0, 0.18]);
+  const bgRedOpacity   = useTransform(cardX, [-200, -5, 0], [0.18, 0, 0]);
 
+  // ─── Feed batching ────────────────────────────────────────────────────────
   const fetchBatch = useCallback(async () => {
     try {
-      const res = await fetch(`/api/feed?batch=8`);
+      const res = await fetch('/api/feed?batch=8');
       const data = await res.json();
       if (!data.feed?.length) {
         setEmpty(true);
@@ -46,7 +43,7 @@ export default function SwipeFeed({ userId }: Props) {
         setEmpty(false);
         if (data.dna?.confident) setDnaUnlocked(true);
       }
-    } catch {}
+    } catch { /* network error — stay on current stack */ }
     setLoading(false);
   }, []);
 
@@ -55,9 +52,13 @@ export default function SwipeFeed({ userId }: Props) {
     if (stack.length <= 2 && !loading) fetchBatch();
   }, [stack.length, loading, fetchBatch]);
 
+  // ─── Swipe handler ────────────────────────────────────────────────────────
   const handleSwipe = async (action: 'like' | 'dislike' | 'superlike') => {
     const item = stack[0];
     if (!item) return;
+
+    // Reset background glow immediately
+    cardX.set(0);
 
     // Track for undo
     setLastSwiped({ item, action });
@@ -76,14 +77,14 @@ export default function SwipeFeed({ userId }: Props) {
     });
 
     if (swipeCount + 1 === 5) setDnaUnlocked(true);
-    setTimeout(() => setLastAction(null), 700);
+    setTimeout(() => setLastAction(null), 600);
   };
 
+  // ─── Undo ─────────────────────────────────────────────────────────────────
   const handleUndo = async () => {
     if (!lastSwiped) return;
     setShowUndo(false);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    // Put item back on top of stack
     setStack(prev => [lastSwiped.item, ...prev]);
     setSwipeCount(c => Math.max(0, c - 1));
     setLastSwiped(null);
@@ -94,39 +95,11 @@ export default function SwipeFeed({ userId }: Props) {
     });
   };
 
-  const openSaveModal = async (item: Item) => {
-    setSavingItem(item);
-    setSavedToIds(new Set());
-    const res = await fetch('/api/collections');
-    const data = await res.json();
-    setCollections(Array.isArray(data) ? data : []);
-  };
+  // ─── Exit animation values ────────────────────────────────────────────────
+  const exitX = lastAction === 'like' ? 600 : -600;
+  const exitRotate = lastAction === 'like' ? 22 : -22;
 
-  const saveToBoard = async (collectionId: string) => {
-    if (!savingItem) return;
-    await fetch(`/api/collections/${collectionId}/items`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId: savingItem.id }),
-    });
-    setSavedToIds(prev => new Set([...prev, collectionId]));
-  };
-
-  const createBoard = async () => {
-    if (!newBoardName.trim()) return;
-    setCreatingBoard(true);
-    const res = await fetch('/api/collections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newBoardName.trim(), emoji: '📌' }),
-    });
-    const col = await res.json();
-    setCollections(prev => [col, ...prev]);
-    setNewBoardName('');
-    setCreatingBoard(false);
-    if (savingItem) await saveToBoard(col.id);
-  };
-
+  // ─── Loading / empty states ───────────────────────────────────────────────
   if (loading && stack.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -156,13 +129,31 @@ export default function SwipeFeed({ userId }: Props) {
     );
   }
 
-  const exitX = lastAction === 'like' || lastAction === 'superlike' ? 500 : -500;
-
   return (
     <div className="relative w-full h-full flex flex-col items-center">
 
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between z-20 pointer-events-none px-1">
+      {/* ── Reactive background glow behind the card stack ── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Green glow (right drag / like) */}
+        <motion.div
+          style={{
+            opacity: bgGreenOpacity,
+            background: 'radial-gradient(ellipse at center, rgba(0,200,80,0.25) 0%, transparent 70%)',
+          }}
+          className="absolute inset-[-30px] rounded-3xl"
+        />
+        {/* Red glow (left drag / pass) */}
+        <motion.div
+          style={{
+            opacity: bgRedOpacity,
+            background: 'radial-gradient(ellipse at center, rgba(230,57,70,0.25) 0%, transparent 70%)',
+          }}
+          className="absolute inset-[-30px] rounded-3xl"
+        />
+      </div>
+
+      {/* ── Top bar ── */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between z-20 pointer-events-none px-1 py-0.5">
         {swipeCount > 0 && (
           <div className="text-[10px] font-bold text-[#AAAAAA] uppercase tracking-wide">
             {swipeCount} swiped
@@ -176,47 +167,61 @@ export default function SwipeFeed({ userId }: Props) {
         )}
       </div>
 
-      {/* Swipe action badge */}
+      {/* ── Swipe action badge ── */}
       <AnimatePresence>
         {lastAction && (
           <motion.div
             key={lastAction + swipeCount}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className={`absolute top-6 z-30 px-4 py-1.5 rounded-full font-black text-xs uppercase tracking-widest text-white ${
-              lastAction === 'like' ? 'bg-[#00C851]'
-              : lastAction === 'superlike' ? 'bg-blue-500'
-              : 'bg-[#E63946]'
+            initial={{ opacity: 0, scale: 0.7, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -4 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            className={`absolute top-6 z-30 px-5 py-1.5 rounded-full font-black text-xs uppercase tracking-widest text-white shadow-lg ${
+              lastAction === 'like' ? 'bg-[#00C851] shadow-[#00C851]/40' : 'bg-[#E63946] shadow-[#E63946]/40'
             }`}
           >
-            {lastAction === 'like' ? '❤ Liked' : lastAction === 'superlike' ? '⚡ Super' : '✕ Pass'}
+            {lastAction === 'like' ? '❤ Liked' : '✕ Pass'}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Card stack */}
+      {/* ── Card stack ── */}
       <div className="relative w-full flex-1 mt-6" style={{ maxWidth: 400 }}>
         <AnimatePresence>
           {stack.slice(0, 3).map((item, index) => (
             <motion.div
               key={item.id}
-              style={{ zIndex: 10 - index, scale: 1 - index * 0.035, y: index * 8 }}
-              exit={{ x: exitX, opacity: 0, rotate: lastAction === 'like' ? 15 : -15, transition: { duration: 0.22 } }}
+              style={{
+                zIndex: 10 - index,
+                // Back cards peek behind with scale + vertical offset
+                scale: 1 - index * 0.04,
+                y: index * 10,
+              }}
+              exit={{
+                x: exitX,
+                opacity: 0,
+                rotate: exitRotate,
+                transition: {
+                  type: 'spring',
+                  stiffness: 280,
+                  damping: 28,
+                  opacity: { duration: 0.18 },
+                },
+              }}
               className="absolute inset-0"
             >
               <SwipeCard
                 item={item}
                 onSwipe={handleSwipe}
                 isTop={index === 0}
-                onSave={index === 0 ? () => openSaveModal(item) : undefined}
+                onDragUpdate={index === 0 ? (xVal) => cardX.set(xVal) : undefined}
               />
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
 
-      {/* Hint on first load */}
+      {/* ── First-use hint ── */}
       {swipeCount === 0 && stack.length > 0 && (
         <motion.p
           initial={{ opacity: 0 }}
@@ -228,97 +233,23 @@ export default function SwipeFeed({ userId }: Props) {
         </motion.p>
       )}
 
-      {/* Undo button */}
+      {/* ── Undo pill ── */}
       <AnimatePresence>
         {showUndo && lastSwiped && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40"
           >
             <button
               onClick={handleUndo}
-              className="flex items-center gap-2 bg-[#0A0A0A] text-white px-4 py-2.5 rounded-full font-bold text-sm shadow-xl"
+              className="flex items-center gap-2 bg-[#0A0A0A] text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-xl active:scale-95 transition-transform"
             >
               <Undo2 size={14} />
               Undo
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Save-to-board modal */}
-      <AnimatePresence>
-        {savingItem && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex items-end"
-            onClick={e => { if (e.target === e.currentTarget) setSavingItem(null); }}
-          >
-            <div className="absolute inset-0 bg-black/40" onClick={() => setSavingItem(null)} />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="relative w-full bg-white rounded-t-3xl px-5 pt-4 pb-8 z-10"
-            >
-              {/* Handle */}
-              <div className="w-10 h-1 bg-[#E8E8E8] rounded-full mx-auto mb-4" />
-
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-black text-[#0A0A0A] text-[17px]">Save to board</h3>
-                <button onClick={() => setSavingItem(null)}>
-                  <X size={20} className="text-[#AAAAAA]" />
-                </button>
-              </div>
-
-              {/* New board input */}
-              <div className="flex gap-2 mb-4">
-                <input
-                  value={newBoardName}
-                  onChange={e => setNewBoardName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && createBoard()}
-                  placeholder="New board name..."
-                  className="flex-1 bg-[#F5F4F0] rounded-xl px-3 py-2.5 text-sm font-medium text-[#0A0A0A] outline-none placeholder:text-[#AAAAAA]"
-                />
-                <button
-                  onClick={createBoard}
-                  disabled={creatingBoard || !newBoardName.trim()}
-                  className="w-10 h-10 bg-[#E63946] rounded-xl flex items-center justify-center disabled:opacity-40"
-                >
-                  <Plus size={18} className="text-white" />
-                </button>
-              </div>
-
-              {/* Existing boards */}
-              {collections.length === 0 ? (
-                <p className="text-[#AAAAAA] text-sm text-center py-4">No boards yet — create one above</p>
-              ) : (
-                <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
-                  {collections.map(col => {
-                    const saved = savedToIds.has(col.id);
-                    return (
-                      <button
-                        key={col.id}
-                        onClick={() => !saved && saveToBoard(col.id)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
-                          saved ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-[#F5F4F0]'
-                        }`}
-                      >
-                        <span className="text-xl">{col.emoji}</span>
-                        <span className="font-bold text-[#0A0A0A] text-sm flex-1">{col.name}</span>
-                        {saved && <Check size={16} className="text-[#E63946]" />}
-                        {!saved && <BookmarkPlus size={16} className="text-[#AAAAAA]" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -7,7 +7,6 @@ import Logo from '@/components/Logo';
 import {
   Heart, ShoppingBag, Edit2, Check, X, LogOut, Package2,
   DollarSign, Loader2, AlertCircle, Settings, Users, MessageSquare,
-  Bookmark,
 } from 'lucide-react';
 import { Item, UserProfile } from '@/lib/types';
 import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
@@ -415,9 +414,6 @@ export default function ProfilePage() {
           <div className="mt-5 flex items-center gap-2 w-full max-w-sm">
             <Link href="/orders" className="btn-halo-ghost flex-1 text-xs">
               <Package2 size={13} /> My Orders
-            </Link>
-            <Link href="/boards" className="btn-halo-ghost flex-1 text-xs">
-              <Bookmark size={13} /> My Boards
             </Link>
 
             {/* Stripe Connect — compact halo button */}

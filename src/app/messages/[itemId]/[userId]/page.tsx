@@ -9,6 +9,8 @@ import MessageThread from '@/components/MessageThread';
 import MessageInput from '@/components/MessageInput';
 import { Offer } from '@/lib/db-types';
 import { Item } from '@/lib/types';
+import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
+import { isVerified, isCofounder } from '@/lib/badges';
 
 type OfferWithItem = Offer & { item: Item | null };
 
@@ -84,6 +86,24 @@ export default function ConversationPage() {
       });
       setPendingOffer(o => o ? { ...o, status, counterAmount: counterAmount ?? o.counterAmount } : o);
       setCounterMode(false);
+
+      // Post offer action as a visible message in the thread
+      let msgText = '';
+      if (status === 'countered' && counterAmount != null)
+        msgText = `💰 Counter offer: $${counterAmount}`;
+      else if (status === 'accepted')
+        msgText = `✅ Offer accepted at $${pendingOffer.amount} — tap Activity to pay`;
+      else if (status === 'declined')
+        msgText = `✕ Offer declined`;
+
+      if (msgText) {
+        await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId, receiverId: otherUserId, text: msgText }),
+        });
+        setRefreshSignal(s => s + 1);
+      }
     } finally {
       setOfferActing(false);
     }
@@ -307,16 +327,26 @@ export default function ConversationPage() {
 
         {/* Clickable avatar → other user's profile */}
         <Link href={`/user/${otherUserId}`}
-          className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white font-black flex-shrink-0 active:opacity-70 transition-opacity"
+          className="w-11 h-11 rounded-full overflow-hidden bg-white/10 flex items-center justify-center text-white font-black flex-shrink-0 active:opacity-70 transition-opacity border-2 border-white/15"
           aria-label={`View ${otherName}'s profile`}
         >
-          {(otherName || '?')[0].toUpperCase()}
+          {otherAvatar
+            ? <img src={otherAvatar} alt={otherName} className="w-full h-full object-cover" />
+            : <span className="text-base">{(otherName || '?')[0].toUpperCase()}</span>}
         </Link>
 
         <div className="flex-1 min-w-0">
-          <p className="font-black text-white text-base truncate">{otherName || '…'}</p>
-          {itemTitle && (
-            <p className="text-xs text-white/40 flex items-center gap-1 truncate">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="font-black text-white text-base leading-tight">{otherName || '…'}</p>
+            {isVerified(otherUserId) && <VerifiedBadge size="sm" />}
+          </div>
+          {isCofounder(otherUserId) && (
+            <div className="mt-1">
+              <CofounderBadge />
+            </div>
+          )}
+          {itemTitle && !isCofounder(otherUserId) && (
+            <p className="text-xs text-white/40 flex items-center gap-1 truncate mt-0.5">
               <Package2 size={10} />
               {itemTitle}
             </p>

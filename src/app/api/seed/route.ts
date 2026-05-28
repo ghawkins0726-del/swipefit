@@ -21,12 +21,8 @@ export async function POST(req: NextRequest) {
 
   await ensureSchema();
 
-  // Check if already seeded (avoid double-seeding)
-  const existing = await getItems(1);
-  if (existing.length > 0) {
-    const all = await getItems(500);
-    return NextResponse.json({ message: 'Already seeded', count: all.length });
-  }
+  // Always insert all seed data — createItem + getOrCreateUser are both
+  // ON CONFLICT DO NOTHING, so re-running is fully safe and just adds new items.
 
   // 1. Seed seller user records first so FK relationships are valid
   const users = getSeedUsers();
@@ -35,16 +31,18 @@ export async function POST(req: NextRequest) {
     await updateUser(user.id, { bio: user.bio, avatar: user.avatar });
   }
 
-  // 2. Seed items
+  // 2. Seed items (new items get inserted; existing IDs are silently skipped)
   const items = getSeedItems();
   for (const item of items) {
     await createItem(item);
   }
 
+  const all = await getItems(500);
   return NextResponse.json({
     message: 'Seeded',
     users: users.length,
-    items: items.length,
+    itemsAttempted: items.length,
+    itemsInDb: all.length,
   });
 }
 

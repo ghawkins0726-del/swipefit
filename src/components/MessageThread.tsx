@@ -6,7 +6,7 @@ import MessageBubble from './MessageBubble';
 
 interface Props {
   userId: string;
-  itemId: string;
+  itemId?: string;  // omit to load all messages between the two users
   otherUserId: string;
   otherName: string;
   otherAvatar: string | null;
@@ -20,17 +20,21 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/messages?itemId=${itemId}&otherId=${otherUserId}`);
+    const url = itemId
+      ? `/api/messages?itemId=${itemId}&otherId=${otherUserId}`
+      : `/api/messages?otherId=${otherUserId}`;
+    const res = await fetch(url);
     const data = await res.json();
     setMessages(Array.isArray(data) ? data : []);
     setLoading(false);
   }, [itemId, otherUserId]);
 
   useEffect(() => {
+    // Mark all messages from this user as read (across all items when no itemId)
     fetch('/api/messages', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senderId: otherUserId, itemId }),
+      body: JSON.stringify({ senderId: otherUserId, ...(itemId ? { itemId } : {}) }),
     });
   }, [otherUserId, itemId]);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
-import { sendMessage, getConversation, markMessagesRead, getItemById, createNotification, getConversationList, getUnreadMessageCount } from '@/lib/db';
+import { sendMessage, getConversation, getAllMessagesBetween, markMessagesRead, markAllMessagesReadFromSender, getItemById, createNotification, getConversationList, getUnreadMessageCount } from '@/lib/db';
 
 
 export async function POST(req: NextRequest) {
@@ -54,8 +54,12 @@ export async function GET(req: NextRequest) {
   if (searchParams.get('list') === 'true') {
     return NextResponse.json(await getConversationList(userId));
   }
-  if (!itemId || !otherId) {
-    return NextResponse.json({ error: 'Missing itemId or otherId' }, { status: 400 });
+  if (!otherId) {
+    return NextResponse.json({ error: 'Missing otherId' }, { status: 400 });
+  }
+  // No itemId → return all messages between the two users (unified view)
+  if (!itemId) {
+    return NextResponse.json(await getAllMessagesBetween(userId, otherId));
   }
   return NextResponse.json(await getConversation(userId, itemId, otherId));
 }
@@ -66,9 +70,13 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
   const { senderId, itemId } = body;
-  if (!senderId || !itemId) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  if (!senderId) {
+    return NextResponse.json({ error: 'Missing senderId' }, { status: 400 });
   }
-  await markMessagesRead(userId, senderId, itemId);
+  if (itemId) {
+    await markMessagesRead(userId, senderId, itemId);
+  } else {
+    await markAllMessagesReadFromSender(userId, senderId);
+  }
   return NextResponse.json({ ok: true });
 }

@@ -1028,6 +1028,55 @@ export async function markMessagesRead(userId: string, senderId: string, itemId:
   `;
 }
 
+/** Mark ALL unread messages from senderId to userId as read (across all items). */
+export async function markAllMessagesReadFromSender(userId: string, senderId: string): Promise<void> {
+  const db = sql();
+  await db`
+    UPDATE messages SET read = true
+    WHERE receiver_id = ${userId} AND sender_id = ${senderId} AND NOT read
+  `;
+}
+
+/** Fetch all messages between two users regardless of item, ordered oldest-first. */
+export async function getAllMessagesBetween(userId: string, otherUserId: string, limit = 100): Promise<Message[]> {
+  const db = sql();
+  const [msgRows, reactRows] = await Promise.all([
+    db`
+      SELECT * FROM messages
+      WHERE (
+        (sender_id = ${userId} AND receiver_id = ${otherUserId})
+        OR (sender_id = ${otherUserId} AND receiver_id = ${userId})
+      )
+      ORDER BY created_at ASC
+      LIMIT ${limit}
+    `,
+    db`
+      SELECT r.message_id, r.user_id, r.emoji
+      FROM message_reactions r
+      JOIN messages m ON m.id = r.message_id
+      WHERE (
+        (m.sender_id = ${userId} AND m.receiver_id = ${otherUserId})
+        OR (m.sender_id = ${otherUserId} AND m.receiver_id = ${userId})
+      )
+    `,
+  ]);
+
+  const reactionMap: Record<string, Record<string, string[]>> = {};
+  for (const r of reactRows) {
+    const mid = r.message_id as string;
+    const emoji = r.emoji as string;
+    const uid = r.user_id as string;
+    if (!reactionMap[mid]) reactionMap[mid] = {};
+    if (!reactionMap[mid][emoji]) reactionMap[mid][emoji] = [];
+    reactionMap[mid][emoji].push(uid);
+  }
+
+  return msgRows.map(row => ({
+    ...rowToMessage(row),
+    reactions: reactionMap[row.id as string] ?? {},
+  }));
+}
+
 export async function getOrderCount(userId: string, role: 'buyer' | 'seller'): Promise<number> {
   const db = sql();
   const rows = role === 'buyer'
