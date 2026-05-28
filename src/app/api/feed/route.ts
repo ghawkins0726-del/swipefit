@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getItems, getUserSwipes, getSwipedItemIds, getTasteProfile, getItemClassifications, getCollaborativeItemIds, getSimilarUsers } from '@/lib/db';
+import { getItems, getUserSwipes, getSwipedItemIds, getTasteProfile, getItemClassifications, getCollaborativeItemIds, getSimilarUsers, getUserPreferences } from '@/lib/db';
 import { buildUserPreferences, rankItems } from '@/lib/algorithm';
 import { computeStyleDna, computeMatchScore } from '@/lib/styleDna';
 import { buildTasteBoosts } from '@/lib/scoring';
@@ -27,10 +27,18 @@ export async function GET(req: NextRequest) {
   const batchSize = parseInt(searchParams.get('batch') ?? '10');
 
   // ── Base data (always fetched) ──────────────────────────────────────────────
-  const [allItems, swipes, seenIds] = await Promise.all([
+  const [allItems, swipes, seenIds, userPrefs] = await Promise.all([
     getItems(500),
     getUserSwipes(userId),
     getSwipedItemIds(userId),
+    getUserPreferences(userId),
+  ]);
+
+  // Build a flat set of all sizes the user wears for quick lookup
+  const userSizes = new Set<string>([
+    ...(userPrefs?.topSizes ?? []),
+    ...(userPrefs?.bottomSizes ?? []),
+    ...(userPrefs?.shoeSizes ?? []),
   ]);
 
   const itemMap = new Map<string, Item>(allItems.map(i => [i.id, i]));
@@ -65,14 +73,20 @@ export async function GET(req: NextRequest) {
 
   // ── Blend & re-rank ─────────────────────────────────────────────────────────
   const scored = ranked.map(r => {
-    if (!tasteActive) return { ...r, _finalScore: r.score };
+    const item = itemMap.get(r.itemId);
+
+    // Soft size boost: +0.1 when item size matches any of the user's stored sizes.
+    // Kept small so it nudges ranking without overriding freshness or taste signals.
+    const sizeBonus = (userSizes.size > 0 && item && userSizes.has(item.size)) ? 0.10 : 0;
+
+    if (!tasteActive) return { ...r, _finalScore: r.score + sizeBonus };
 
     // Normalise the algorithm score to [0,1] using the max in this batch
     const algoScore   = r.score;                            // already 0-1 from rankItems
     const tasteScore  = tasteBoosts.get(r.itemId) ?? 0.5;  // 0.5 = neutral when no classification
     const collabBonus = collabItemIds.has(r.itemId) ? 1 : 0;
 
-    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB;
+    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB + sizeBonus;
     return { ...r, _finalScore: finalScore };
   });
 
