@@ -4,7 +4,7 @@
  */
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
-import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier } from './db-types';
+import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier, ResellListing, ResellPriceHistory } from './db-types';
 
 export interface UserPref {
   userId: string;
@@ -302,6 +302,40 @@ async function _runInitDb(): Promise<void> {
       coalesce(description,'') || ' ' || coalesce(subcategory,'')
     ))
   `;
+
+  // ── Resell tables ─────────────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS resell_listings (
+      id TEXT PRIMARY KEY,
+      original_order_id TEXT NOT NULL,
+      seller_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      condition TEXT NOT NULL DEFAULT 'good',
+      price FLOAT NOT NULL,
+      images TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_resell_item ON resell_listings(item_id, status)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_resell_seller ON resell_listings(seller_user_id)`;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS resell_price_history (
+      id TEXT PRIMARY KEY,
+      item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      order_id TEXT NOT NULL,
+      seller_user_id TEXT NOT NULL,
+      price FLOAT NOT NULL,
+      condition TEXT NOT NULL,
+      created_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_resell_history_item ON resell_price_history(item_id, created_at DESC)`;
+
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS reseller_reputation FLOAT DEFAULT 0`;
+  await db`ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_expires_at BIGINT`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -1075,17 +1109,24 @@ export async function markAllMessagesReadFromSender(userId: string, senderId: st
   `;
 }
 
-/** Fetch all messages between two users regardless of item, ordered oldest-first. */
+/** Fetch all messages between two users regardless of item, ordered oldest-first.
+ *  Joins items table to provide item context (title, image, price) for item-related messages.
+ */
 export async function getAllMessagesBetween(userId: string, otherUserId: string, limit = 100): Promise<Message[]> {
   const db = sql();
   const [msgRows, reactRows] = await Promise.all([
     db`
-      SELECT * FROM messages
+      SELECT m.*,
+        CASE WHEN m.item_id != 'dm' THEN i.title ELSE NULL END AS item_title,
+        CASE WHEN m.item_id != 'dm' THEN (i.images->>0) ELSE NULL END AS item_image,
+        CASE WHEN m.item_id != 'dm' THEN i.price ELSE NULL END AS item_price
+      FROM messages m
+      LEFT JOIN items i ON i.id = m.item_id AND m.item_id != 'dm'
       WHERE (
-        (sender_id = ${userId} AND receiver_id = ${otherUserId})
-        OR (sender_id = ${otherUserId} AND receiver_id = ${userId})
+        (m.sender_id = ${userId} AND m.receiver_id = ${otherUserId})
+        OR (m.sender_id = ${otherUserId} AND m.receiver_id = ${userId})
       )
-      ORDER BY created_at ASC
+      ORDER BY m.created_at ASC
       LIMIT ${limit}
     `,
     db`
@@ -1125,12 +1166,12 @@ export async function getOrderCount(userId: string, role: 'buyer' | 'seller'): P
 
 export async function getConversationList(userId: string): Promise<ConversationPreview[]> {
   const db = sql();
+  // Group by user PAIR only — one row per unique conversation partner regardless of item
   const rows = await db`
     SELECT * FROM (
       SELECT DISTINCT ON (
         LEAST(m.sender_id, m.receiver_id),
-        GREATEST(m.sender_id, m.receiver_id),
-        m.item_id
+        GREATEST(m.sender_id, m.receiver_id)
       )
         m.item_id,
         m.text AS last_message,
@@ -1138,16 +1179,21 @@ export async function getConversationList(userId: string): Promise<ConversationP
         CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END AS other_user_id,
         CASE WHEN m.sender_id = ${userId} THEN COALESCE(u.name, 'User') ELSE m.sender_name END AS other_user_name,
         u.avatar AS other_user_avatar,
-        COALESCE(i.title, 'Item') AS item_title,
-        (m.receiver_id = ${userId} AND NOT m.read) AS unread
+        CASE WHEN m.item_id != 'dm' THEN COALESCE(i.title, '') ELSE '' END AS item_title,
+        -- unread = any unread message from the other person in this pair
+        EXISTS (
+          SELECT 1 FROM messages x
+          WHERE x.receiver_id = ${userId}
+            AND x.sender_id = (CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END)
+            AND NOT x.read
+        ) AS unread
       FROM messages m
-      LEFT JOIN items i ON i.id = m.item_id
+      LEFT JOIN items i ON i.id = m.item_id AND m.item_id != 'dm'
       LEFT JOIN users u ON u.id = CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END
       WHERE m.sender_id = ${userId} OR m.receiver_id = ${userId}
       ORDER BY
         LEAST(m.sender_id, m.receiver_id),
         GREATEST(m.sender_id, m.receiver_id),
-        m.item_id,
         m.created_at DESC
     ) t
     ORDER BY t.last_message_at DESC
@@ -1219,6 +1265,9 @@ function rowToMessage(row: Record<string, unknown>): Message {
     replyToText: (row.reply_to_text as string | null) ?? null,
     replyToSender: (row.reply_to_sender as string | null) ?? null,
     reactions: {},
+    itemTitle: (row.item_title as string | null) ?? null,
+    itemImage: (row.item_image as string | null) ?? null,
+    itemPrice: row.item_price != null ? Number(row.item_price) : null,
   };
 }
 
@@ -1655,6 +1704,156 @@ export async function undoSwipe(userId: string, itemId: string): Promise<void> {
   if (action === 'like' || action === 'superlike') {
     await db`UPDATE items SET likes = GREATEST(0, likes - 1) WHERE id = ${itemId}`;
   }
+}
+
+// ─── Resell ───────────────────────────────────────────────────────────────────
+
+function rowToResellListing(r: Record<string, unknown>): ResellListing {
+  return {
+    id: r.id as string,
+    originalOrderId: r.original_order_id as string,
+    sellerUserId: r.seller_user_id as string,
+    itemId: r.item_id as string,
+    condition: r.condition as ResellListing['condition'],
+    price: Number(r.price),
+    images: typeof r.images === 'string' ? JSON.parse(r.images) : (r.images as string[]),
+    status: r.status as ResellListing['status'],
+    createdAt: Number(r.created_at),
+    updatedAt: Number(r.updated_at),
+  };
+}
+
+function rowToResellPriceHistory(r: Record<string, unknown>): ResellPriceHistory {
+  return {
+    id: r.id as string,
+    itemId: r.item_id as string,
+    orderId: r.order_id as string,
+    sellerUserId: r.seller_user_id as string,
+    price: Number(r.price),
+    condition: r.condition as string,
+    createdAt: Number(r.created_at),
+  };
+}
+
+export async function createResellListing(listing: ResellListing): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO resell_listings (
+      id, original_order_id, seller_user_id, item_id, condition,
+      price, images, status, created_at, updated_at
+    ) VALUES (
+      ${listing.id}, ${listing.originalOrderId}, ${listing.sellerUserId},
+      ${listing.itemId}, ${listing.condition}, ${listing.price},
+      ${JSON.stringify(listing.images)}, ${listing.status},
+      ${listing.createdAt}, ${listing.updatedAt}
+    )
+    ON CONFLICT (id) DO NOTHING
+  `;
+}
+
+export async function getResellListings(
+  itemId: string,
+): Promise<(ResellListing & { sellerName: string; sellerReputation: number })[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT rl.*, u.name AS seller_name, COALESCE(u.reseller_reputation, 0) AS seller_reputation
+    FROM resell_listings rl
+    JOIN users u ON u.id = rl.seller_user_id
+    WHERE rl.item_id = ${itemId} AND rl.status = 'active'
+    ORDER BY rl.price ASC
+  `;
+  return rows.map(r => ({
+    ...rowToResellListing(r),
+    sellerName: r.seller_name as string,
+    sellerReputation: Number(r.seller_reputation),
+  }));
+}
+
+export async function getResellListingById(id: string): Promise<ResellListing | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM resell_listings WHERE id = ${id}`;
+  return rows[0] ? rowToResellListing(rows[0]) : null;
+}
+
+export async function getResellPriceHistory(itemId: string): Promise<ResellPriceHistory[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT * FROM resell_price_history
+    WHERE item_id = ${itemId}
+    ORDER BY created_at DESC
+    LIMIT 50
+  `;
+  return rows.map(rowToResellPriceHistory);
+}
+
+export async function addResellPriceHistory(entry: ResellPriceHistory): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO resell_price_history (id, item_id, order_id, seller_user_id, price, condition, created_at)
+    VALUES (${entry.id}, ${entry.itemId}, ${entry.orderId}, ${entry.sellerUserId}, ${entry.price}, ${entry.condition}, ${entry.createdAt})
+    ON CONFLICT (id) DO NOTHING
+  `;
+}
+
+export async function setOrderHold(orderId: string, holdExpiresAt: number): Promise<void> {
+  const db = sql();
+  await db`UPDATE orders SET hold_expires_at = ${holdExpiresAt}, updated_at = ${Date.now()} WHERE id = ${orderId}`;
+}
+
+export async function getUserWardrobe(
+  userId: string,
+): Promise<{ order: Order; item: Item | null; resellListing: ResellListing | null }[]> {
+  const db = sql();
+  const orderRows = await db`
+    SELECT * FROM orders
+    WHERE buyer_id = ${userId}
+      AND status NOT IN ('pending_payment', 'cancelled')
+    ORDER BY created_at DESC
+    LIMIT 100
+  `;
+  if (orderRows.length === 0) return [];
+
+  const itemIds = [...new Set(orderRows.map(r => r.item_id as string))];
+  const orderIds = orderRows.map(r => r.id as string);
+
+  const [itemRows, resellRows] = await Promise.all([
+    db`SELECT * FROM items WHERE id = ANY(${itemIds})`,
+    db`SELECT * FROM resell_listings WHERE original_order_id = ANY(${orderIds}) AND status = 'active'`,
+  ]);
+
+  const itemMap = new Map(itemRows.map(r => [r.id as string, rowToItem(r)]));
+  const resellMap = new Map(resellRows.map(r => [r.original_order_id as string, rowToResellListing(r)]));
+
+  return orderRows.map(r => ({
+    order: rowToOrder(r),
+    item: itemMap.get(r.item_id as string) ?? null,
+    resellListing: resellMap.get(r.id as string) ?? null,
+  }));
+}
+
+export async function markResellListingSold(listingId: string): Promise<void> {
+  const db = sql();
+  await db`
+    UPDATE resell_listings SET status = 'sold', updated_at = ${Date.now()} WHERE id = ${listingId}
+  `;
+}
+
+export async function getItemDemandSignal(
+  itemId: string,
+): Promise<{ likes: number; views: number; resellCount: number; avgResellPrice: number }> {
+  const db = sql();
+  const [itemRows, resellRows] = await Promise.all([
+    db`SELECT likes, views FROM items WHERE id = ${itemId}`,
+    db`SELECT COUNT(*)::int AS cnt, COALESCE(AVG(price), 0)::float AS avg_price FROM resell_price_history WHERE item_id = ${itemId}`,
+  ]);
+  const item = itemRows[0];
+  const resell = resellRows[0];
+  return {
+    likes: item ? Number(item.likes) : 0,
+    views: item ? Number(item.views) : 0,
+    resellCount: resell ? Number(resell.cnt) : 0,
+    avgResellPrice: resell ? Number(resell.avg_price) : 0,
+  };
 }
 
 /** Item IDs liked by similar users that the target user hasn't seen */

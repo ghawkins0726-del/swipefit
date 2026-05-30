@@ -1,15 +1,7 @@
 'use client';
 
-/**
- * /messages/dm/[userId]
- *
- * General-purpose DM with a user — not tied to a specific listing.
- * Uses the sentinel itemId "dm" so the existing message infrastructure
- * works without schema changes.
- */
-
 import { use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MoreHorizontal } from 'lucide-react';
 import { useUser } from '@clerk/nextjs';
@@ -18,14 +10,19 @@ import MessageInput from '@/components/MessageInput';
 import { Message } from '@/lib/db-types';
 import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
 import { isVerified, isCofounder } from '@/lib/badges';
+import { Item } from '@/lib/types';
 
 interface PublicProfile { id: string; name: string; avatar: string | null; }
 
 export default function DmPage({ params }: { params: Promise<{ userId: string }> }) {
   const { userId: targetId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const itemParamId = searchParams.get('item'); // item context if opened from item page
+
   const { user: clerkUser, isLoaded } = useUser();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [contextItem, setContextItem] = useState<Item | null>(null);
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
 
@@ -37,6 +34,12 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
   useEffect(() => {
     fetch(`/api/users/${targetId}`).then(r => r.json()).then(setProfile).catch(() => {});
   }, [targetId]);
+
+  // Load item context if opened from an item page
+  useEffect(() => {
+    if (!itemParamId) return;
+    fetch(`/api/items/${itemParamId}`).then(r => r.json()).then(setContextItem).catch(() => {});
+  }, [itemParamId]);
 
   if (!isLoaded || !myId) {
     return (
@@ -74,7 +77,25 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
         </button>
       </div>
 
-      {/* No itemId → loads all messages between these two users */}
+      {/* ── Item context banner (shown when opened from item page) ── */}
+      {contextItem && (
+        <Link
+          href={`/item/${contextItem.id}`}
+          className="flex items-center gap-3 px-4 py-2.5 bg-[#F5F4F0] border-b border-[#EBEBEB] active:opacity-70 transition-opacity flex-shrink-0"
+        >
+          {contextItem.images?.[0] && (
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBEBEB]">
+              <img src={contextItem.images[0]} alt={contextItem.title} className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-[#0A0A0A] truncate">{contextItem.title}</p>
+            <p className="text-xs text-[#AAAAAA]">${contextItem.price} · tap to view</p>
+          </div>
+        </Link>
+      )}
+
+      {/* Loads ALL messages between these two users */}
       <MessageThread
         userId={myId}
         otherUserId={targetId}
@@ -85,7 +106,7 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
       />
 
       <MessageInput
-        itemId="dm"
+        itemId={itemParamId ?? 'dm'}
         receiverId={targetId}
         senderName={myName}
         onSent={() => { setRefreshSignal(s => s + 1); setReplyTo(null); }}

@@ -2,229 +2,215 @@
 
 import { useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Heart, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Item } from '@/lib/types';
 import { VerifiedBadge } from '@/components/Badges';
 import { isVerified } from '@/lib/badges';
+import Link from 'next/link';
 
 interface Props {
   item: Item & { _reason?: string; matchScore?: number };
   onSwipe: (action: 'like' | 'dislike' | 'superlike') => void;
   isTop: boolean;
-  /** Called every drag frame so the parent can update a background glow. */
   onDragUpdate?: (x: number) => void;
 }
 
 const CONDITION_LABELS: Record<string, string> = {
-  new: 'NWT', like_new: 'Like New', good: 'Good', fair: 'Fair',
+  new: 'New with tags', like_new: 'Like New', good: 'Good', fair: 'Fair',
 };
 
 export default function SwipeCard({ item, onSwipe, isTop, onDragUpdate }: Props) {
-  // ─── Motion values ────────────────────────────────────────────────────────
   const x = useMotionValue(0);
+  const rotate = useTransform(x, [-300, 0, 300], [-18, 0, 18]);
 
-  // Rotation follows horizontal drag (origin at bottom of card = natural pivot)
-  const rotate = useTransform(x, [-320, 0, 320], [-22, 0, 22]);
+  // LIKE / NOPE stamp opacity
+  const likeOpacity = useTransform(x, [15, 80], [0, 1]);
+  const nopeOpacity = useTransform(x, [-80, -15], [1, 0]);
 
-  // Subtle squeeze when dragged far — makes it feel tactile
-  const scaleX = useTransform(x, [-320, 0, 320], [0.97, 1, 0.97]);
+  // Coloured overlay on the image
+  const greenOverlay = useTransform(x, [0, 120], [0, 0.45]);
+  const redOverlay   = useTransform(x, [-120, 0], [0.45, 0]);
 
-  // LIKE / NOPE stamp opacity — appears quickly
-  const likeOpacity  = useTransform(x, [15,  90],  [0, 1]);
-  const nopeOpacity  = useTransform(x, [-90, -15], [1, 0]);
-  // Coloured overlay on the image — green for right drag, red for left
-  const greenOverlay = useTransform(x, [0,  130], [0, 0.55]);
-  const redOverlay   = useTransform(x, [-130, 0], [0.55, 0]);
-
-  // Card border glow intensity
-  const greenGlow = useTransform(x, [0,  130], [0, 1]);
-  const redGlow   = useTransform(x, [-130, 0], [1, 0]);
-  const boxShadow = useTransform(
-    [greenGlow, redGlow],
-    ([g, r]: number[]) => {
-      if (g > 0.05) return `0 0 0 2px rgba(0,200,80,${g * 0.9}), 0 8px 32px rgba(0,200,80,${g * 0.35})`;
-      if (r > 0.05) return `0 0 0 2px rgba(230,57,70,${r * 0.9}), 0 8px 32px rgba(230,57,70,${r * 0.35})`;
-      return '0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)';
-    },
-  );
-
-  // ─── State ────────────────────────────────────────────────────────────────
   const [imgIndex, setImgIndex] = useState(0);
 
-  // Notify parent on every drag frame (for background glow in SwipeFeed)
   useEffect(() => {
     if (!isTop || !onDragUpdate) return;
-    const unsub = x.on('change', (latest) => onDragUpdate(latest));
-    return unsub;
+    return x.on('change', (latest) => onDragUpdate(latest));
   }, [x, isTop, onDragUpdate]);
 
-  // Reset image index when item changes
   useEffect(() => { setImgIndex(0); }, [item.id]);
 
-  // ─── Drag handlers ────────────────────────────────────────────────────────
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     const { offset, velocity } = info;
-    // Velocity-aware thresholds: a fast flick triggers swipe even at small offset
-    if (offset.x > 80  || velocity.x >  500) { onDragUpdate?.(0); onSwipe('like'); }
+    if (offset.x > 80 || velocity.x > 500)       { onDragUpdate?.(0); onSwipe('like'); }
     else if (offset.x < -80 || velocity.x < -500) { onDragUpdate?.(0); onSwipe('dislike'); }
-    else { onDragUpdate?.(0); }
-  };
-
-  // ─── Button swipe ─────────────────────────────────────────────────────────
-  const triggerSwipe = (action: 'like' | 'dislike' | 'superlike') => {
-    onDragUpdate?.(0);
-    onSwipe(action);
+    else                                           { onDragUpdate?.(0); }
   };
 
   return (
     <motion.div
-      style={{ x, rotate, scaleX, boxShadow }}
-      drag={isTop}
+      style={{ x, rotate }}
+      drag={isTop ? 'x' : false}
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.92}
+      dragElastic={{ left: 0.88, right: 0.88, top: 0, bottom: 0 }}
       onDragEnd={handleDragEnd}
-      className="absolute w-full h-full select-none touch-none swipe-card"
+      className="absolute inset-0 select-none touch-none cursor-grab active:cursor-grabbing"
     >
-      {/* ── Card shell ─────────────────────────────────────────────────────── */}
-      <div className="w-full h-full bg-white rounded-2xl overflow-hidden flex flex-col">
+      {/* ── Photo ── */}
+      <img
+        src={item.images[imgIndex]}
+        alt={item.title}
+        className="absolute inset-0 w-full h-full object-cover object-center"
+        draggable={false}
+      />
 
-        {/* ── Image area ─────────────────────────────────────────────────── */}
-        <div className="relative flex-1 bg-[#F0EFEB] min-h-0 overflow-hidden">
-          <img
-            src={item.images[imgIndex]}
-            alt={item.title}
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
+      {/* ── Green wash (like) ── */}
+      <motion.div
+        style={{ opacity: greenOverlay }}
+        className="absolute inset-0 pointer-events-none"
+      >
+        <div className="w-full h-full" style={{ background: 'linear-gradient(135deg, rgba(0,200,80,0.5) 0%, transparent 60%)' }} />
+      </motion.div>
 
-          {/* Green colour-wash overlay */}
-          <motion.div
-            style={{
-              opacity: greenOverlay,
-              background: 'linear-gradient(135deg, rgba(0,200,80,0.55) 0%, rgba(0,160,60,0.45) 100%)',
-            }}
-            className="absolute inset-0 pointer-events-none"
-          />
+      {/* ── Red wash (nope) ── */}
+      <motion.div
+        style={{ opacity: redOverlay }}
+        className="absolute inset-0 pointer-events-none"
+      >
+        <div className="w-full h-full" style={{ background: 'linear-gradient(225deg, rgba(230,57,70,0.5) 0%, transparent 60%)' }} />
+      </motion.div>
 
-          {/* Red colour-wash overlay */}
-          <motion.div
-            style={{
-              opacity: redOverlay,
-              background: 'linear-gradient(225deg, rgba(230,57,70,0.55) 0%, rgba(180,20,30,0.45) 100%)',
-            }}
-            className="absolute inset-0 pointer-events-none"
-          />
+      {/* ── Bottom gradient scrim — longer and softer so photo breathes ── */}
+      <div
+        className="absolute inset-x-0 bottom-0 pointer-events-none"
+        style={{
+          height: '80%',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 25%, rgba(0,0,0,0.38) 55%, rgba(0,0,0,0.08) 80%, transparent 100%)',
+        }}
+      />
 
-          {/* ── LIKE stamp ─────────────────────────────────────────────── */}
-          <motion.div
-            style={{ opacity: likeOpacity }}
-            className="absolute top-5 left-4 z-10 pointer-events-none"
-          >
-            <div className="bg-[#00C851] px-4 py-1.5 rounded-xl rotate-[-12deg] shadow-lg shadow-[#00C851]/50">
-              <span className="text-white font-black text-2xl tracking-[0.15em] drop-shadow">LIKE</span>
-            </div>
-          </motion.div>
+      {/* ── Top gradient scrim ── */}
+      <div
+        className="absolute inset-x-0 top-0 pointer-events-none"
+        style={{
+          height: '35%',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)',
+        }}
+      />
 
-          {/* ── NOPE stamp ─────────────────────────────────────────────── */}
-          <motion.div
-            style={{ opacity: nopeOpacity }}
-            className="absolute top-5 right-4 z-10 pointer-events-none"
-          >
-            <div className="bg-[#E63946] px-4 py-1.5 rounded-xl rotate-[12deg] shadow-lg shadow-[#E63946]/50">
-              <span className="text-white font-black text-2xl tracking-[0.15em] drop-shadow">NOPE</span>
-            </div>
-          </motion.div>
-
-          {/* ── Top overlay row (condition + match) ─────────────────────── */}
-          <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
-            <div className="bg-black/55 backdrop-blur-[6px] text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
-              {CONDITION_LABELS[item.condition]}
-            </div>
-            {item.matchScore != null && item.matchScore > 50 && (
-              <div className="bg-black/55 backdrop-blur-[6px] text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                <span className="text-[#00C851]">●</span>
-                {item.matchScore}% match
-              </div>
-            )}
-          </div>
-
-          {/* ── Image navigation ─────────────────────────────────────────── */}
-          {item.images.length > 1 && (
-            <>
-              <button
-                onClick={e => { e.stopPropagation(); setImgIndex(i => Math.max(0, i - 1)); }}
-                disabled={imgIndex === 0}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 backdrop-blur-sm text-white rounded-full flex items-center justify-center disabled:opacity-20 active:scale-90 transition-transform"
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); setImgIndex(i => Math.min(item.images.length - 1, i + 1)); }}
-                disabled={imgIndex === item.images.length - 1}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 backdrop-blur-sm text-white rounded-full flex items-center justify-center disabled:opacity-20 active:scale-90 transition-transform"
-              >
-                <ChevronRight size={15} />
-              </button>
-
-              {/* Dot indicators */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {item.images.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-full transition-all duration-200 ${
-                      i === imgIndex ? 'bg-white w-5 h-1' : 'bg-white/50 w-1.5 h-1'
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+      {/* ── LIKE stamp ── */}
+      <motion.div style={{ opacity: likeOpacity }} className="absolute top-20 left-5 z-10 pointer-events-none">
+        <div className="border-[3px] border-[#00C851] rounded-xl px-4 py-1.5 rotate-[-12deg]">
+          <span className="text-[#00C851] font-black text-3xl tracking-widest">LIKE</span>
         </div>
+      </motion.div>
 
-        {/* ── Info section ───────────────────────────────────────────────── */}
-        <div className="px-4 pt-3 pb-1">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <div className="flex-1 min-w-0">
-              <p className="font-black text-[#0A0A0A] text-base leading-snug truncate">{item.title}</p>
-              <p className="text-[11px] text-[#AAAAAA] font-medium mt-0.5 uppercase tracking-wide">
-                {item.brand} · {item.size} · {item.sellerName}
-                {isVerified(item.sellerId) && <> <VerifiedBadge size="xs" /></>}
-              </p>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="font-black text-[#0A0A0A] text-xl leading-none">${item.price}</p>
-            </div>
+      {/* ── NOPE stamp ── */}
+      <motion.div style={{ opacity: nopeOpacity }} className="absolute top-20 right-5 z-10 pointer-events-none">
+        <div className="border-[3px] border-[#E63946] rounded-xl px-4 py-1.5 rotate-[12deg]">
+          <span className="text-[#E63946] font-black text-3xl tracking-widest">NOPE</span>
+        </div>
+      </motion.div>
+
+      {/* ── Match score (only shown when relevant) ── */}
+      {item.matchScore != null && item.matchScore > 50 && (
+        <div className="absolute right-4 z-10 pointer-events-none" style={{ top: 104 }}>
+          <div className="bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
+            <span className="text-[#00C851] text-[8px]">●</span>
+            {item.matchScore}% match
           </div>
+        </div>
+      )}
 
-          {/* Style tags */}
-          <div className="flex gap-1.5 flex-wrap mb-2.5">
-            {item.styles.slice(0, 3).map(s => (
-              <span key={s} className="text-[10px] font-semibold text-[#5A5A5A] bg-[#F5F4F0] px-2 py-0.5 rounded capitalize">
-                {s}
-              </span>
+      {/* ── Image nav arrows (tap zones) ── */}
+      {item.images.length > 1 && (
+        <>
+          <button
+            onClick={e => { e.stopPropagation(); setImgIndex(i => Math.max(0, i - 1)); }}
+            disabled={imgIndex === 0}
+            className="absolute left-0 top-0 w-1/3 h-full z-10 flex items-center pl-3 disabled:opacity-0"
+          >
+            <div className="w-8 h-8 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+              <ChevronLeft size={16} className="text-white" />
+            </div>
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); setImgIndex(i => Math.min(item.images.length - 1, i + 1)); }}
+            disabled={imgIndex === item.images.length - 1}
+            className="absolute right-0 top-0 w-1/3 h-full z-10 flex items-center justify-end pr-3 disabled:opacity-0"
+          >
+            <div className="w-8 h-8 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+              <ChevronRight size={16} className="text-white" />
+            </div>
+          </button>
+
+          {/* Progress bar dots */}
+          <div className="absolute left-0 right-0 flex gap-1 px-3 z-10 pointer-events-none" style={{ top: 90 }}>
+            {item.images.map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 h-0.5 rounded-full transition-all duration-200"
+                style={{ background: i === imgIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)' }}
+              />
             ))}
           </div>
+        </>
+      )}
+
+      {/* ── Bottom info overlay — pb clears floating buttons ── */}
+      {/* buttons sit at bottom: safe-area + 88px, row is ~72px tall, add 20px breathing room */}
+      <div
+        className="absolute bottom-0 left-0 right-0 px-5 z-10 pointer-events-none"
+        style={{ paddingBottom: 'calc(max(16px, env(safe-area-inset-bottom)) + 88px + 72px + 20px)' }}
+      >
+
+        {/* Title — up to 2 lines */}
+        <h2
+          className="text-white font-black text-[22px] leading-tight mb-0.5"
+          style={{ textShadow: '0 2px 16px rgba(0,0,0,0.8)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+        >
+          {item.title}
+        </h2>
+
+        {/* Price — bold, slightly smaller, separate visual weight */}
+        <p className="text-white font-black text-xl mb-2" style={{ textShadow: '0 2px 16px rgba(0,0,0,0.8)' }}>
+          ${item.price}
+        </p>
+
+        {/* Brand · size · seller — brighter separators */}
+        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+          <span className="text-white/80 text-[13px] font-semibold">{item.brand}</span>
+          <span className="text-white/55 text-xs">·</span>
+          <span className="text-white/80 text-[13px]">Size {item.size}</span>
+          <span className="text-white/55 text-xs">·</span>
+          <Link
+            href={`/user/${item.sellerId}`}
+            className="text-white/80 text-[13px] pointer-events-auto flex items-center gap-1 active:opacity-60"
+            onClick={e => e.stopPropagation()}
+          >
+            {item.sellerName}
+            {isVerified(item.sellerId) && <VerifiedBadge size="xs" />}
+          </Link>
         </div>
 
-        {/* ── Action buttons ─────────────────────────────────────────────── */}
-        <div className="flex justify-center items-center gap-10 pb-3 pt-1">
-          {/* Pass */}
-          <motion.button
-            whileTap={{ scale: 0.85 }}
-            onClick={() => triggerSwipe('dislike')}
-            className="w-[58px] h-[58px] rounded-full bg-white border-2 border-[#EBEBEB] flex items-center justify-center shadow-md active:border-[#E63946] active:bg-[#FDECED] transition-colors"
+        {/* Tags row + condition pill on same line */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {item.styles.slice(0, 3).map(s => (
+            <span
+              key={s}
+              className="text-[11px] font-semibold text-white/85 capitalize px-2.5 py-1 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.14)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.18)' }}
+            >
+              {s}
+            </span>
+          ))}
+          {/* Condition pill inline with tags */}
+          <span
+            className="text-[11px] font-semibold text-white/70 capitalize px-2.5 py-1 rounded-full"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
           >
-            <X size={26} className="text-[#E63946]" strokeWidth={2.5} />
-          </motion.button>
-
-          {/* Like */}
-          <motion.button
-            whileTap={{ scale: 0.85 }}
-            onClick={() => triggerSwipe('like')}
-            className="w-[58px] h-[58px] rounded-full bg-white border-2 border-[#EBEBEB] flex items-center justify-center shadow-md active:border-[#00C851] active:bg-[#EDFAF1] transition-colors"
-          >
-            <Heart size={26} className="text-[#00C851]" strokeWidth={2.5} />
-          </motion.button>
+            {CONDITION_LABELS[item.condition]}
+          </span>
         </div>
       </div>
     </motion.div>

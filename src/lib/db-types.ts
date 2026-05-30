@@ -60,6 +60,10 @@ export interface Message {
   replyToSender: string | null;
   // Reactions: emoji → userIds[]
   reactions: Record<string, string[]>;
+  // Item context (populated when item_id is a real item, not 'dm')
+  itemTitle?: string | null;
+  itemImage?: string | null;
+  itemPrice?: number | null;
 }
 
 // ─── Recommendation engine ─────────────────────────────────────────────────────
@@ -104,6 +108,29 @@ export interface Rating {
   sellerId: string;       // who got rated
   stars: number;          // 1..5
   comment: string | null;
+  createdAt: number;
+}
+
+export interface ResellListing {
+  id: string;
+  originalOrderId: string;
+  sellerUserId: string;
+  itemId: string;
+  condition: 'new' | 'like_new' | 'good' | 'fair';
+  price: number;
+  images: string[];
+  status: 'active' | 'sold' | 'expired' | 'held';
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ResellPriceHistory {
+  id: string;
+  itemId: string;
+  orderId: string;
+  sellerUserId: string;
+  price: number;
+  condition: string;
   createdAt: number;
 }
 

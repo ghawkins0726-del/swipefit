@@ -12,6 +12,7 @@ import {
   createNotification,
   getUserByStripeAccount,
   setStripeAccountReady,
+  markResellListingSold,
 } from '@/lib/db';
 
 // 31 days from now in ms — premium window, refreshed on each invoice.paid
@@ -81,6 +82,52 @@ export async function POST(req: NextRequest) {
             body: `Payment of $${order?.amount ?? ''} received. Please ship soon.`,
             payload: JSON.stringify({ orderId, itemId }),
             createdAt: now,
+          }),
+        ]);
+
+      } else if (meta.type === 'resell_purchase') {
+        // ── Resell purchase ──────────────────────────────────────────────────
+        const { orderId, buyerId, sellerId, itemId, resellListingId } = meta;
+        if (!orderId) break;
+
+        await updateOrderStatus(orderId, 'processing');
+
+        // Mark the resell listing as sold
+        if (resellListingId) {
+          await markResellListingSold(resellListingId);
+        }
+
+        // Persist shipping address
+        const addr = session.collected_information?.shipping_details?.address
+          ?? session.customer_details?.address;
+        if (addr) {
+          const parts = [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean);
+          await updateOrderShippingAddress(orderId, parts.join(', '));
+        }
+
+        const [order, item] = await Promise.all([
+          getOrderById(orderId),
+          getItemById(itemId),
+        ]);
+        const now2 = Date.now();
+        await Promise.all([
+          createNotification({
+            id: `notif_${uuid()}`,
+            userId: buyerId,
+            type: 'order',
+            title: `Payment confirmed for ${item?.title ?? 'your item'}`,
+            body: `Your resell purchase of $${order?.amount ?? ''} is confirmed.`,
+            payload: JSON.stringify({ orderId, itemId }),
+            createdAt: now2,
+          }),
+          createNotification({
+            id: `notif_${uuid()}`,
+            userId: sellerId,
+            type: 'order',
+            title: `Resale sold — ${item?.title ?? 'item'}`,
+            body: `Payment of $${order?.amount ?? ''} received. Please ship soon.`,
+            payload: JSON.stringify({ orderId, itemId }),
+            createdAt: now2,
           }),
         ]);
 

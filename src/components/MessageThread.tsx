@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Message } from '@/lib/db-types';
 import MessageBubble from './MessageBubble';
+import Link from 'next/link';
 
 interface Props {
   userId: string;
@@ -30,7 +31,7 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
   }, [itemId, otherUserId]);
 
   useEffect(() => {
-    // Mark all messages from this user as read (across all items when no itemId)
+    // Mark all messages from this user as read
     fetch('/api/messages', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -56,12 +57,18 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
     );
   }
 
-  // Group messages: show timestamp header every 30 min gap
-  const groups: { showTime: boolean; msg: Message }[] = [];
+  // Group messages: show timestamp header every 30 min gap, and item context chip when item changes
+  type Group = { showTime: boolean; showItemChip: boolean; msg: Message };
+  const groups: Group[] = [];
   messages.forEach((msg, i) => {
     const prev = messages[i - 1];
     const showTime = !prev || msg.createdAt - prev.createdAt > 30 * 60 * 1000;
-    groups.push({ showTime, msg });
+    // Show item chip when item_id changes and is a real item (not 'dm')
+    const showItemChip =
+      msg.itemId !== 'dm' &&
+      msg.itemTitle != null &&
+      (!prev || prev.itemId !== msg.itemId);
+    groups.push({ showTime, showItemChip, msg });
   });
 
   return (
@@ -71,7 +78,7 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
           <p className="text-[#888] text-[13px]">No messages yet — say hi!</p>
         </div>
       ) : (
-        groups.map(({ showTime, msg }) => (
+        groups.map(({ showTime, showItemChip, msg }) => (
           <div key={msg.id}>
             {showTime && (
               <div className="flex justify-center my-3">
@@ -83,6 +90,29 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
                 </span>
               </div>
             )}
+
+            {/* Item context chip — shown when conversation shifts to a new item */}
+            {showItemChip && (
+              <div className="flex justify-center my-3">
+                <Link
+                  href={`/item/${msg.itemId}`}
+                  className="flex items-center gap-2 bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-3 py-2 max-w-[72%] active:opacity-70 transition-opacity"
+                >
+                  {msg.itemImage && (
+                    <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBEBEB]">
+                      <img src={msg.itemImage} alt={msg.itemTitle ?? ''} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black text-[#0A0A0A] truncate">{msg.itemTitle}</p>
+                    {msg.itemPrice != null && (
+                      <p className="text-[10px] text-[#AAAAAA]">${msg.itemPrice} · tap to view</p>
+                    )}
+                  </div>
+                </Link>
+              </div>
+            )}
+
             <MessageBubble
               message={msg}
               isOwn={msg.senderId === userId}

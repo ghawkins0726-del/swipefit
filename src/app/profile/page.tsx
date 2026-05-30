@@ -7,7 +7,11 @@ import Logo from '@/components/Logo';
 import {
   Heart, ShoppingBag, Edit2, Check, X, LogOut, Package2,
   DollarSign, Loader2, AlertCircle, Settings, Users, MessageSquare,
+  Archive,
 } from 'lucide-react';
+import ResellModal from '@/components/ResellModal';
+import { ResellListing } from '@/lib/db-types';
+import { Order } from '@/lib/db-types';
 import { Item, UserProfile } from '@/lib/types';
 import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
 import { isVerified, isCofounder } from '@/lib/badges';
@@ -122,7 +126,9 @@ export default function ProfilePage() {
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut, openUserProfile } = useClerk();
   const [data, setData] = useState<ProfileData | null>(null);
-  const [tab, setTab] = useState<'listings' | 'liked'>('listings');
+  const [tab, setTab] = useState<'listings' | 'liked' | 'wardrobe'>('listings');
+  const [wardrobe, setWardrobe] = useState<{ order: Order; item: Item | null; resellListing: ResellListing | null }[]>([]);
+  const [resellTarget, setResellTarget] = useState<{ orderId: string; item: Item } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sheetMode, setSheetMode] = useState<SheetMode>(null);
 
@@ -196,6 +202,11 @@ export default function ProfilePage() {
       })
       .catch(err => console.error('Profile load error:', err))
       .finally(() => setLoading(false));
+    // Fetch wardrobe
+    fetch('/api/resell/wardrobe')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setWardrobe(d); })
+      .catch(() => {});
   }, [isLoaded, clerkUser]);
 
   const saveName = async () => {
@@ -447,6 +458,7 @@ export default function ProfilePage() {
         {([
           { id: 'listings', icon: ShoppingBag, label: 'Listings' },
           { id: 'liked',    icon: Heart,       label: 'Liked'    },
+          { id: 'wardrobe', icon: Archive,     label: 'Wardrobe' },
         ] as const).map(({ id, icon: Icon, label }) => (
           <button key={id}
             onClick={() => setTab(id)}
@@ -517,7 +529,66 @@ export default function ProfilePage() {
           )
         )}
 
+        {/* WARDROBE */}
+        {tab === 'wardrobe' && (
+          wardrobe.length === 0 ? (
+            <EmptyState icon={Archive} title="Your wardrobe is empty" sub="Items you purchase will appear here">
+              <Link href="/feed" className="btn-halo mt-4 inline-flex">Shop now</Link>
+            </EmptyState>
+          ) : (
+            <div className="grid grid-cols-3 gap-1">
+              {wardrobe.map(({ order, item, resellListing }) => (
+                <div key={order.id} className="relative aspect-[3/4] bg-[#EBEBEB] overflow-hidden">
+                  {item?.images?.[0] ? (
+                    <img src={item.images[0]} alt={item?.title ?? ''} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#EBEBEB]">
+                      <Package2 size={24} className="text-[#AAAAAA]" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                  <div className="absolute bottom-1.5 left-1.5 right-1.5">
+                    <p className="text-white font-black text-[10px] leading-tight truncate mb-1">
+                      {item?.title ?? 'Item'}
+                    </p>
+                    {resellListing ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/80 text-white">
+                        Listed ${resellListing.price}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => item && setResellTarget({ orderId: order.id, item })}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#E63946] text-white active:scale-95 transition-transform"
+                      >
+                        Relist
+                      </button>
+                    )}
+                  </div>
+                  <p className="absolute top-1.5 left-1.5 text-white/70 text-[9px] font-bold">
+                    Paid ${order.amount}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
       </div>
+
+      {/* Resell modal triggered from wardrobe */}
+      {resellTarget && (
+        <ResellModal
+          orderId={resellTarget.orderId}
+          item={{
+            id: resellTarget.item.id,
+            title: resellTarget.item.title,
+            price: resellTarget.item.price,
+            images: resellTarget.item.images,
+            condition: resellTarget.item.condition,
+          }}
+          onClose={() => setResellTarget(null)}
+        />
+      )}
 
       <Navbar />
     </div>

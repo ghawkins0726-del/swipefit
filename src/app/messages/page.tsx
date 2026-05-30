@@ -507,8 +507,8 @@ export default function MessagesPage() {
           <div className="bg-white">
             {conversations.map((c, idx) => (
               <Link
-                key={`${c.itemId}-${c.otherUserId}`}
-                href={`/messages/${c.itemId}/${c.otherUserId}`}
+                key={c.otherUserId}
+                href={`/messages/dm/${c.otherUserId}`}
                 className={`flex items-center gap-3 px-4 py-3.5 active:bg-[#F5F4F0] transition-colors ${
                   idx < conversations.length - 1 ? 'border-b border-[#F5F4F0]' : ''
                 }`}
@@ -533,7 +533,9 @@ export default function MessagesPage() {
                     </p>
                     <span className="text-xs text-[#AAAAAA] flex-shrink-0 ml-2">{timeAgo(c.lastMessageAt)}</span>
                   </div>
-                  <p className="text-[10px] text-[#E63946] font-semibold truncate mb-0.5">{c.itemTitle}</p>
+                  {c.itemTitle && (
+                    <p className="text-[10px] text-[#E63946] font-semibold truncate mb-0.5">{c.itemTitle}</p>
+                  )}
                   <p className={`text-xs truncate ${c.unread ? 'text-[#0A0A0A] font-semibold' : 'text-[#AAAAAA]'}`}>
                     {c.lastMessage}
                   </p>

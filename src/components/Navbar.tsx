@@ -30,7 +30,7 @@ export default function Navbar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe"
-      style={{ background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(12px)', borderTop: '1px solid #EBEBEB' }}>
+      style={{ background: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="flex items-center justify-around px-2">
         {tabs.map(({ href, icon: Icon, label, match, center }) => {
           const active = pathname === match || (match !== '/feed' && pathname.startsWith(match));
@@ -51,9 +51,11 @@ export default function Navbar() {
                 }}>
                   <Icon size={24} strokeWidth={2.2} className="text-white" />
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-wider mt-1 ${active ? 'text-[#E63946]' : 'text-[#0A0A0A]'}`}>
-                  {label}
-                </span>
+                {!active && (
+                  <span className="text-[9px] font-black uppercase tracking-wider mt-1 text-[#555555]">
+                    {label}
+                  </span>
+                )}
               </Link>
             );
           }
@@ -61,7 +63,7 @@ export default function Navbar() {
           return (
             <Link key={label} href={href}
               className={`flex flex-col items-center gap-0.5 py-2.5 px-2 transition-colors relative ${
-                active ? 'text-[#0A0A0A]' : 'text-[#AAAAAA] hover:text-[#5A5A5A]'
+                active ? 'text-white' : 'text-[#555555] hover:text-[#888888]'
               }`}
             >
               <div className="relative">
@@ -72,7 +74,7 @@ export default function Navbar() {
                   </span>
                 )}
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${active ? 'text-[#0A0A0A]' : 'text-[#AAAAAA]'}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${active ? 'text-white' : 'text-[#555555]'}`}>
                 {label}
               </span>
             </Link>

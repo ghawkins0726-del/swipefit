@@ -19,6 +19,13 @@ export default function ConversationPage() {
   const router = useRouter();
   const { user: clerkUser, isLoaded } = useUser();
 
+  // Redirect all item-specific threads to the unified DM view
+  useEffect(() => {
+    if (otherUserId) {
+      router.replace(`/messages/dm/${otherUserId}?item=${itemId}`);
+    }
+  }, [otherUserId, itemId, router]);
+
   const [otherName, setOtherName] = useState('');
   const [otherAvatar, setOtherAvatar] = useState<string | null>(null);
   const [itemTitle, setItemTitle] = useState('');

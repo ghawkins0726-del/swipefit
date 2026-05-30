@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import SwipeFeed from '@/components/SwipeFeed';
 import Navbar from '@/components/Navbar';
-import { Search, Bell, Dna } from 'lucide-react';
+import { Search, Bell } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Link from 'next/link';
 
@@ -17,14 +17,12 @@ export default function FeedPage() {
 
   useEffect(() => {
     if (!isLoaded || !user) return;
-
     const hasOnboarded = localStorage.getItem(`swipefit_onboarded_${user.id}`);
     if (!hasOnboarded) {
       localStorage.setItem(`swipefit_onboarded_${user.id}`, '1');
       router.push('/onboarding');
       return;
     }
-
     fetch('/api/profile')
       .then(r => r.json())
       .then(d => setUnread(d.unreadCount || 0))
@@ -43,49 +41,50 @@ export default function FeedPage() {
 
   if (!isLoaded || !user) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F5F4F0]">
-        <div className="w-8 h-8 border-3 border-[#E63946] border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#F5F4F0]">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 pt-12 pb-3 bg-white border-b border-[#EBEBEB]">
-        <Logo size={30} withWordmark className="text-[#0A0A0A]" href="/feed" />
+    // Fixed inset-0 = unambiguously full viewport, no flex sizing issues
+    <div className="fixed inset-0 bg-black overflow-hidden" style={{ touchAction: 'none' }}>
 
-        <div className="flex items-center gap-1.5">
-          <Link href="/dna"
-            className="flex items-center gap-1.5 bg-[#0A0A0A] text-white text-[10px] font-bold uppercase tracking-wide px-2.5 py-1.5 rounded-lg">
-            <Dna size={11} />
-            Style DNA
-          </Link>
+      {/* ── SwipeFeed: fills entire screen, Navbar overlays it via z-index ── */}
+      <div className="absolute inset-0">
+        {seeded ? (
+          <SwipeFeed userId={user.id} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
+
+      {/* ── Floating header ── */}
+      <div
+        className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 pt-12 pb-3 pointer-events-none"
+        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)' }}
+      >
+        <Logo size={28} withWordmark className="text-white pointer-events-auto" href="/feed" />
+        <div className="flex items-center gap-2 pointer-events-auto">
           <Link href="/search"
-            className="w-8 h-8 flex items-center justify-center bg-[#F5F4F0] rounded-lg">
-            <Search size={15} className="text-[#5A5A5A]" />
+            className="w-9 h-9 flex items-center justify-center rounded-full"
+            style={{ background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(10px)' }}>
+            <Search size={15} className="text-white" />
           </Link>
           <Link href="/profile"
-            className="relative w-8 h-8 flex items-center justify-center bg-[#F5F4F0] rounded-lg">
-            <Bell size={15} className="text-[#5A5A5A]" />
+            className="relative w-9 h-9 flex items-center justify-center rounded-full"
+            style={{ background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(10px)' }}>
+            <Bell size={15} className="text-white" />
             {unread > 0 && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#E63946] rounded-full flex items-center justify-center">
+              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#E63946] rounded-full flex items-center justify-center">
                 <span className="text-white text-[8px] font-black">{unread}</span>
               </div>
             )}
           </Link>
         </div>
-      </header>
-
-      {/* Feed */}
-      <div className="flex-1 overflow-hidden px-4 py-3 pb-32">
-        {seeded ? (
-          <SwipeFeed userId={user.id} />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-8 h-8 border-3 border-[#E63946] border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
       </div>
 
       <Navbar />

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Heart, Share2, Zap, ShoppingBag, MessageSquare,
+  ArrowLeft, Heart, Share2, ShoppingBag, MessageSquare,
   ChevronLeft, ChevronRight, Shield, Truck, X, Check,
   Tag, Ruler, Palette, Calendar, Star, Package2
 } from 'lucide-react';
@@ -70,16 +70,6 @@ export default function ItemPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ itemId: item.id, action: next ? 'like' : 'dislike' }),
-    });
-  }, [item, liked, myId]);
-
-  const handleSuperLike = useCallback(async () => {
-    if (!item || !myId) return;
-    if (!liked) { setLiked(true); setLikeCount(c => c + 1); }
-    await fetch('/api/swipe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId: item.id, action: 'superlike' }),
     });
   }, [item, liked, myId]);
 
@@ -306,7 +296,7 @@ export default function ItemPage() {
                 <span className="font-bold">{likeCount}</span>
               </div>
               {!isMine && (
-                <Link href={`/messages/${item.id}/${item.sellerId}`}
+                <Link href={`/messages/dm/${item.sellerId}?item=${item.id}`}
                   className="bg-[#0A0A0A] text-white rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5">
                   <MessageSquare size={12} />
                   Message
@@ -358,12 +348,6 @@ export default function ItemPage() {
                 liked ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-white'
               }`}>
               <Heart size={20} className={liked ? 'text-[#E63946] fill-[#E63946]' : 'text-[#AAAAAA]'} />
-            </button>
-
-            {/* Super like */}
-            <button onClick={handleSuperLike}
-              className="w-14 h-14 rounded-2xl border-2 border-[#EBEBEB] bg-white flex items-center justify-center hover:border-blue-300 transition-colors shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)]">
-              <Zap size={20} className="text-blue-400" />
             </button>
 
             {/* Make Offer */}

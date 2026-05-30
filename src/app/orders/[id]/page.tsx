@@ -9,6 +9,8 @@ import { Order } from '@/lib/db-types';
 import { Item } from '@/lib/types';
 import OrderTracking from '@/components/OrderTracking';
 import RatingModal from '@/components/RatingModal';
+import ResellModal from '@/components/ResellModal';
+import { AnimatePresence } from 'framer-motion';
 
 type OrderWithItem = Order & { item: Item | null };
 
@@ -47,6 +49,9 @@ function OrderDetailInner() {
   const [hasRated, setHasRated] = useState(false);
   const [ratingStars, setRatingStars] = useState(0);
 
+  // Resell modal state
+  const [showResellModal, setShowResellModal] = useState(false);
+
   const myId = clerkUser?.id ?? '';
   const searchParams = useSearchParams();
   const paymentSuccess = searchParams.get('payment') === 'success';
@@ -74,7 +79,8 @@ function OrderDetailInner() {
       .catch(() => {});
   }, [id]);
 
-  // Auto-open the rating sheet right after a successful payment
+  // Auto-open the rating sheet right after a successful payment,
+  // then after rating delay check if we should show resell modal
   useEffect(() => {
     if (!order || !isLoaded || !paymentSuccess) return;
     if (myId !== order.buyerId) return;
@@ -83,6 +89,28 @@ function OrderDetailInner() {
     const t = setTimeout(() => setShowRating(true), 800);
     return () => clearTimeout(t);
   }, [order, isLoaded, myId, paymentSuccess, hasRated]);
+
+  // After rating modal delay, offer the resell modal
+  useEffect(() => {
+    if (!order || !isLoaded || !paymentSuccess) return;
+    if (myId !== order.buyerId) return;
+    if (order.status === 'pending_payment' || order.status === 'cancelled') return;
+    // Show resell modal after 1500ms — check if no active resell listing exists
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/resell/${order.itemId}`);
+        const data = await res.json();
+        const hasActiveListing = Array.isArray(data?.listings) &&
+          data.listings.some((l: { originalOrderId: string }) => l.originalOrderId === order.id);
+        if (!hasActiveListing) {
+          setShowResellModal(true);
+        }
+      } catch {
+        // silently ignore — resell modal is non-critical
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [order, isLoaded, myId, paymentSuccess]);
 
   const submitTracking = async () => {
     if (!tracking.trim() || !order) return;
@@ -268,6 +296,23 @@ function OrderDetailInner() {
         onClose={() => setShowRating(false)}
         onSubmitted={(stars) => { setHasRated(true); setRatingStars(stars); }}
       />
+
+      {/* Resell modal */}
+      <AnimatePresence>
+        {showResellModal && order.item && (
+          <ResellModal
+            orderId={order.id}
+            item={{
+              id: order.item.id,
+              title: order.item.title,
+              price: order.amount,
+              images: order.item.images,
+              condition: order.item.condition,
+            }}
+            onClose={() => setShowResellModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
