@@ -47,8 +47,7 @@ export interface UserProfile {
   preferredSizes?: string[];
   /** Number of failed coin flip payments. Three strikes suspends account. */
   paymentStrikes?: number;
-  /** 'active' | 'suspended_pending_review' */
-  accountStatus?: string;
+  accountStatus?: 'active' | 'suspended_pending_review';
 }
 
 export interface UserPreferences {
