@@ -31,14 +31,14 @@ export default function Navbar() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe"
       style={{ background: 'rgba(10,10,10,0.97)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-      <div className="flex items-center justify-around px-2">
+      <div className="grid grid-cols-5 items-center">
         {tabs.map(({ href, icon: Icon, label, match, center }) => {
           const active = pathname === match || (match !== '/feed' && pathname.startsWith(match));
           const isMessages = match === '/messages';
 
           if (center) {
             return (
-              <Link key={label} href={href} className="flex flex-col items-center -mt-5">
+              <Link key={label} href={href} className="flex flex-col items-center justify-center -mt-5">
                 <div className={`relative w-16 h-16 rounded-3xl flex items-center justify-center transition-all border ${
                   active
                     ? 'bg-gradient-to-b from-[#FF3B47] to-[#E63946] border-white/15'
@@ -62,7 +62,7 @@ export default function Navbar() {
 
           return (
             <Link key={label} href={href}
-              className={`flex flex-col items-center gap-0.5 py-2.5 px-2 transition-colors relative ${
+              className={`flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors relative ${
                 active ? 'text-white' : 'text-[#555555] hover:text-[#888888]'
               }`}
             >

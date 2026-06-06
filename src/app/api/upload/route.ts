@@ -23,15 +23,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const folder = (formData.get('folder') as string | null) === 'chat' ? 'chat' : 'items';
-    const blob = await put(`${folder}/${Date.now()}-${file.name}`, file, {
-      access: 'public',
-    });
+    // Sanitize filename — strip path traversal chars, limit length
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
+    const blob = await put(`${folder}/${Date.now()}-${safeName}`, file, { access: 'public' });
 
     return NextResponse.json({ url: blob.url });
   } catch (error) {
-    return NextResponse.json(
-      { error: (error as Error).message },
-      { status: 500 }
-    );
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }

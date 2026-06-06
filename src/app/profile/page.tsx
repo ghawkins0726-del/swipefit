@@ -242,7 +242,7 @@ export default function ProfilePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#0A0A0A] gap-4 px-8 text-center">
         <p className="text-white font-black text-lg">Couldn&apos;t load profile</p>
-        <p className="text-white/40 text-sm">There was a problem connecting. Check your connection and try again.</p>
+        <p className="text-white/70 text-sm">There was a problem connecting. Check your connection and try again.</p>
         <button
           onClick={() => { setLoading(true); fetch('/api/profile').then(r => r.json()).then(d => { if (d?.user) { setData(d); setNameInput(d.user.name ?? ''); setBioInput(d.user.bio ?? ''); } }).catch(() => {}).finally(() => setLoading(false)); }}
           className="bg-[#E63946] text-white font-black px-6 py-3 rounded-2xl text-sm"
@@ -327,19 +327,19 @@ export default function ProfilePage() {
                   onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
                   maxLength={40} />
                 <button onClick={saveName} className="text-[#E63946]"><Check size={16} /></button>
-                <button onClick={() => { setNameInput(user.name); setEditingName(false); }} className="text-white/40"><X size={14} /></button>
+                <button onClick={() => { setNameInput(user.name); setEditingName(false); }} className="text-white/70"><X size={14} /></button>
               </div>
             ) : (
               <button onClick={() => setEditingName(true)} className="flex items-center gap-1.5 group">
                 <h1 className="font-black text-white text-2xl tracking-tight">{user.name}</h1>
                 {isVerified(user.id) && <VerifiedBadge size="md" />}
-                <Edit2 size={13} className="text-white/30 group-hover:text-white/70 transition-colors" />
+                <Edit2 size={13} className="text-white/62 group-hover:text-white/70 transition-colors" />
               </button>
             )}
           </div>
 
           {/* Handle (Clerk username) */}
-          {handleAt && <p className="text-white/40 text-sm mt-0.5 font-medium">{handleAt}</p>}
+          {handleAt && <p className="text-white/70 text-sm mt-0.5 font-medium">{handleAt}</p>}
 
           {/* Co-founder badge */}
           {isCofounder(user.id) && (
@@ -358,7 +358,7 @@ export default function ProfilePage() {
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
                 <span className="text-white font-black text-xs">{ratingAverage.toFixed(1)}</span>
-                <span className="text-white/40 text-xs">· {ratingCount} review{ratingCount === 1 ? '' : 's'}</span>
+                <span className="text-white/70 text-xs">· {ratingCount} review{ratingCount === 1 ? '' : 's'}</span>
               </span>
             )}
           </div>
@@ -373,7 +373,7 @@ export default function ProfilePage() {
               const inner = (
                 <>
                   <span className="text-white font-black text-xl leading-none">{s.n}</span>
-                  <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">{s.label}</span>
+                  <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest mt-1">{s.label}</span>
                 </>
               );
               return s.href ? (
@@ -404,18 +404,18 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2">
                   <button onClick={saveBio} className="bg-[#E63946] text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest">Save</button>
                   <button onClick={() => { setBioInput(user.bio ?? ''); setEditingBio(false); }}
-                    className="text-white/40 text-xs font-bold">Cancel</button>
-                  <span className="text-white/30 text-[10px] ml-2">{bioInput.length}/160</span>
+                    className="text-white/70 text-xs font-bold">Cancel</button>
+                  <span className="text-white/62 text-[10px] ml-2">{bioInput.length}/160</span>
                 </div>
               </div>
             ) : user.bio ? (
               <button onClick={() => setEditingBio(true)} className="text-white/70 text-sm leading-relaxed text-center">
                 {user.bio}
-                <Edit2 size={11} className="inline ml-1.5 text-white/30 align-text-bottom" />
+                <Edit2 size={11} className="inline ml-1.5 text-white/62 align-text-bottom" />
               </button>
             ) : (
               <button onClick={() => setEditingBio(true)}
-                className="text-white/40 text-sm italic flex items-center gap-1.5 mx-auto">
+                className="text-white/70 text-sm italic flex items-center gap-1.5 mx-auto">
                 <Edit2 size={11} /> Add a bio
               </button>
             )}
@@ -463,7 +463,7 @@ export default function ProfilePage() {
           <button key={id}
             onClick={() => setTab(id)}
             className={`flex-1 flex flex-col items-center gap-1 py-3.5 transition-colors relative ${
-              tab === id ? 'text-white' : 'text-white/30'
+              tab === id ? 'text-white' : 'text-white/62'
             }`}
           >
             <Icon size={20} strokeWidth={tab === id ? 2.4 : 1.8} />

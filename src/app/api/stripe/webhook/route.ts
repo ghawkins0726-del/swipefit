@@ -13,6 +13,8 @@ import {
   getUserByStripeAccount,
   setStripeAccountReady,
   markResellListingSold,
+  isWebhookEventProcessed,
+  recordWebhookEvent,
 } from '@/lib/db';
 
 // 31 days from now in ms — premium window, refreshed on each invoice.paid
@@ -34,6 +36,13 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
+
+  // ── Idempotency: skip events we've already processed ─────────────────────
+  // Stripe retries webhooks on non-2xx responses. Without this check, a retry
+  // would create duplicate notifications, mark orders twice, etc.
+  const alreadyProcessed = await isWebhookEventProcessed(event.id);
+  if (alreadyProcessed) return NextResponse.json({ received: true });
+  await recordWebhookEvent(event.id);
 
   switch (event.type) {
 

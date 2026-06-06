@@ -8,6 +8,9 @@ export async function POST(req: NextRequest) {
 
   const { messageId, emoji } = await req.json();
   if (!messageId || !emoji) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  if (typeof emoji !== 'string' || emoji.length > 10) {
+    return NextResponse.json({ error: 'Invalid emoji' }, { status: 400 });
+  }
 
   const result = await toggleReaction(messageId, userId, emoji);
   return NextResponse.json({ ok: true, action: result });

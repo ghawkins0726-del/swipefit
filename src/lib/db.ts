@@ -336,6 +336,16 @@ async function _runInitDb(): Promise<void> {
 
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS reseller_reputation FLOAT DEFAULT 0`;
   await db`ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_expires_at BIGINT`;
+
+  // Stripe webhook idempotency — store processed event IDs to prevent replay
+  await db`
+    CREATE TABLE IF NOT EXISTS processed_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      processed_at BIGINT NOT NULL
+    )
+  `;
+  // Auto-purge events older than 30 days (Stripe's max retry window)
+  await db`DELETE FROM processed_webhook_events WHERE processed_at < ${Date.now() - 30 * 24 * 3600 * 1000}`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -990,11 +1000,22 @@ export async function getUnreadCount(userId: string): Promise<number> {
 // ─── Orders ───────────────────────────────────────────────────────────────────
 export async function createOrder(order: Order): Promise<void> {
   const db = sql();
+
+  // Atomically mark the item as sold — if another buyer got here first the
+  // UPDATE returns 0 rows and we abort before inserting the order.
+  const updated = await db`
+    UPDATE items SET sold = true
+    WHERE id = ${order.itemId} AND NOT sold
+    RETURNING id
+  `;
+  if (updated.length === 0) {
+    throw new Error('ITEM_ALREADY_SOLD');
+  }
+
   await db`
     INSERT INTO orders (id, buyer_id, seller_id, item_id, amount, status, shipping_address, tracking_number, created_at, updated_at)
     VALUES (${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt})
   `;
-  await db`UPDATE items SET sold = true WHERE id = ${order.itemId}`;
 }
 
 export async function getOrdersByUser(userId: string, role: 'buyer' | 'seller'): Promise<(Order & { item: Item | null })[]> {
@@ -1118,7 +1139,7 @@ export async function getAllMessagesBetween(userId: string, otherUserId: string,
     db`
       SELECT m.*,
         CASE WHEN m.item_id != 'dm' THEN i.title ELSE NULL END AS item_title,
-        CASE WHEN m.item_id != 'dm' THEN (i.images->>0) ELSE NULL END AS item_image,
+        CASE WHEN m.item_id != 'dm' THEN (i.images::jsonb->>0) ELSE NULL END AS item_image,
         CASE WHEN m.item_id != 'dm' THEN i.price ELSE NULL END AS item_price
       FROM messages m
       LEFT JOIN items i ON i.id = m.item_id AND m.item_id != 'dm'
@@ -1877,3 +1898,19 @@ export async function getCollaborativeItemIds(
   return new Set(rows.map(r => r.item_id as string));
 }
 
+
+// ─── Stripe webhook idempotency ───────────────────────────────────────────────
+export async function isWebhookEventProcessed(eventId: string): Promise<boolean> {
+  const db = sql();
+  const rows = await db`SELECT 1 FROM processed_webhook_events WHERE event_id = ${eventId}`;
+  return rows.length > 0;
+}
+
+export async function recordWebhookEvent(eventId: string): Promise<void> {
+  const db = sql();
+  await db`
+    INSERT INTO processed_webhook_events (event_id, processed_at)
+    VALUES (${eventId}, ${Date.now()})
+    ON CONFLICT (event_id) DO NOTHING
+  `;
+}

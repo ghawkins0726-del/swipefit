@@ -3,10 +3,14 @@ import { auth } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { recordSwipe } from '@/lib/db';
 import { handleSwipeInteraction } from '@/lib/taste';
+import { checkRateLimit, swipeLimiter } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const limited = await checkRateLimit(swipeLimiter, userId);
+  if (limited) return limited;
 
   const body = await req.json();
   const { itemId, action, timeViewingMs = 0 } = body;

@@ -34,21 +34,41 @@ export async function GET(req: NextRequest) {
     getUserPreferences(userId),
   ]);
 
-  // Build a flat set of all sizes the user wears for quick lookup
-  const userSizes = new Set<string>([
-    ...(userPrefs?.topSizes ?? []),
-    ...(userPrefs?.bottomSizes ?? []),
-    ...(userPrefs?.shoeSizes ?? []),
-  ]);
+  // Category-aware size sets for filtering
+  const topSizes    = new Set<string>(userPrefs?.topSizes    ?? []);
+  const bottomSizes = new Set<string>(userPrefs?.bottomSizes ?? []);
+  const shoeSizes   = new Set<string>(userPrefs?.shoeSizes   ?? []);
+  const allUserSizes = new Set<string>([...topSizes, ...bottomSizes, ...shoeSizes]);
 
-  const itemMap = new Map<string, Item>(allItems.map(i => [i.id, i]));
+  // Returns true if the item's size matches the user's sizes for that category.
+  // If the user has no saved sizes at all we skip filtering (show everything).
+  function sizeMatches(item: Item): boolean {
+    if (allUserSizes.size === 0) return true;
+    const cat = item.category?.toLowerCase() ?? '';
+    if (cat.includes('shoe') || cat.includes('sneaker') || cat.includes('boot')) {
+      return shoeSizes.size === 0 || shoeSizes.has(item.size);
+    }
+    if (cat.includes('bottom') || cat.includes('pant') || cat.includes('short') || cat.includes('denim') || cat.includes('jean') || cat.includes('skirt')) {
+      return bottomSizes.size === 0 || bottomSizes.has(item.size);
+    }
+    if (cat.includes('top') || cat.includes('shirt') || cat.includes('jacket') || cat.includes('coat') || cat.includes('outerwear') || cat.includes('hoodie')) {
+      return topSizes.size === 0 || topSizes.has(item.size);
+    }
+    // Unknown category — check against all saved sizes
+    return allUserSizes.has(item.size);
+  }
+
+  // Hard-filter by size before ranking — only show items in the user's size
+  const sizeFilteredItems = allItems.filter(sizeMatches);
+
+  const itemMap = new Map<string, Item>(sizeFilteredItems.map(i => [i.id, i]));
   const prefs   = buildUserPreferences(swipes, itemMap);
 
-  const dnaItemMap = new Map(allItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
+  const dnaItemMap = new Map(sizeFilteredItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
   const dna = computeStyleDna(swipes, dnaItemMap);
 
-  // Existing algorithm produces a ranked list with a score per item
-  const ranked = rankItems(allItems, prefs, seenIds, allItems.length); // rank all, slice later
+  // Rank only size-matched items
+  const ranked = rankItems(sizeFilteredItems, prefs, seenIds, sizeFilteredItems.length);
 
   // ── Taste layer (only if user has enough interaction history) ───────────────
   const tasteProfile = await getTasteProfile(userId);
@@ -72,21 +92,18 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Blend & re-rank ─────────────────────────────────────────────────────────
+  // Normalise algo scores to [0,1] using the max in this batch so they are
+  // on the same scale as tasteScore and collabBonus before blending.
+  const maxAlgoScore = Math.max(...ranked.map(r => r.score), 1);
+
   const scored = ranked.map(r => {
-    const item = itemMap.get(r.itemId);
+    if (!tasteActive) return { ...r, _finalScore: r.score };
 
-    // Soft size boost: +0.1 when item size matches any of the user's stored sizes.
-    // Kept small so it nudges ranking without overriding freshness or taste signals.
-    const sizeBonus = (userSizes.size > 0 && item && userSizes.has(item.size)) ? 0.10 : 0;
-
-    if (!tasteActive) return { ...r, _finalScore: r.score + sizeBonus };
-
-    // Normalise the algorithm score to [0,1] using the max in this batch
-    const algoScore   = r.score;                            // already 0-1 from rankItems
+    const algoScore   = r.score / maxAlgoScore;             // normalised to [0,1]
     const tasteScore  = tasteBoosts.get(r.itemId) ?? 0.5;  // 0.5 = neutral when no classification
     const collabBonus = collabItemIds.has(r.itemId) ? 1 : 0;
 
-    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB + sizeBonus;
+    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB;
     return { ...r, _finalScore: finalScore };
   });
 
@@ -110,7 +127,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     feed,
-    total: allItems.length - seenIds.size,
+    total: sizeFilteredItems.length - (sizeFilteredItems.filter(i => seenIds.has(i.id)).length),
     dna,
     tasteActive,
   });
