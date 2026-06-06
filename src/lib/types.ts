@@ -45,6 +45,10 @@ export interface UserProfile {
   stripeAccountReady?: boolean;
   /** Sizes the user wants shown in their feed (e.g. ["M", "L", "32"]) */
   preferredSizes?: string[];
+  /** Number of failed coin flip payments. Three strikes suspends account. */
+  paymentStrikes?: number;
+  /** 'active' | 'suspended_pending_review' */
+  accountStatus?: string;
 }
 
 export interface UserPreferences {

@@ -154,3 +154,29 @@ export interface ItemClassification {
   classifiedAt: number;
   aiAssisted: boolean;
 }
+
+export type CoinFlipStatus =
+  | 'pending'
+  | 'accepted'
+  | 'declined'
+  | 'cancelled'
+  | 'expired'
+  | 'flipped'
+  | 'completed'
+  | 'payment_failed';
+
+export interface CoinFlipOffer {
+  id: string;
+  buyerId: string;
+  sellerId: string;
+  itemId: string;
+  itemPrice: number;
+  winAmount: number;   // itemPrice * 0.50
+  lossAmount: number;  // itemPrice * 1.50
+  status: CoinFlipStatus;
+  flipResult: 'win' | 'loss' | null;
+  stripePaymentIntentId: string | null;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;   // createdAt + 72h
+}
