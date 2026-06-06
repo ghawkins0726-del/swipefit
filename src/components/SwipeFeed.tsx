@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
 import SwipeCard from './SwipeCard';
 import { Item } from '@/lib/types';
+import CoinFlipModal from './CoinFlipModal';
 
 interface Props { userId: string; }
 
@@ -95,6 +96,7 @@ export default function SwipeFeed({ userId }: Props) {
   const [empty, setEmpty] = useState(false);
 
   const [lastSwiped, setLastSwiped] = useState<{ item: Item & { _reason?: string; matchScore?: number }; action: string } | null>(null);
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
 
   // Background glow on drag
   const cardX = useMotionValue(0);
@@ -229,9 +231,9 @@ export default function SwipeFeed({ userId }: Props) {
 
       </div>
 
-      {/* ── Action buttons — 3 equal columns, undo dead-center at 50% ── */}
+      {/* ── Action buttons — 4 equal columns, undo dead-center at 50% ── */}
       <div
-        className="absolute left-0 right-0 z-20 grid grid-cols-3 items-center pointer-events-auto"
+        className="absolute left-0 right-0 z-20 grid grid-cols-4 items-center pointer-events-auto"
         style={{ bottom: 'calc(max(16px, env(safe-area-inset-bottom)) + 88px)' }}
       >
         <div className="flex justify-center">
@@ -249,8 +251,21 @@ export default function SwipeFeed({ userId }: Props) {
             <HeartIcon />
           </GlowButton>
         </div>
+        <div className="flex justify-center">
+          <GlowButton size="sm" glowColor="#FF3B47" variant="dark" onClick={() => setShowCoinFlip(true)}>
+            <span style={{ fontSize: 18 }}>🪙</span>
+          </GlowButton>
+        </div>
       </div>
 
+
+      {stack[0] && (
+        <CoinFlipModal
+          item={stack[0]}
+          open={showCoinFlip}
+          onClose={() => setShowCoinFlip(false)}
+        />
+      )}
 
       {/* ── Swipe action badge ── */}
       <AnimatePresence>
