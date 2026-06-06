@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { getItemById, getOrCreateUser, createOrder, sendMessage, createNotification } from '@/lib/db';
 import {
@@ -19,6 +19,11 @@ export async function POST(
 ) {
   const { userId: buyerId } = await auth();
   if (!buyerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const clerkUser = await currentUser();
+  const buyerName = clerkUser?.username
+    || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
+    || 'Buyer';
 
   const { id } = await params;
   const offer = await getCoinFlipOfferById(id);
@@ -71,26 +76,41 @@ export async function POST(
     await updateCoinFlipOfferStatus(id, 'payment_failed', { flipResult });
 
     const now = Date.now();
-    const strikeMsg = strikes >= 3
-      ? `⚠️ Payment failed. This is strike ${strikes} of 3. Your account has been suspended pending review. Contact support.`
-      : `⚠️ Your payment of $${chargeAmount} failed. This is strike ${strikes} of 3. Three strikes results in indefinite account suspension. Update your card and try again.`;
-
-    if (strikes >= 3) await suspendUser(buyerId);
+    const failureMsg = `⚠ Your payment of $${chargeAmount} failed. This is strike ${strikes} of 3. Three strikes results in indefinite account suspension pending review. Update your card and contact support.`;
 
     await sendMessage({
       id: uuid(), senderId: 'system', senderName: 'Wove',
       receiverId: buyerId, itemId: offer.itemId,
-      text: strikeMsg, read: false, createdAt: now,
+      text: failureMsg, read: false, createdAt: now,
       replyToId: null, replyToText: null, replyToSender: null, reactions: {},
     });
     await createNotification({
       id: `notif_${now}_${uuid().slice(0, 8)}`,
       userId: buyerId, type: 'coin_flip_payment_failed',
       title: 'Payment failed',
-      body: strikeMsg,
+      body: failureMsg,
       payload: JSON.stringify({ coinFlipId: id, strikes }),
       createdAt: now,
     });
+
+    if (strikes >= 3) {
+      await suspendUser(buyerId);
+      const suspendMsg = `Your account has been suspended pending review due to 3 non-payment violations. Contact support.`;
+      await sendMessage({
+        id: uuid(), senderId: 'system', senderName: 'Wove',
+        receiverId: buyerId, itemId: offer.itemId,
+        text: suspendMsg, read: false, createdAt: now,
+        replyToId: null, replyToText: null, replyToSender: null, reactions: {},
+      });
+      await createNotification({
+        id: `notif_${now}_${uuid().slice(0, 8)}`,
+        userId: buyerId, type: 'account_suspended',
+        title: 'Account suspended',
+        body: suspendMsg,
+        payload: JSON.stringify({ coinFlipId: id }),
+        createdAt: now,
+      });
+    }
 
     return NextResponse.json({
       error: 'Payment failed',
@@ -117,8 +137,8 @@ export async function POST(
   await updateCoinFlipOfferStatus(id, 'completed', { flipResult, stripePaymentIntentId: paymentIntentId });
 
   const resultMsg = flipResult === 'win'
-    ? `🪙 Coin Flip result: Buyer won! Paid $${offer.winAmount} for "${item.title}".`
-    : `💸 Coin Flip result: Buyer lost! Paid $${offer.lossAmount} for "${item.title}".`;
+    ? `🪙 @${buyerName} won the flip — paying $${offer.winAmount} for "${item.title}".`
+    : `💸 @${buyerName} lost the flip — paying $${offer.lossAmount} for "${item.title}".`;
 
   await Promise.all([
     sendMessage({
