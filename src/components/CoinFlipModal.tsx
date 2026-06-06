@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { Item } from '@/lib/types';
@@ -22,22 +22,30 @@ export default function CoinFlipModal({ item, open, onClose, onSent }: CoinFlipM
   const [remaining, setRemaining] = useState<number | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<{ id: string; brand: string; last4: string }[]>([]);
   const [showSaveCard, setShowSaveCard] = useState(false);
+  const [sent, setSent] = useState(false);
+  const sendingRef = useRef(false);
 
   const winAmount  = Math.round(item.price * 0.50 * 100) / 100;
   const lossAmount = Math.round(item.price * 1.50 * 100) / 100;
 
   useEffect(() => {
-    if (!open) { setStep(1); setAcknowledged(false); setError(''); return; }
+    if (!open) { setStep(1); setAcknowledged(false); setError(''); setSent(false); return; }
+    const ctrl = new AbortController();
     Promise.all([
-      fetch('/api/coin-flip/remaining').then(r => r.json()),
-      fetch('/api/stripe/payment-methods').then(r => r.json()),
-    ]).then(([rem, pms]) => {
-      setRemaining(rem.remaining ?? 0);
-      setPaymentMethods(pms.paymentMethods ?? []);
-    });
+      fetch('/api/coin-flip/remaining', { signal: ctrl.signal }).then(r => r.json()),
+      fetch('/api/stripe/payment-methods', { signal: ctrl.signal }).then(r => r.json()),
+    ])
+      .then(([rem, pms]) => {
+        setRemaining(rem.remaining ?? 0);
+        setPaymentMethods(pms.paymentMethods ?? []);
+      })
+      .catch(err => { if (err.name !== 'AbortError') setError('Failed to load. Please try again.'); });
+    return () => ctrl.abort();
   }, [open]);
 
   const handleSend = async () => {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     setError('');
     const res = await fetch('/api/coin-flip/create', {
@@ -48,12 +56,15 @@ export default function CoinFlipModal({ item, open, onClose, onSent }: CoinFlipM
     const data = await res.json();
     setSending(false);
     if (!res.ok) {
-      if (data.code === 'no_payment_method') { setShowSaveCard(true); return; }
+      if (data.code === 'no_payment_method') { setShowSaveCard(true); sendingRef.current = false; return; }
       setError(data.error ?? 'Something went wrong');
+      sendingRef.current = false;
       return;
     }
     setStep(3);
+    setSent(true);
     onSent?.(data.coinFlipId);
+    sendingRef.current = false;
   };
 
   if (!open) return null;
@@ -99,12 +110,12 @@ export default function CoinFlipModal({ item, open, onClose, onSent }: CoinFlipM
                   <div className="flex gap-2">
                     <div className="flex-1 bg-[#00C851]/10 border border-[#00C851]/22 rounded-2xl p-3 text-center">
                       <p className="text-[8px] font-black tracking-widest uppercase text-[#00C851] mb-1">🪙 You win</p>
-                      <p className="text-white font-black text-xl">${winAmount}</p>
+                      <p className="text-white font-black text-xl">${winAmount.toFixed(2)}</p>
                       <p className="text-white/35 text-[9px] mt-0.5">50% off</p>
                     </div>
                     <div className="flex-1 bg-[#E63946]/10 border border-[#E63946]/22 rounded-2xl p-3 text-center">
                       <p className="text-[8px] font-black tracking-widest uppercase text-[#E63946] mb-1">💸 You lose</p>
-                      <p className="text-white font-black text-xl">${lossAmount}</p>
+                      <p className="text-white font-black text-xl">${lossAmount.toFixed(2)}</p>
                       <p className="text-white/35 text-[9px] mt-0.5">+50% added</p>
                     </div>
                   </div>
@@ -151,7 +162,7 @@ export default function CoinFlipModal({ item, open, onClose, onSent }: CoinFlipM
                   </div>
 
                   <div className="bg-[#E63946]/8 border border-[#E63946]/20 rounded-2xl p-4 text-sm text-white/75 leading-relaxed">
-                    If you lose this flip, <strong className="text-white">${lossAmount} will be charged</strong> to your {pm ? `${pm.brand.charAt(0).toUpperCase() + pm.brand.slice(1)} ••••${pm.last4}` : 'card on file'}.
+                    If you lose this flip, <strong className="text-white">${lossAmount.toFixed(2)} will be charged</strong> to your {pm ? `${pm.brand.charAt(0).toUpperCase() + pm.brand.slice(1)} ••••${pm.last4}` : 'card on file'}.
                     Declining payment is a violation of Wove's terms.<br /><br />
                     <span className="text-[#E63946] font-bold">3 non-payment strikes = indefinite account suspension.</span>
                   </div>
@@ -165,7 +176,7 @@ export default function CoinFlipModal({ item, open, onClose, onSent }: CoinFlipM
                       {acknowledged && <span className="text-white text-xs font-black">✓</span>}
                     </div>
                     <p className="text-white/55 text-xs leading-relaxed">
-                      I understand I am obligated to pay <strong className="text-white">${lossAmount}</strong> if I lose this coin flip.
+                      I understand I am obligated to pay <strong className="text-white">${lossAmount.toFixed(2)}</strong> if I lose this coin flip.
                     </p>
                   </button>
 
@@ -181,26 +192,41 @@ export default function CoinFlipModal({ item, open, onClose, onSent }: CoinFlipM
               )}
 
               {/* ── Step 3: Send / Pending ── */}
-              {step === 3 && !sending && !error && (
-                <div className="flex flex-col items-center gap-5 py-4">
-                  <p className="text-[9px] font-black tracking-widest uppercase text-[#FF3B47]">Step 3 of 3</p>
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-b from-[#FF3B47] to-[#E63946] flex items-center justify-center text-2xl font-black text-white shadow-[0_0_32px_rgba(255,59,71,0.4)]">
-                    🪙
+              {step === 3 && !sending && (
+                sent ? (
+                  <div className="flex flex-col items-center gap-5 py-4">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-b from-[#FF3B47] to-[#E63946] flex items-center justify-center text-2xl font-black text-white shadow-[0_0_32px_rgba(255,59,71,0.4)]">
+                      🪙
+                    </div>
+                    <div className="text-center">
+                      <h2 className="text-white font-black text-xl mb-1">Offer Sent!</h2>
+                      <p className="text-white/40 text-xs">Waiting for seller to respond…</p>
+                    </div>
+                    <button onClick={onClose} className="w-full h-12 rounded-2xl bg-gradient-to-b from-[#FF3B47] to-[#E63946] text-white font-black text-sm uppercase tracking-widest">
+                      Done
+                    </button>
                   </div>
-                  <div className="text-center">
-                    <h2 className="text-white font-black text-xl mb-1">Send Coin Flip Offer</h2>
-                    <p className="text-white/40 text-xs">Seller has 72h to respond</p>
+                ) : (
+                  <div className="flex flex-col items-center gap-5 py-4">
+                    <p className="text-[9px] font-black tracking-widest uppercase text-[#FF3B47]">Step 3 of 3</p>
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-b from-[#FF3B47] to-[#E63946] flex items-center justify-center text-2xl font-black text-white shadow-[0_0_32px_rgba(255,59,71,0.4)]">
+                      🪙
+                    </div>
+                    <div className="text-center">
+                      <h2 className="text-white font-black text-xl mb-1">Send Coin Flip Offer</h2>
+                      <p className="text-white/40 text-xs">Seller has 72h to respond</p>
+                    </div>
+                    {error && <p className="text-[#E63946] text-xs font-semibold">{error}</p>}
+                    <button
+                      onClick={handleSend}
+                      disabled={sending}
+                      className="w-full h-12 rounded-2xl bg-gradient-to-b from-[#FF3B47] to-[#E63946] text-white font-black text-sm uppercase tracking-widest"
+                    >
+                      Send Offer
+                    </button>
+                    <button onClick={onClose} className="text-xs text-white/30 font-semibold">Cancel</button>
                   </div>
-                  {error && <p className="text-[#E63946] text-xs font-semibold">{error}</p>}
-                  <button
-                    onClick={handleSend}
-                    disabled={sending}
-                    className="w-full h-12 rounded-2xl bg-gradient-to-b from-[#FF3B47] to-[#E63946] text-white font-black text-sm uppercase tracking-widest"
-                  >
-                    Send Offer
-                  </button>
-                  <button onClick={onClose} className="text-xs text-white/30 font-semibold">Cancel</button>
-                </div>
+                )
               )}
 
               {sending && (

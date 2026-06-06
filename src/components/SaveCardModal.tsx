@@ -24,7 +24,13 @@ function CardForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
     setError('');
 
     const res = await fetch('/api/stripe/setup-intent', { method: 'POST' });
-    const { clientSecret } = await res.json();
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error ?? 'Could not initialize card save. Please try again.');
+      setSaving(false);
+      return;
+    }
+    const { clientSecret } = body;
 
     const result = await stripe.confirmCardSetup(clientSecret, {
       payment_method: { card: elements.getElement(CardElement)! },
@@ -77,7 +83,7 @@ export default function SaveCardModal({ open, onClose, onSaved }: SaveCardModalP
         <h2 className="text-white font-black text-lg mb-1">Add Payment Card</h2>
         <p className="text-white/40 text-xs mb-5">Required to send coin flip offers.</p>
         <Elements stripe={stripePromise}>
-          <CardForm onClose={onClose} onSaved={() => { onClose(); onSaved(); }} />
+          <CardForm onClose={onClose} onSaved={onSaved} />
         </Elements>
       </div>
     </div>
