@@ -5,6 +5,7 @@
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
 import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier, ResellListing, ResellPriceHistory } from './db-types';
+import { rowToUserProfile } from './db-mappers';
 
 export interface UserPref {
   userId: string;
@@ -561,27 +562,7 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
   await initDb();
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE id = ${userId}`;
-  if (rows[0]) {
-    const r = rows[0];
-    const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
-    const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-    return {
-      id: r.id as string,
-      name: r.name as string,
-      avatar: r.avatar as string,
-      bio: r.bio as string,
-      createdAt: Number(r.created_at),
-      totalLikes: r.total_likes as number,
-      totalListings: r.total_listings as number,
-      isPremium,
-      premiumUntil,
-      stripeCustomerId: r.stripe_customer_id as string | undefined,
-      stripeAccountId: r.stripe_account_id as string | undefined,
-      stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
-      paymentStrikes: (r.payment_strikes as number) ?? 0,
-      accountStatus: (r.account_status as 'active' | 'suspended_pending_review') ?? 'active',
-    };
-  }
+  if (rows[0]) return rowToUserProfile(rows[0]);
   const user: UserProfile = {
     id: userId, name: displayName || 'SwipeFit User',
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
@@ -599,24 +580,7 @@ export async function setPremium(userId: string, isPremium: boolean, premiumUnti
 export async function getUserByStripeCustomer(stripeCustomerId: string): Promise<UserProfile | null> {
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE stripe_customer_id = ${stripeCustomerId}`;
-  if (!rows[0]) return null;
-  const r = rows[0];
-  const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
-  const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    avatar: r.avatar as string,
-    bio: r.bio as string,
-    createdAt: Number(r.created_at),
-    totalLikes: r.total_likes as number,
-    totalListings: r.total_listings as number,
-    isPremium,
-    premiumUntil,
-    stripeCustomerId: r.stripe_customer_id as string | undefined,
-    stripeAccountId: r.stripe_account_id as string | undefined,
-    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
-  };
+  return rows[0] ? rowToUserProfile(rows[0]) : null;
 }
 
 /** Set or update a user's Stripe Connect (Express) account id. */
@@ -635,24 +599,7 @@ export async function setStripeAccountReady(userId: string, ready: boolean): Pro
 export async function getUserByStripeAccount(stripeAccountId: string): Promise<UserProfile | null> {
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE stripe_account_id = ${stripeAccountId}`;
-  if (!rows[0]) return null;
-  const r = rows[0];
-  const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
-  const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    avatar: r.avatar as string,
-    bio: r.bio as string,
-    createdAt: Number(r.created_at),
-    totalLikes: r.total_likes as number,
-    totalListings: r.total_listings as number,
-    isPremium,
-    premiumUntil,
-    stripeCustomerId: r.stripe_customer_id as string | undefined,
-    stripeAccountId: r.stripe_account_id as string | undefined,
-    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
-  };
+  return rows[0] ? rowToUserProfile(rows[0]) : null;
 }
 
 export async function updateUser(userId: string, data: { name?: string; bio?: string; avatar?: string }): Promise<void> {

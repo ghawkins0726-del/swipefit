@@ -1,21 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuthParams, apiError } from '@/lib/api-helpers';
 import { getCoinFlipOfferById } from '@/lib/db-coin-flip';
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const GET = withAuthParams<{ id: string }, unknown>(
+  async (_req, { params }, { userId }) => {
+    const { id } = await params;
+    const offer = await getCoinFlipOfferById(id);
+    if (!offer) return apiError.notFound();
 
-  const { id } = await params;
-  const offer = await getCoinFlipOfferById(id);
-  if (!offer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (offer.buyerId !== userId && offer.sellerId !== userId) {
+      return apiError.forbidden();
+    }
 
-  if (offer.buyerId !== userId && offer.sellerId !== userId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  return NextResponse.json(offer);
-}
+    return NextResponse.json(offer);
+  },
+);

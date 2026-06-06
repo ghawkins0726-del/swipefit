@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { Flame, PlusSquare, User, Dna, MessageSquare } from 'lucide-react';
-import { useUser } from '@clerk/nextjs';
+import { useUnreadCount } from '@/lib/hooks/useUnreadCount';
 
 type Tab = { href: string; icon: React.ElementType; label: string; match: string; center?: boolean };
 
@@ -18,15 +17,7 @@ const tabs: Tab[] = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user } = useUser();
-  const [unread, setUnread] = useState(0);
-
-  useEffect(() => {
-    if (!user) return;
-    fetch('/api/messages?count=true')
-      .then(r => r.json())
-      .then(d => setUnread(d.count ?? 0));
-  }, [pathname, user]);
+  const unread = useUnreadCount({ refreshKey: pathname });
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe"

@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { withAuth } from '@/lib/api-helpers';
 import { getCoinFlipMonthCount } from '@/lib/db-coin-flip';
 
 const MONTHLY_LIMIT = 3;
 
-export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export const GET = withAuth(async (_req, { userId }) => {
   const used = await getCoinFlipMonthCount(userId);
   const remaining = Math.max(0, MONTHLY_LIMIT - used);
 
@@ -16,4 +13,4 @@ export async function GET() {
   const resetsAt = nextMonth.getTime();
 
   return NextResponse.json({ remaining, used, resetsAt });
-}
+});

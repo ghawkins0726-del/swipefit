@@ -5,8 +5,12 @@
  * and `useState` an unread count. That's 3 fetches and 3 sources of truth for
  * the same value. This hook is a single-source replacement.
  *
- * It is intentionally minimal — no caching, no global store. It refreshes on
- * mount and at the cadence specified by `pollMs` (default 60s). When we add
+ * Refresh triggers:
+ *  - mount + auth changes
+ *  - any change in `refreshKey` (pass e.g. `pathname` to refetch on nav)
+ *  - background polling every `pollMs` (default 60s)
+ *
+ * It is intentionally minimal — no caching, no global store. When we add
  * TanStack Query, this becomes a one-line wrapper around `useQuery`.
  */
 'use client';
@@ -16,7 +20,14 @@ import { useUser } from '@clerk/nextjs';
 
 const ENDPOINT = '/api/messages?count=true';
 
-export function useUnreadCount(pollMs = 60_000): number {
+export interface UseUnreadCountOptions {
+  pollMs?: number;
+  /** Any value whose change should trigger a refetch (e.g. pathname). */
+  refreshKey?: unknown;
+}
+
+export function useUnreadCount(opts: UseUnreadCountOptions = {}): number {
+  const { pollMs = 60_000, refreshKey } = opts;
   const { user } = useUser();
   const [count, setCount] = useState(0);
   const mountedRef = useRef(true);
@@ -48,7 +59,7 @@ export function useUnreadCount(pollMs = 60_000): number {
       ac.abort();
       clearInterval(id);
     };
-  }, [user, pollMs]);
+  }, [user, pollMs, refreshKey]);
 
   return count;
 }

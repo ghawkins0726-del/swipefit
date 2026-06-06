@@ -1,21 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
 import { getCollections, createCollection } from '@/lib/db';
 
-export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const GET = withAuth(async (_req, { userId }) => {
   const collections = await getCollections(userId);
   return NextResponse.json(collections);
-}
+});
 
-export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { name, emoji = '🗂️' } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+export const POST = withAuth(async (req, { userId }) => {
+  const body = await parseJson<{ name?: string; emoji?: string }>(req);
+  if (!body) return apiError.badRequest('Invalid body');
+  const { name, emoji = '🗂️' } = body;
+  if (!name?.trim()) return apiError.badRequest('Name required');
 
   const collection = await createCollection(userId, name.trim(), emoji);
   return NextResponse.json(collection, { status: 201 });
-}
+});

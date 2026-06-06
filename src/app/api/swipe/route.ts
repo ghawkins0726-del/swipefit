@@ -1,29 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 import { v4 as uuid } from 'uuid';
+import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
 import { recordSwipe } from '@/lib/db';
 import { handleSwipeInteraction } from '@/lib/taste';
+import type { SwipeRecord } from '@/lib/types';
 
-export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// NOTE: 'pass' is accepted at runtime (matches prior behaviour) even though
+// SwipeRecord.action's TS type only covers the other four. Preserved via cast.
+const VALID_ACTIONS = ['like', 'dislike', 'superlike', 'purchase', 'pass'];
 
-  const body = await req.json();
+export const POST = withAuth(async (req, { userId }) => {
+  const body = await parseJson<{ itemId?: string; action?: string; timeViewingMs?: number }>(req);
+  if (!body) return apiError.badRequest('Invalid body');
   const { itemId, action, timeViewingMs = 0 } = body;
-  if (!itemId || !action) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  if (!itemId || !action) return apiError.badRequest('Missing fields');
 
-  const validActions = ['like', 'dislike', 'superlike', 'purchase', 'pass'];
-  if (!validActions.includes(action)) return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+  if (!VALID_ACTIONS.includes(action)) {
+    return apiError.badRequest('Invalid action');
+  }
 
   // Record the raw swipe (existing behaviour)
-  await recordSwipe({ id: uuid(), userId, itemId, action, timestamp: Date.now() });
+  await recordSwipe({
+    id: uuid(),
+    userId,
+    itemId,
+    action: action as SwipeRecord['action'],
+    timestamp: Date.now(),
+  });
 
   // Fire-and-forget: update taste profile without blocking the response.
   // handleSwipeInteraction also records the interaction in the v2 table with
   // strength and dwell-time, then applies the EMA update if a classification exists.
-  handleSwipeInteraction(userId, itemId, action, timeViewingMs).catch(() => {
+  handleSwipeInteraction(userId, itemId, action as SwipeRecord['action'], timeViewingMs).catch(() => {
     // Non-critical — taste update failure must not surface to the client
   });
 
   return NextResponse.json({ ok: true });
-}
+});
