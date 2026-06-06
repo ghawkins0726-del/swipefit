@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
+import { withAuth } from '@/lib/api-helpers';
 import { getStripe } from '@/lib/stripe';
 import { getOrCreateUser } from '@/lib/db';
 import { setUserStripeCustomerId } from '@/lib/db-coin-flip';
 
-export async function POST() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export const POST = withAuth(async (_req, { userId }) => {
   const stripe = getStripe();
   const user = await getOrCreateUser(userId);
 
@@ -26,4 +24,4 @@ export async function POST() {
   });
 
   return NextResponse.json({ clientSecret: setupIntent.client_secret });
-}
+});

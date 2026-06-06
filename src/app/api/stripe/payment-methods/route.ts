@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { withAuth } from '@/lib/api-helpers';
 import { getStripe } from '@/lib/stripe';
 import { getOrCreateUser } from '@/lib/db';
 
-export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export const GET = withAuth(async (_req, { userId }) => {
   const user = await getOrCreateUser(userId);
   if (!user.stripeCustomerId) return NextResponse.json({ paymentMethods: [] });
 
@@ -23,4 +20,4 @@ export async function GET() {
       last4: pm.card?.last4 ?? '????',
     })),
   });
-}
+});

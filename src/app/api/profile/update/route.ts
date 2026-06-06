@@ -1,28 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
 import { updateUser, getOrCreateUser } from '@/lib/db';
 
-export async function PATCH(req: NextRequest) {
-  const { userId: authUserId } = await auth();
-  if (!authUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
-
-  const { userId: bodyUserId, name, bio, avatar } = body as {
+export const PATCH = withAuth(async (req, { userId: authUserId }) => {
+  const body = await parseJson<{
     userId?: string;
     name?: string;
     bio?: string;
     avatar?: string;
-  };
+  }>(req);
+  if (!body) return apiError.badRequest('Invalid body');
+
+  const { userId: bodyUserId, name, bio, avatar } = body;
 
   // Reject attempts to update another user's profile
-  if (bodyUserId && bodyUserId !== authUserId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (bodyUserId && bodyUserId !== authUserId) return apiError.forbidden();
 
   if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
-    return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 });
+    return apiError.badRequest('Name cannot be empty');
   }
 
   await updateUser(authUserId, {
@@ -32,4 +27,4 @@ export async function PATCH(req: NextRequest) {
   });
   const user = await getOrCreateUser(authUserId);
   return NextResponse.json({ ok: true, user });
-}
+});
