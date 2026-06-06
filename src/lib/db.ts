@@ -360,6 +360,31 @@ async function _runInitDb(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_coin_flip_item   ON coin_flip_offers(item_id)`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_strikes INT NOT NULL DEFAULT 0`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status  TEXT NOT NULL DEFAULT 'active'`;
+
+  // ── Collections (boards) — referenced by /api/collections + getCollections ──
+  await db`
+    CREATE TABLE IF NOT EXISTS collections (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      emoji      TEXT NOT NULL DEFAULT '📁',
+      created_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id, created_at DESC)`;
+  await db`
+    CREATE TABLE IF NOT EXISTS collection_items (
+      collection_id TEXT NOT NULL,
+      item_id       TEXT NOT NULL,
+      added_at      BIGINT NOT NULL,
+      PRIMARY KEY (collection_id, item_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id, added_at DESC)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_collection_items_item       ON collection_items(item_id)`;
+
+  // preferred_sizes on users — referenced by getUserPreferences / saveUserPreferences
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_sizes TEXT`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
@@ -1655,40 +1680,52 @@ export interface Collection {
 
 export async function getCollections(userId: string): Promise<Collection[]> {
   const db = sql();
+  // Single query: collections + counts + top-3 preview images, fetched together.
+  // Window function ranks items per collection by added_at; we keep only rank <= 3.
   const rows = await db`
+    WITH ranked_items AS (
+      SELECT ci.collection_id, i.images,
+             ROW_NUMBER() OVER (PARTITION BY ci.collection_id ORDER BY ci.added_at DESC) AS rn
+      FROM collection_items ci
+      JOIN items i ON i.id = ci.item_id
+    ),
+    previews AS (
+      SELECT collection_id, json_agg(images ORDER BY rn) AS preview_images
+      FROM ranked_items
+      WHERE rn <= 3
+      GROUP BY collection_id
+    )
     SELECT c.id, c.user_id, c.name, c.emoji, c.created_at,
-           COUNT(ci.item_id)::int AS item_count
+           COUNT(ci.item_id)::int AS item_count,
+           p.preview_images
     FROM collections c
     LEFT JOIN collection_items ci ON ci.collection_id = c.id
+    LEFT JOIN previews p ON p.collection_id = c.id
     WHERE c.user_id = ${userId}
-    GROUP BY c.id
+    GROUP BY c.id, p.preview_images
     ORDER BY c.created_at DESC
   `;
-  // Fetch preview images for each collection (first 3 items)
-  const result: Collection[] = [];
-  for (const r of rows) {
-    const colId = r.id as string;
-    const imgRows = await db`
-      SELECT i.images FROM collection_items ci
-      JOIN items i ON i.id = ci.item_id
-      WHERE ci.collection_id = ${colId}
-      ORDER BY ci.added_at DESC LIMIT 3
-    `;
-    const previews = imgRows.map(ir => {
-      const imgs = typeof ir.images === 'string' ? JSON.parse(ir.images) : ir.images as string[];
-      return imgs[0] ?? '';
-    }).filter(Boolean);
-    result.push({
-      id: colId,
+
+  return rows.map(r => {
+    // preview_images is an array of `images` JSON values (string or array per row).
+    // Take the first image of each item, in order, drop empties.
+    const raw = (r.preview_images as unknown[] | null) ?? [];
+    const previews = raw
+      .map(v => {
+        const imgs = typeof v === 'string' ? JSON.parse(v) : (v as string[]);
+        return imgs?.[0] ?? '';
+      })
+      .filter(Boolean) as string[];
+    return {
+      id: r.id as string,
       userId: r.user_id as string,
       name: r.name as string,
       emoji: r.emoji as string,
       createdAt: Number(r.created_at),
       itemCount: Number(r.item_count),
       previewImages: previews,
-    });
-  }
-  return result;
+    };
+  });
 }
 
 export async function createCollection(userId: string, name: string, emoji: string): Promise<Collection> {
