@@ -10,7 +10,16 @@ export async function POST(req: NextRequest) {
 
   const { styles, categories, budget, gender, topSizes, bottomSizes, shoeSizes } = await req.json();
 
-  const allItems = await getItems(500);
+  // Build a flat size list from the onboarding payload for SQL-level filtering.
+  const sizeFilter: string[] = [
+    ...(topSizes    ?? []),
+    ...(bottomSizes ?? []),
+    ...(shoeSizes   ?? []),
+  ];
+
+  // Fetch only size-matched items directly from the DB — no JS filtering needed.
+  // No excludeIds: onboarding users have no swipe history yet.
+  const allItems = await getItems(50, 0, [], sizeFilter);
   const now = Date.now();
 
   const scored = allItems.map(item => {

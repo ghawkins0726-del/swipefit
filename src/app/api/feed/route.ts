@@ -27,19 +27,24 @@ export async function GET(req: NextRequest) {
   const batchSize = parseInt(searchParams.get('batch') ?? '10');
 
   // ── Base data (always fetched) ──────────────────────────────────────────────
-  const [allItems, swipes, seenIds, userPrefs] = await Promise.all([
-    getItems(500),
+  // Fetch swipes/prefs first so we can push exclude + size filters into SQL.
+  const [swipes, seenIds, userPrefs] = await Promise.all([
     getUserSwipes(userId),
     getSwipedItemIds(userId),
     getUserPreferences(userId),
   ]);
 
-  // Build a flat set of all sizes the user wears for quick lookup
+  // Build a flat array of all sizes the user wears for SQL push-down.
   const userSizes = new Set<string>([
     ...(userPrefs?.topSizes ?? []),
     ...(userPrefs?.bottomSizes ?? []),
     ...(userPrefs?.shoeSizes ?? []),
   ]);
+  const sizeFilter  = userSizes.size > 0 ? [...userSizes] : [];
+  const excludeIds  = [...seenIds];
+
+  // Fetch only unseen, size-matched items directly from the DB (≤100 rows).
+  const allItems = await getItems(100, 0, excludeIds, sizeFilter);
 
   const itemMap = new Map<string, Item>(allItems.map(i => [i.id, i]));
   const prefs   = buildUserPreferences(swipes, itemMap);
@@ -47,7 +52,8 @@ export async function GET(req: NextRequest) {
   const dnaItemMap = new Map(allItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
   const dna = computeStyleDna(swipes, dnaItemMap);
 
-  // Existing algorithm produces a ranked list with a score per item
+  // Existing algorithm produces a ranked list with a score per item.
+  // seenIds is passed for API compatibility but all returned items are already unseen.
   const ranked = rankItems(allItems, prefs, seenIds, allItems.length); // rank all, slice later
 
   // ── Taste layer (only if user has enough interaction history) ───────────────
@@ -110,7 +116,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     feed,
-    total: allItems.length - seenIds.size,
+    total: allItems.length, // allItems already excludes seen items (SQL push-down)
     dna,
     tasteActive,
   });
