@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { getItemById, sendMessage, createNotification } from '@/lib/db';
-import { getCoinFlipOfferById, updateCoinFlipOfferStatus } from '@/lib/db-coin-flip';
+import { getCoinFlipOfferById, updateCoinFlipOfferStatus, updateCoinFlipOfferStatusConditional } from '@/lib/db-coin-flip';
 
 export async function POST(
   req: NextRequest,
@@ -10,6 +10,11 @@ export async function POST(
 ) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const clerkUser = await currentUser();
+  const sellerName = clerkUser?.username
+    || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
+    || 'Seller';
 
   const { id } = await params;
   const offer = await getCoinFlipOfferById(id);
@@ -23,7 +28,12 @@ export async function POST(
     return NextResponse.json({ error: 'Offer has expired', expired: true }, { status: 410 });
   }
 
-  const { accepted } = await req.json() as { accepted: boolean };
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body.accepted !== 'boolean') {
+    return NextResponse.json({ error: 'Missing or invalid field: accepted' }, { status: 400 });
+  }
+  const { accepted } = body as { accepted: boolean };
+
   const now = Date.now();
   const item = await getItemById(offer.itemId);
   const itemTitle = item?.title ?? 'an item';
@@ -32,15 +42,44 @@ export async function POST(
     // Guard: item must still be available
     if (item?.sold) {
       await updateCoinFlipOfferStatus(id, 'declined');
+
+      await sendMessage({
+        id: uuid(),
+        senderId: userId,
+        senderName: sellerName,
+        receiverId: offer.buyerId,
+        itemId: offer.itemId,
+        text: `❌ Your Coin Flip offer on "${itemTitle}" was declined — the item is no longer available. Your slot has been returned.`,
+        read: false,
+        createdAt: now,
+        replyToId: null,
+        replyToText: null,
+        replyToSender: null,
+        reactions: {},
+      });
+
+      await createNotification({
+        id: `notif_${now}_${uuid().slice(0, 8)}`,
+        userId: offer.buyerId,
+        type: 'coin_flip_declined',
+        title: 'Coin Flip declined',
+        body: `Your flip on "${itemTitle}" was declined — item no longer available. Slot returned.`,
+        payload: JSON.stringify({ coinFlipId: id }),
+        createdAt: now,
+      });
+
       return NextResponse.json({ error: 'Item is no longer available', declined: true }, { status: 409 });
     }
 
-    await updateCoinFlipOfferStatus(id, 'accepted');
+    const didAccept = await updateCoinFlipOfferStatusConditional(id, 'pending', 'accepted');
+    if (!didAccept) {
+      return NextResponse.json({ error: 'Offer no longer available' }, { status: 409 });
+    }
 
     await sendMessage({
       id: uuid(),
       senderId: userId,
-      senderName: 'Seller',
+      senderName: sellerName,
       receiverId: offer.buyerId,
       itemId: offer.itemId,
       text: `✅ Your Coin Flip offer on "${itemTitle}" was accepted! Open the app to flip.`,
@@ -67,7 +106,7 @@ export async function POST(
     await sendMessage({
       id: uuid(),
       senderId: userId,
-      senderName: 'Seller',
+      senderName: sellerName,
       receiverId: offer.buyerId,
       itemId: offer.itemId,
       text: `❌ Your Coin Flip offer on "${itemTitle}" was declined. Your slot has been returned.`,

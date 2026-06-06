@@ -70,6 +70,23 @@ export async function updateCoinFlipOfferStatus(
   }
 }
 
+/** Updates status only if current status matches `fromStatus`. Returns true if updated. */
+export async function updateCoinFlipOfferStatusConditional(
+  id: string,
+  fromStatus: CoinFlipStatus,
+  toStatus: CoinFlipStatus,
+): Promise<boolean> {
+  const db = sql();
+  const now = Date.now();
+  const rows = await db`
+    UPDATE coin_flip_offers
+    SET status = ${toStatus}, updated_at = ${now}
+    WHERE id = ${id} AND status = ${fromStatus}
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
 /** Returns the number of active (non-declined, non-expired, non-cancelled) offers this calendar month. */
 export async function getCoinFlipMonthCount(buyerId: string): Promise<number> {
   const db = sql();
