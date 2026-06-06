@@ -75,9 +75,19 @@ export async function updateCoinFlipOfferStatusConditional(
   id: string,
   fromStatus: CoinFlipStatus,
   toStatus: CoinFlipStatus,
+  extra?: { flipResult?: 'win' | 'loss' },
 ): Promise<boolean> {
   const db = sql();
   const now = Date.now();
+  if (extra?.flipResult !== undefined) {
+    const rows = await db`
+      UPDATE coin_flip_offers
+      SET status = ${toStatus}, flip_result = ${extra.flipResult}, updated_at = ${now}
+      WHERE id = ${id} AND status = ${fromStatus}
+      RETURNING id
+    `;
+    return rows.length > 0;
+  }
   const rows = await db`
     UPDATE coin_flip_offers
     SET status = ${toStatus}, updated_at = ${now}

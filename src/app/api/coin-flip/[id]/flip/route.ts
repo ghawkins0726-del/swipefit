@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
@@ -5,6 +6,7 @@ import { getItemById, getOrCreateUser, createOrder, sendMessage, createNotificat
 import {
   getCoinFlipOfferById,
   updateCoinFlipOfferStatus,
+  updateCoinFlipOfferStatusConditional,
   incrementPaymentStrike,
   suspendUser,
 } from '@/lib/db-coin-flip';
@@ -30,6 +32,10 @@ export async function POST(
   if (!offer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (offer.buyerId !== buyerId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   if (offer.status !== 'accepted') return NextResponse.json({ error: 'Offer not in accepted state' }, { status: 409 });
+  if (Date.now() > offer.expiresAt) {
+    await updateCoinFlipOfferStatus(id, 'expired');
+    return NextResponse.json({ error: 'Offer has expired', expired: true }, { status: 410 });
+  }
 
   const [buyer, seller, item] = await Promise.all([
     getOrCreateUser(buyerId),
@@ -39,6 +45,9 @@ export async function POST(
 
   if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
   if (item.sold) return NextResponse.json({ error: 'Item already sold' }, { status: 409 });
+  if (buyer.accountStatus === 'suspended_pending_review') {
+    return NextResponse.json({ error: 'Your account is suspended pending review.' }, { status: 403 });
+  }
   if (!seller.stripeAccountId || !seller.stripeAccountReady) {
     return NextResponse.json({ error: 'Seller payout not ready' }, { status: 409 });
   }
@@ -49,13 +58,14 @@ export async function POST(
   const pmId = pms.data[0].id;
 
   // Generate flip result server-side
-  const flipResult: 'win' | 'loss' = Math.random() < 0.5 ? 'win' : 'loss';
+  const flipResult: 'win' | 'loss' = randomInt(2) === 0 ? 'win' : 'loss';
   const chargeAmount = flipResult === 'win' ? offer.winAmount : offer.lossAmount;
   const amountCents = Math.round(chargeAmount * 100);
   const feeCents = Math.round(amountCents * PLATFORM_FEE_PCT);
 
-  // Mark as flipped (result known, payment in progress)
-  await updateCoinFlipOfferStatus(id, 'flipped', { flipResult });
+  // Atomic transition: accepted → flipped (with result). Guards against double-flip.
+  const didFlip = await updateCoinFlipOfferStatusConditional(id, 'accepted', 'flipped', { flipResult });
+  if (!didFlip) return NextResponse.json({ error: 'Flip already in progress or completed' }, { status: 409 });
 
   // Attempt off-session charge
   let paymentIntentId: string;
@@ -115,8 +125,6 @@ export async function POST(
     return NextResponse.json({
       error: 'Payment failed',
       code: 'payment_failed',
-      flipResult,
-      chargeAmount,
       strikes,
     }, { status: 402 });
   }
@@ -129,7 +137,7 @@ export async function POST(
     sellerId: offer.sellerId,
     itemId: offer.itemId,
     amount: chargeAmount,
-    status: 'pending_payment',
+    status: 'processing',
     createdAt: now,
     updatedAt: now,
   };
