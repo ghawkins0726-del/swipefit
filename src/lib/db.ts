@@ -336,12 +336,54 @@ async function _runInitDb(): Promise<void> {
 
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS reseller_reputation FLOAT DEFAULT 0`;
   await db`ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_expires_at BIGINT`;
+
+  // ── Coin flip ────────────────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS coin_flip_offers (
+      id                        TEXT PRIMARY KEY,
+      buyer_id                  TEXT NOT NULL,
+      seller_id                 TEXT NOT NULL,
+      item_id                   TEXT NOT NULL,
+      item_price                NUMERIC(10,2) NOT NULL,
+      win_amount                NUMERIC(10,2) NOT NULL,
+      loss_amount               NUMERIC(10,2) NOT NULL,
+      status                    TEXT NOT NULL DEFAULT 'pending',
+      flip_result               TEXT,
+      stripe_payment_intent_id  TEXT,
+      created_at                BIGINT NOT NULL,
+      updated_at                BIGINT NOT NULL,
+      expires_at                BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_coin_flip_buyer  ON coin_flip_offers(buyer_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_coin_flip_seller ON coin_flip_offers(seller_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_coin_flip_item   ON coin_flip_offers(item_id)`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_strikes INT NOT NULL DEFAULT 0`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status  TEXT NOT NULL DEFAULT 'active'`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
-export async function getItems(limit = 50, offset = 0): Promise<Item[]> {
+export async function getItems(
+  limit = 50,
+  offset = 0,
+  excludeIds: string[] = [],
+  sizeFilter: string[] = [],
+): Promise<Item[]> {
   const db = sql();
-  const rows = await db`SELECT * FROM items WHERE NOT sold ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+  // Build the query with optional SQL-level push-downs.
+  // When the caller supplies no filter arrays the query behaves identically to
+  // the original (the CASE expressions collapse to TRUE).
+  const hasExclude = excludeIds.length > 0;
+  const hasSize    = sizeFilter.length > 0;
+
+  const rows = await db`
+    SELECT * FROM items
+    WHERE NOT sold
+      AND (NOT ${hasExclude} OR id != ALL(${excludeIds}))
+      AND (NOT ${hasSize}    OR size = ANY(${sizeFilter}))
+    ORDER BY created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
   return rows.map(rowToItem);
 }
 
@@ -511,6 +553,8 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
       stripeCustomerId: r.stripe_customer_id as string | undefined,
       stripeAccountId: r.stripe_account_id as string | undefined,
       stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
+      paymentStrikes: (r.payment_strikes as number) ?? 0,
+      accountStatus: (r.account_status as 'active' | 'suspended_pending_review') ?? 'active',
     };
   }
   const user: UserProfile = {
@@ -1793,6 +1837,49 @@ export async function addResellPriceHistory(entry: ResellPriceHistory): Promise<
     VALUES (${entry.id}, ${entry.itemId}, ${entry.orderId}, ${entry.sellerUserId}, ${entry.price}, ${entry.condition}, ${entry.createdAt})
     ON CONFLICT (id) DO NOTHING
   `;
+}
+
+/**
+ * Atomically inserts a resell listing and its first price-history entry.
+ * Uses an explicit BEGIN/COMMIT transaction so both rows land together or
+ * neither does — preventing a listing with no price history.
+ */
+export async function createResellListingWithHistory(
+  listing: ResellListing,
+  historyEntry: ResellPriceHistory,
+): Promise<void> {
+  const db = sql();
+  await db`BEGIN`;
+  try {
+    await db`
+      INSERT INTO resell_listings (
+        id, original_order_id, seller_user_id, item_id, condition,
+        price, images, status, created_at, updated_at
+      ) VALUES (
+        ${listing.id}, ${listing.originalOrderId}, ${listing.sellerUserId},
+        ${listing.itemId}, ${listing.condition}, ${listing.price},
+        ${JSON.stringify(listing.images)}, ${listing.status},
+        ${listing.createdAt}, ${listing.updatedAt}
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await db`
+      INSERT INTO resell_price_history (id, item_id, order_id, seller_user_id, price, condition, created_at)
+      VALUES (${historyEntry.id}, ${historyEntry.itemId}, ${historyEntry.orderId}, ${historyEntry.sellerUserId}, ${historyEntry.price}, ${historyEntry.condition}, ${historyEntry.createdAt})
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await db`COMMIT`;
+  } catch (err) {
+    await db`ROLLBACK`;
+    throw err;
+  }
+}
+
+export async function getOrderHoldExpiresAt(orderId: string): Promise<number | null> {
+  const db = sql();
+  const rows = await db`SELECT hold_expires_at FROM orders WHERE id = ${orderId}`;
+  if (!rows[0] || rows[0].hold_expires_at == null) return null;
+  return Number(rows[0].hold_expires_at);
 }
 
 export async function setOrderHold(orderId: string, holdExpiresAt: number): Promise<void> {
