@@ -3,8 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import {
   getOrderById,
-  createResellListing,
-  addResellPriceHistory,
+  createResellListingWithHistory,
   getResellListings,
 } from '@/lib/db';
 import { ResellListing, ResellPriceHistory } from '@/lib/db-types';
@@ -49,8 +48,6 @@ export async function POST(req: NextRequest) {
     updatedAt: now,
   };
 
-  await createResellListing(listing);
-
   const historyEntry: ResellPriceHistory = {
     id: uuid(),
     itemId: order.itemId,
@@ -60,7 +57,8 @@ export async function POST(req: NextRequest) {
     condition: listing.condition,
     createdAt: now,
   };
-  await addResellPriceHistory(historyEntry);
+
+  await createResellListingWithHistory(listing, historyEntry);
 
   return NextResponse.json({ listing });
 }

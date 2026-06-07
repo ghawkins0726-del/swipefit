@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
 import { toggleReaction } from '@/lib/db';
 
-export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { messageId, emoji } = await req.json();
-  if (!messageId || !emoji) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+export const POST = withAuth(async (req, { userId }) => {
+  const body = await parseJson<{ messageId?: string; emoji?: string }>(req);
+  if (!body) return apiError.badRequest('Invalid body');
+  const { messageId, emoji } = body;
+  if (!messageId || !emoji) return apiError.badRequest('Missing fields');
+  // Emoji length cap — prevent storing arbitrary strings
   if (typeof emoji !== 'string' || emoji.length > 10) {
-    return NextResponse.json({ error: 'Invalid emoji' }, { status: 400 });
+    return apiError.badRequest('Invalid emoji');
   }
 
   const result = await toggleReaction(messageId, userId, emoji);
   return NextResponse.json({ ok: true, action: result });
-}
+});

@@ -1,11 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/api-helpers';
 import { getUserWardrobe } from '@/lib/db';
 
-export async function GET(_req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export const GET = withAuth(async (_req, { userId }) => {
   const wardrobe = await getUserWardrobe(userId);
   return NextResponse.json(wardrobe);
-}
+});

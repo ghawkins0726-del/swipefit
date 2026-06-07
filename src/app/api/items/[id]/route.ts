@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { withAuthParams, parseJson, apiError } from '@/lib/api-helpers';
 import { getItemById, updateItem } from '@/lib/db';
 
+// Public GET — anyone can view an item.
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const item = await getItemById(id);
@@ -12,31 +13,33 @@ export async function GET(
   return NextResponse.json(item);
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+const ALLOWED_FIELDS = [
+  'title', 'description', 'price', 'originalPrice',
+  'images', 'condition', 'brand', 'size', 'styles', 'colors',
+] as const;
 
-  const { id } = await params;
+export const PATCH = withAuthParams<{ id: string }, unknown>(
+  async (req, { params }, { userId }) => {
+    const { id } = await params;
 
-  const existing = await getItemById(id);
-  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (existing.sellerId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  if (existing.sold) return NextResponse.json({ error: 'Cannot edit a sold item' }, { status: 409 });
+    const existing = await getItemById(id);
+    if (!existing) return apiError.notFound();
+    if (existing.sellerId !== userId) return apiError.forbidden();
+    if (existing.sold) return apiError.conflict('Cannot edit a sold item');
 
-  const body = await req.json();
-  const allowed = ['title', 'description', 'price', 'originalPrice', 'images', 'condition', 'brand', 'size', 'styles', 'colors'];
-  const updates: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (key in body) updates[key] = body[key];
-  }
+    const body = await parseJson<Record<string, unknown>>(req);
+    if (!body) return apiError.badRequest('Invalid body');
 
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
-  }
+    const updates: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (key in body) updates[key] = body[key];
+    }
 
-  const updated = await updateItem(id, userId, updates);
-  return NextResponse.json(updated);
-}
+    if (Object.keys(updates).length === 0) {
+      return apiError.badRequest('No valid fields to update');
+    }
+
+    const updated = await updateItem(id, userId, updates);
+    return NextResponse.json(updated);
+  },
+);

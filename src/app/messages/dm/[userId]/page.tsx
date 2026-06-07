@@ -11,6 +11,7 @@ import { Message } from '@/lib/db-types';
 import { VerifiedBadge, CofounderBadge } from '@/components/Badges';
 import { isVerified, isCofounder } from '@/lib/badges';
 import { Item } from '@/lib/types';
+import CoinFlipModal from '@/components/CoinFlipModal';
 
 interface PublicProfile { id: string; name: string; avatar: string | null; }
 
@@ -23,6 +24,7 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
   const { user: clerkUser, isLoaded } = useUser();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [contextItem, setContextItem] = useState<Item | null>(null);
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
 
@@ -79,20 +81,31 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
 
       {/* ── Item context banner (shown when opened from item page) ── */}
       {contextItem && (
-        <Link
-          href={`/item/${contextItem.id}`}
-          className="flex items-center gap-3 px-4 py-2.5 bg-[#F5F4F0] border-b border-[#EBEBEB] active:opacity-70 transition-opacity flex-shrink-0"
-        >
-          {contextItem.images?.[0] && (
-            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBEBEB]">
-              <img src={contextItem.images[0]} alt={contextItem.title} className="w-full h-full object-cover" />
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-[#F5F4F0] border-b border-[#EBEBEB] flex-shrink-0">
+          <Link
+            href={`/item/${contextItem.id}`}
+            className="flex items-center gap-3 flex-1 min-w-0 active:opacity-70 transition-opacity"
+          >
+            {contextItem.images?.[0] && (
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBEBEB]">
+                <img src={contextItem.images[0]} alt={contextItem.title} className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-[#0A0A0A] truncate">{contextItem.title}</p>
+              <p className="text-xs text-[#AAAAAA]">${contextItem.price} · tap to view</p>
             </div>
+          </Link>
+          {contextItem.sellerId !== myId && (
+            <button
+              onClick={() => setShowCoinFlip(true)}
+              className="w-9 h-9 rounded-xl border border-[#FF3B47]/40 bg-[#FF3B47]/8 flex items-center justify-center flex-shrink-0 text-base"
+              title="Coin Flip Offer"
+            >
+              🪙
+            </button>
           )}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-[#0A0A0A] truncate">{contextItem.title}</p>
-            <p className="text-xs text-[#AAAAAA]">${contextItem.price} · tap to view</p>
-          </div>
-        </Link>
+        </div>
       )}
 
       {/* Loads ALL messages between these two users */}
@@ -113,6 +126,14 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
       />
+
+      {contextItem && (
+        <CoinFlipModal
+          item={contextItem}
+          open={showCoinFlip}
+          onClose={() => setShowCoinFlip(false)}
+        />
+      )}
     </div>
   );
 }

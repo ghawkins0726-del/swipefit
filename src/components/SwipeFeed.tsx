@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
 import SwipeCard from './SwipeCard';
 import { Item } from '@/lib/types';
+import CoinFlipModal from './CoinFlipModal';
 
 interface Props { userId: string; }
 
@@ -82,6 +83,7 @@ export default function SwipeFeed({ userId }: Props) {
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [empty, setEmpty] = useState(false);
   const [lastSwiped, setLastSwiped] = useState<{ item: Item & { _reason?: string; matchScore?: number }; action: string } | null>(null);
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
 
   // Image index lifted here so progress dots can live outside the card
   const [imgIndex, setImgIndex] = useState(0);
@@ -244,8 +246,8 @@ export default function SwipeFeed({ userId }: Props) {
         </div>
       )}
 
-      {/* ── Action buttons — 3-col grid, no labels ── */}
-      <div className="grid grid-cols-3 items-center z-10 flex-shrink-0 pt-6">
+      {/* ── Action buttons — 4-col grid: dislike · undo · like · coin flip ── */}
+      <div className="grid grid-cols-4 items-center z-10 flex-shrink-0 pt-6">
         <div className="flex justify-center">
           <GlowButton size="md" glowColor="#E63946" variant="light" onClick={() => handleSwipe('dislike')}>
             <XIcon />
@@ -261,7 +263,40 @@ export default function SwipeFeed({ userId }: Props) {
             <HeartIcon />
           </GlowButton>
         </div>
+        <div className="flex justify-center">
+          <GlowButton size="sm" glowColor="#FF3B47" variant="dark" onClick={() => setShowCoinFlip(true)}>
+            <span style={{ fontSize: 18 }}>🪙</span>
+          </GlowButton>
+        </div>
       </div>
+
+      {stack[0] && (
+        <CoinFlipModal
+          item={stack[0]}
+          open={showCoinFlip}
+          onClose={() => setShowCoinFlip(false)}
+        />
+      )}
+
+      {/* ── Swipe action badge ── */}
+      <AnimatePresence>
+        {lastAction && (
+          <motion.div
+            key={lastAction + swipeCount}
+            initial={{ opacity: 0, scale: 0.7, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-6 py-2 rounded-full font-black text-sm uppercase tracking-widest text-white ${
+              lastAction === 'like'
+                ? 'bg-green-500 shadow-[0_0_30px_rgba(34,197,94,0.7)]'
+                : 'bg-[#E63946] shadow-[0_0_30px_rgba(230,57,70,0.7)]'
+            }`}
+          >
+            {lastAction === 'like' ? '❤ Liked' : '✕ Passed'}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

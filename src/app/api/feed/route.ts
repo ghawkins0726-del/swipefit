@@ -27,48 +27,33 @@ export async function GET(req: NextRequest) {
   const batchSize = parseInt(searchParams.get('batch') ?? '10');
 
   // ── Base data (always fetched) ──────────────────────────────────────────────
-  const [allItems, swipes, seenIds, userPrefs] = await Promise.all([
-    getItems(500),
+  // Fetch swipes/prefs first so we can push exclude + size filters into SQL.
+  const [swipes, seenIds, userPrefs] = await Promise.all([
     getUserSwipes(userId),
     getSwipedItemIds(userId),
     getUserPreferences(userId),
   ]);
 
-  // Category-aware size sets for filtering
-  const topSizes    = new Set<string>(userPrefs?.topSizes    ?? []);
-  const bottomSizes = new Set<string>(userPrefs?.bottomSizes ?? []);
-  const shoeSizes   = new Set<string>(userPrefs?.shoeSizes   ?? []);
-  const allUserSizes = new Set<string>([...topSizes, ...bottomSizes, ...shoeSizes]);
+  // Build a flat array of all sizes the user wears for SQL push-down.
+  const userSizes = new Set<string>([
+    ...(userPrefs?.topSizes ?? []),
+    ...(userPrefs?.bottomSizes ?? []),
+    ...(userPrefs?.shoeSizes ?? []),
+  ]);
+  const sizeFilter = userSizes.size > 0 ? [...userSizes] : [];
+  const excludeIds = [...seenIds];
 
-  // Returns true if the item's size matches the user's sizes for that category.
-  // If the user has no saved sizes at all we skip filtering (show everything).
-  function sizeMatches(item: Item): boolean {
-    if (allUserSizes.size === 0) return true;
-    const cat = item.category?.toLowerCase() ?? '';
-    if (cat.includes('shoe') || cat.includes('sneaker') || cat.includes('boot')) {
-      return shoeSizes.size === 0 || shoeSizes.has(item.size);
-    }
-    if (cat.includes('bottom') || cat.includes('pant') || cat.includes('short') || cat.includes('denim') || cat.includes('jean') || cat.includes('skirt')) {
-      return bottomSizes.size === 0 || bottomSizes.has(item.size);
-    }
-    if (cat.includes('top') || cat.includes('shirt') || cat.includes('jacket') || cat.includes('coat') || cat.includes('outerwear') || cat.includes('hoodie')) {
-      return topSizes.size === 0 || topSizes.has(item.size);
-    }
-    // Unknown category — check against all saved sizes
-    return allUserSizes.has(item.size);
-  }
+  // Fetch only unseen, size-matched items directly from the DB (SQL push-down).
+  const allItems = await getItems(100, 0, excludeIds, sizeFilter);
 
-  // Hard-filter by size before ranking — only show items in the user's size
-  const sizeFilteredItems = allItems.filter(sizeMatches);
-
-  const itemMap = new Map<string, Item>(sizeFilteredItems.map(i => [i.id, i]));
+  const itemMap = new Map<string, Item>(allItems.map(i => [i.id, i]));
   const prefs   = buildUserPreferences(swipes, itemMap);
 
-  const dnaItemMap = new Map(sizeFilteredItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
+  const dnaItemMap = new Map(allItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
   const dna = computeStyleDna(swipes, dnaItemMap);
 
-  // Rank only size-matched items
-  const ranked = rankItems(sizeFilteredItems, prefs, seenIds, sizeFilteredItems.length);
+  // seenIds passed for API compatibility; allItems already excludes seen (SQL push-down).
+  const ranked = rankItems(allItems, prefs, seenIds, allItems.length);
 
   // ── Taste layer (only if user has enough interaction history) ───────────────
   const tasteProfile = await getTasteProfile(userId);
@@ -127,7 +112,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     feed,
-    total: sizeFilteredItems.length - (sizeFilteredItems.filter(i => seenIds.has(i.id)).length),
+    total: allItems.length, // allItems already excludes seen items (SQL push-down)
     dna,
     tasteActive,
   });

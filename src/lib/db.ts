@@ -5,6 +5,7 @@
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
 import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier, ResellListing, ResellPriceHistory } from './db-types';
+import { rowToUserProfile } from './db-mappers';
 
 export interface UserPref {
   userId: string;
@@ -346,12 +347,78 @@ async function _runInitDb(): Promise<void> {
   `;
   // Auto-purge events older than 30 days (Stripe's max retry window)
   await db`DELETE FROM processed_webhook_events WHERE processed_at < ${Date.now() - 30 * 24 * 3600 * 1000}`;
+
+  // ── Coin flip ────────────────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS coin_flip_offers (
+      id                        TEXT PRIMARY KEY,
+      buyer_id                  TEXT NOT NULL,
+      seller_id                 TEXT NOT NULL,
+      item_id                   TEXT NOT NULL,
+      item_price                NUMERIC(10,2) NOT NULL,
+      win_amount                NUMERIC(10,2) NOT NULL,
+      loss_amount               NUMERIC(10,2) NOT NULL,
+      status                    TEXT NOT NULL DEFAULT 'pending',
+      flip_result               TEXT,
+      stripe_payment_intent_id  TEXT,
+      created_at                BIGINT NOT NULL,
+      updated_at                BIGINT NOT NULL,
+      expires_at                BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_coin_flip_buyer  ON coin_flip_offers(buyer_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_coin_flip_seller ON coin_flip_offers(seller_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_coin_flip_item   ON coin_flip_offers(item_id)`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_strikes INT NOT NULL DEFAULT 0`;
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status  TEXT NOT NULL DEFAULT 'active'`;
+
+  // ── Collections (boards) ─────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS collections (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      emoji      TEXT NOT NULL DEFAULT '📁',
+      created_at BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id, created_at DESC)`;
+  await db`
+    CREATE TABLE IF NOT EXISTS collection_items (
+      collection_id TEXT NOT NULL,
+      item_id       TEXT NOT NULL,
+      added_at      BIGINT NOT NULL,
+      PRIMARY KEY (collection_id, item_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id, added_at DESC)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_collection_items_item       ON collection_items(item_id)`;
+
+  await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_sizes TEXT`;
 }
 
 // ─── Items ────────────────────────────────────────────────────────────────────
-export async function getItems(limit = 50, offset = 0): Promise<Item[]> {
+export async function getItems(
+  limit = 50,
+  offset = 0,
+  excludeIds: string[] = [],
+  sizeFilter: string[] = [],
+): Promise<Item[]> {
   const db = sql();
-  const rows = await db`SELECT * FROM items WHERE NOT sold ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+  // Build the query with optional SQL-level push-downs.
+  // When the caller supplies no filter arrays the query behaves identically to
+  // the original (the CASE expressions collapse to TRUE).
+  const hasExclude = excludeIds.length > 0;
+  const hasSize    = sizeFilter.length > 0;
+
+  const rows = await db`
+    SELECT * FROM items
+    WHERE NOT sold
+      AND (NOT ${hasExclude} OR id != ALL(${excludeIds}))
+      AND (NOT ${hasSize}    OR size = ANY(${sizeFilter}))
+    ORDER BY created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
   return rows.map(rowToItem);
 }
 
@@ -504,25 +571,7 @@ export async function getOrCreateUser(userId: string, displayName?: string): Pro
   await initDb();
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE id = ${userId}`;
-  if (rows[0]) {
-    const r = rows[0];
-    const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
-    const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-    return {
-      id: r.id as string,
-      name: r.name as string,
-      avatar: r.avatar as string,
-      bio: r.bio as string,
-      createdAt: Number(r.created_at),
-      totalLikes: r.total_likes as number,
-      totalListings: r.total_listings as number,
-      isPremium,
-      premiumUntil,
-      stripeCustomerId: r.stripe_customer_id as string | undefined,
-      stripeAccountId: r.stripe_account_id as string | undefined,
-      stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
-    };
-  }
+  if (rows[0]) return rowToUserProfile(rows[0]);
   const user: UserProfile = {
     id: userId, name: displayName || 'SwipeFit User',
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
@@ -540,24 +589,7 @@ export async function setPremium(userId: string, isPremium: boolean, premiumUnti
 export async function getUserByStripeCustomer(stripeCustomerId: string): Promise<UserProfile | null> {
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE stripe_customer_id = ${stripeCustomerId}`;
-  if (!rows[0]) return null;
-  const r = rows[0];
-  const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
-  const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    avatar: r.avatar as string,
-    bio: r.bio as string,
-    createdAt: Number(r.created_at),
-    totalLikes: r.total_likes as number,
-    totalListings: r.total_listings as number,
-    isPremium,
-    premiumUntil,
-    stripeCustomerId: r.stripe_customer_id as string | undefined,
-    stripeAccountId: r.stripe_account_id as string | undefined,
-    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
-  };
+  return rows[0] ? rowToUserProfile(rows[0]) : null;
 }
 
 /** Set or update a user's Stripe Connect (Express) account id. */
@@ -576,24 +608,7 @@ export async function setStripeAccountReady(userId: string, ready: boolean): Pro
 export async function getUserByStripeAccount(stripeAccountId: string): Promise<UserProfile | null> {
   const db = sql();
   const rows = await db`SELECT * FROM users WHERE stripe_account_id = ${stripeAccountId}`;
-  if (!rows[0]) return null;
-  const r = rows[0];
-  const premiumUntil = r.premium_until ? Number(r.premium_until) : undefined;
-  const isPremium = (r.is_premium as boolean) && (!premiumUntil || premiumUntil > Date.now());
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    avatar: r.avatar as string,
-    bio: r.bio as string,
-    createdAt: Number(r.created_at),
-    totalLikes: r.total_likes as number,
-    totalListings: r.total_listings as number,
-    isPremium,
-    premiumUntil,
-    stripeCustomerId: r.stripe_customer_id as string | undefined,
-    stripeAccountId: r.stripe_account_id as string | undefined,
-    stripeAccountReady: (r.stripe_account_ready as boolean) ?? false,
-  };
+  return rows[0] ? rowToUserProfile(rows[0]) : null;
 }
 
 export async function updateUser(userId: string, data: { name?: string; bio?: string; avatar?: string }): Promise<void> {
@@ -1632,40 +1647,52 @@ export interface Collection {
 
 export async function getCollections(userId: string): Promise<Collection[]> {
   const db = sql();
+  // Single query: collections + counts + top-3 preview images, fetched together.
+  // Window function ranks items per collection by added_at; we keep only rank <= 3.
   const rows = await db`
+    WITH ranked_items AS (
+      SELECT ci.collection_id, i.images,
+             ROW_NUMBER() OVER (PARTITION BY ci.collection_id ORDER BY ci.added_at DESC) AS rn
+      FROM collection_items ci
+      JOIN items i ON i.id = ci.item_id
+    ),
+    previews AS (
+      SELECT collection_id, json_agg(images ORDER BY rn) AS preview_images
+      FROM ranked_items
+      WHERE rn <= 3
+      GROUP BY collection_id
+    )
     SELECT c.id, c.user_id, c.name, c.emoji, c.created_at,
-           COUNT(ci.item_id)::int AS item_count
+           COUNT(ci.item_id)::int AS item_count,
+           p.preview_images
     FROM collections c
     LEFT JOIN collection_items ci ON ci.collection_id = c.id
+    LEFT JOIN previews p ON p.collection_id = c.id
     WHERE c.user_id = ${userId}
-    GROUP BY c.id
+    GROUP BY c.id, p.preview_images
     ORDER BY c.created_at DESC
   `;
-  // Fetch preview images for each collection (first 3 items)
-  const result: Collection[] = [];
-  for (const r of rows) {
-    const colId = r.id as string;
-    const imgRows = await db`
-      SELECT i.images FROM collection_items ci
-      JOIN items i ON i.id = ci.item_id
-      WHERE ci.collection_id = ${colId}
-      ORDER BY ci.added_at DESC LIMIT 3
-    `;
-    const previews = imgRows.map(ir => {
-      const imgs = typeof ir.images === 'string' ? JSON.parse(ir.images) : ir.images as string[];
-      return imgs[0] ?? '';
-    }).filter(Boolean);
-    result.push({
-      id: colId,
+
+  return rows.map(r => {
+    // preview_images is an array of `images` JSON values (string or array per row).
+    // Take the first image of each item, in order, drop empties.
+    const raw = (r.preview_images as unknown[] | null) ?? [];
+    const previews = raw
+      .map(v => {
+        const imgs = typeof v === 'string' ? JSON.parse(v) : (v as string[]);
+        return imgs?.[0] ?? '';
+      })
+      .filter(Boolean) as string[];
+    return {
+      id: r.id as string,
       userId: r.user_id as string,
       name: r.name as string,
       emoji: r.emoji as string,
       createdAt: Number(r.created_at),
       itemCount: Number(r.item_count),
       previewImages: previews,
-    });
-  }
-  return result;
+    };
+  });
 }
 
 export async function createCollection(userId: string, name: string, emoji: string): Promise<Collection> {
@@ -1814,6 +1841,49 @@ export async function addResellPriceHistory(entry: ResellPriceHistory): Promise<
     VALUES (${entry.id}, ${entry.itemId}, ${entry.orderId}, ${entry.sellerUserId}, ${entry.price}, ${entry.condition}, ${entry.createdAt})
     ON CONFLICT (id) DO NOTHING
   `;
+}
+
+/**
+ * Atomically inserts a resell listing and its first price-history entry.
+ * Uses an explicit BEGIN/COMMIT transaction so both rows land together or
+ * neither does — preventing a listing with no price history.
+ */
+export async function createResellListingWithHistory(
+  listing: ResellListing,
+  historyEntry: ResellPriceHistory,
+): Promise<void> {
+  const db = sql();
+  await db`BEGIN`;
+  try {
+    await db`
+      INSERT INTO resell_listings (
+        id, original_order_id, seller_user_id, item_id, condition,
+        price, images, status, created_at, updated_at
+      ) VALUES (
+        ${listing.id}, ${listing.originalOrderId}, ${listing.sellerUserId},
+        ${listing.itemId}, ${listing.condition}, ${listing.price},
+        ${JSON.stringify(listing.images)}, ${listing.status},
+        ${listing.createdAt}, ${listing.updatedAt}
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await db`
+      INSERT INTO resell_price_history (id, item_id, order_id, seller_user_id, price, condition, created_at)
+      VALUES (${historyEntry.id}, ${historyEntry.itemId}, ${historyEntry.orderId}, ${historyEntry.sellerUserId}, ${historyEntry.price}, ${historyEntry.condition}, ${historyEntry.createdAt})
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await db`COMMIT`;
+  } catch (err) {
+    await db`ROLLBACK`;
+    throw err;
+  }
+}
+
+export async function getOrderHoldExpiresAt(orderId: string): Promise<number | null> {
+  const db = sql();
+  const rows = await db`SELECT hold_expires_at FROM orders WHERE id = ${orderId}`;
+  if (!rows[0] || rows[0].hold_expires_at == null) return null;
+  return Number(rows[0].hold_expires_at);
 }
 
 export async function setOrderHold(orderId: string, holdExpiresAt: number): Promise<void> {

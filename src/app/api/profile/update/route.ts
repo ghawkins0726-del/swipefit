@@ -1,38 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
 import { updateUser, getOrCreateUser } from '@/lib/db';
 import { checkRateLimit, profileLimiter } from '@/lib/ratelimit';
 
-export async function PATCH(req: NextRequest) {
-  // Always derive userId from the authenticated session — never trust body input
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const limited = await checkRateLimit(profileLimiter, userId);
+export const PATCH = withAuth(async (req, { userId: authUserId }) => {
+  const limited = await checkRateLimit(profileLimiter, authUserId);
   if (limited) return limited;
 
-  const body = await req.json();
-  const { name, bio, avatar } = body;
+  const body = await parseJson<{
+    userId?: string;
+    name?: string;
+    bio?: string;
+    avatar?: string;
+  }>(req);
+  if (!body) return apiError.badRequest('Invalid body');
 
-  if (name !== undefined && !name.trim()) {
-    return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 });
-  }
-  if (name && name.trim().length > 60) {
-    return NextResponse.json({ error: 'Name too long (max 60 chars)' }, { status: 400 });
-  }
-  if (bio && bio.length > 500) {
-    return NextResponse.json({ error: 'Bio too long (max 500 chars)' }, { status: 400 });
-  }
-  if (avatar && avatar.length > 500) {
-    return NextResponse.json({ error: 'Invalid avatar URL' }, { status: 400 });
-  }
+  const { userId: bodyUserId, name, bio, avatar } = body;
 
-  await updateUser(userId, {
-    ...(name !== undefined && { name: name.trim() }),
-    ...(bio !== undefined && { bio }),
-    ...(avatar !== undefined && { avatar }),
+  // Reject attempts to update another user's profile
+  if (bodyUserId && bodyUserId !== authUserId) return apiError.forbidden();
+
+  if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
+    return apiError.badRequest('Name cannot be empty');
+  }
+  if (name && (name as string).trim().length > 60) return apiError.badRequest('Name too long (max 60 chars)');
+  if (bio && (bio as string).length > 500) return apiError.badRequest('Bio too long (max 500 chars)');
+  if (avatar && (avatar as string).length > 500) return apiError.badRequest('Invalid avatar URL');
+
+  await updateUser(authUserId, {
+    ...(name !== undefined && { name: (name as string).trim() }),
+    ...(bio !== undefined && { bio: bio as string }),
+    ...(avatar !== undefined && { avatar: avatar as string }),
   });
-
-  const user = await getOrCreateUser(userId);
+  const user = await getOrCreateUser(authUserId);
   return NextResponse.json({ ok: true, user });
-}
+});

@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { withAuth, apiError } from '@/lib/api-helpers';
 import { getStripe } from '@/lib/stripe';
 import { getOrCreateUser } from '@/lib/db';
 
-export async function POST() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export const POST = withAuth(async (_req, { userId }) => {
   const user = await getOrCreateUser(userId);
-  if (!user.stripeCustomerId) {
-    return NextResponse.json({ error: 'No active subscription found' }, { status: 404 });
-  }
+  if (!user.stripeCustomerId) return apiError.notFound('No active subscription found');
 
   const stripe = getStripe();
   const session = await stripe.billingPortal.sessions.create({
@@ -19,4 +14,4 @@ export async function POST() {
   });
 
   return NextResponse.json({ url: session.url });
-}
+});

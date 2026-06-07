@@ -1,14 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
 import { undoSwipe } from '@/lib/db';
 
-export async function DELETE(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = withAuth(async (req, { userId }) => {
+  const body = await parseJson<{ itemId?: string }>(req);
+  if (!body?.itemId) return apiError.badRequest('Missing itemId');
 
-  const { itemId } = await req.json();
-  if (!itemId) return NextResponse.json({ error: 'Missing itemId' }, { status: 400 });
-
-  await undoSwipe(userId, itemId);
+  await undoSwipe(userId, body.itemId);
   return NextResponse.json({ ok: true });
-}
+});

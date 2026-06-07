@@ -1,19 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuthParams } from '@/lib/api-helpers';
 import { deleteCollection, getCollectionItems } from '@/lib/db';
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { id } = await params;
-  const items = await getCollectionItems(id);
-  return NextResponse.json(items);
-}
+export const GET = withAuthParams<{ id: string }, unknown>(
+  async (_req, { params }) => {
+    const { id } = await params;
+    const items = await getCollectionItems(id);
+    return NextResponse.json(items);
+  },
+);
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { id } = await params;
-  await deleteCollection(id, userId);
-  return NextResponse.json({ ok: true });
-}
+export const DELETE = withAuthParams<{ id: string }, unknown>(
+  async (_req, { params }, { userId }) => {
+    const { id } = await params;
+    await deleteCollection(id, userId);
+    return NextResponse.json({ ok: true });
+  },
+);

@@ -1,28 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
-import { getOrCreateUser, getLikedItems, getNotifications, markAllRead, updateUser, getSellerItems, getOrderCount, getFollowCounts, getSellerRating, getPreferredSizes, savePreferredSizes } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
+import {
+  getOrCreateUser, getLikedItems, getNotifications, markAllRead, updateUser,
+  getSellerItems, getOrderCount, getFollowCounts, getSellerRating,
+  getPreferredSizes, savePreferredSizes,
+} from '@/lib/db';
 
-export async function GET() {
+export const GET = withAuth(async (_req, { userId, getDisplayName }) => {
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     // Sync Clerk name into our DB on first load
-    const clerkUser = await currentUser();
-    const displayName = clerkUser?.username
-      || `${clerkUser?.firstName ?? ''} ${clerkUser?.lastName ?? ''}`.trim()
-      || 'SwipeFit User';
+    const displayName = await getDisplayName('SwipeFit User');
 
-    const [user, liked, listings, notifications, purchaseCount, follow, rating, preferredSizes] = await Promise.all([
-      getOrCreateUser(userId, displayName),
-      getLikedItems(userId),
-      getSellerItems(userId),
-      getNotifications(userId),
-      getOrderCount(userId, 'buyer'),
-      getFollowCounts(userId),
-      getSellerRating(userId),
-      getPreferredSizes(userId),
-    ]);
+    const [user, liked, listings, notifications, purchaseCount, follow, rating, preferredSizes] =
+      await Promise.all([
+        getOrCreateUser(userId, displayName),
+        getLikedItems(userId),
+        getSellerItems(userId),
+        getNotifications(userId),
+        getOrderCount(userId, 'buyer'),
+        getFollowCounts(userId),
+        getSellerRating(userId),
+        getPreferredSizes(userId),
+      ]);
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -40,18 +39,22 @@ export async function GET() {
     });
   } catch (err) {
     console.error('Profile GET error:', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return apiError.server();
   }
-}
+});
 
-export async function PATCH(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const PATCH = withAuth(async (req, { userId }) => {
+  const body = await parseJson<{
+    name?: string;
+    bio?: string;
+    markNotificationsRead?: boolean;
+    preferredSizes?: string[];
+  }>(req);
+  if (!body) return apiError.badRequest('Invalid body');
 
-  const body = await req.json();
   const { name, bio, markNotificationsRead, preferredSizes } = body;
   if (name !== undefined || bio !== undefined) await updateUser(userId, { name, bio });
   if (markNotificationsRead) await markAllRead(userId);
   if (preferredSizes !== undefined) await savePreferredSizes(userId, preferredSizes);
   return NextResponse.json({ ok: true });
-}
+});

@@ -13,6 +13,7 @@ import { useUser } from '@clerk/nextjs';
 import { Item } from '@/lib/types';
 import { VerifiedBadge } from '@/components/Badges';
 import { isVerified } from '@/lib/badges';
+import CoinFlipModal from '@/components/CoinFlipModal';
 
 const CONDITION_LABELS: Record<string, string> = {
   new: 'New with tags',
@@ -45,6 +46,9 @@ export default function ItemPage() {
   const [offerAmount, setOfferAmount] = useState('');
   const [offerNote, setOfferNote] = useState('');
   const [offerState, setOfferState] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+  // Coin Flip
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
 
   // Buy sheet
   const [showBuy, setShowBuy] = useState(false);
@@ -361,6 +365,15 @@ export default function ItemPage() {
               <ShoppingBag size={16} />
               Buy ${item.price}
             </button>
+
+            {/* Coin Flip */}
+            <button
+              onClick={() => setShowCoinFlip(true)}
+              className="w-14 h-14 rounded-2xl border-2 border-[#FF3B47]/40 bg-[#FF3B47]/8 flex items-center justify-center transition-all hover:bg-[#FF3B47]/15"
+              title="Coin Flip Offer"
+            >
+              🪙
+            </button>
           </div>
         )}
       </div>
@@ -479,6 +492,12 @@ export default function ItemPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CoinFlipModal
+        item={item}
+        open={showCoinFlip}
+        onClose={() => setShowCoinFlip(false)}
+      />
 
       {/* ── Buy Confirmation Sheet ── */}
       <AnimatePresence>

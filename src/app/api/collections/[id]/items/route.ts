@@ -1,23 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { withAuthParams, parseJson, apiError } from '@/lib/api-helpers';
 import { addItemToCollection, removeItemFromCollection } from '@/lib/db';
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const POST = withAuthParams<{ id: string }, unknown>(async (req, { params }) => {
   const { id: collectionId } = await params;
-  const { itemId } = await req.json();
-  if (!itemId) return NextResponse.json({ error: 'itemId required' }, { status: 400 });
-  await addItemToCollection(collectionId, itemId);
+  const body = await parseJson<{ itemId?: string }>(req);
+  if (!body?.itemId) return apiError.badRequest('itemId required');
+  await addItemToCollection(collectionId, body.itemId);
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export const DELETE = withAuthParams<{ id: string }, unknown>(async (req, { params }) => {
   const { id: collectionId } = await params;
-  const { itemId } = await req.json();
-  if (!itemId) return NextResponse.json({ error: 'itemId required' }, { status: 400 });
-  await removeItemFromCollection(collectionId, itemId);
+  const body = await parseJson<{ itemId?: string }>(req);
+  if (!body?.itemId) return apiError.badRequest('itemId required');
+  await removeItemFromCollection(collectionId, body.itemId);
   return NextResponse.json({ ok: true });
-}
+});
