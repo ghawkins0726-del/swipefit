@@ -1,0 +1,148 @@
+{
+  "$schema_note": "Single source of truth for every shipped ad in the Wove waitlist promo file base. Each ad: id, pillar, variant, hook copy, features showcased, duration, primitives consumed, output path, version, status, notes.",
+  "batch": "01",
+  "stack": "remotion",
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "container": "mp4",
+    "codec": "h264"
+  },
+  "cta": {
+    "url": "woveshop.com/waitlist",
+    "outro_duration_s": 1.5
+  },
+  "ads": [
+    {
+      "id": "wove-p1-va",
+      "pillar": 1,
+      "variant": "A",
+      "title": "Resale, but you have fun.",
+      "hook_open": "Resale, but you have fun.",
+      "hook_mid": [
+        "5 swipes. Calibrated.",
+        "Flip the seller for 50% off."
+      ],
+      "features_showcased": [
+        "swipe-mechanic",
+        "style-dna",
+        "coin-flip",
+        "90/10-payout",
+        "offer-accepted"
+      ],
+      "duration_s": 18,
+      "primitives": [
+        "WoveFrame",
+        "WoveLogo",
+        "HookText",
+        "AnimatedSwipe",
+        "SwipeCard",
+        "StyleDnaCard",
+        "CoinFlip",
+        "PayoutChip",
+        "OfferAcceptedToast",
+        "CTAOutro"
+      ],
+      "output": "raw/wove_p1_va.mp4",
+      "file_size_mb": 6.5,
+      "version": 6,
+      "status": "shipped",
+      "notes": "Captions rewritten per brand-voice spec (2026-06-13). Feature-dense walkthrough of Wove's full value loop."
+    },
+    {
+      "id": "wove-p1-vb",
+      "pillar": 1,
+      "variant": "B",
+      "title": "Tinder, but for thrift.",
+      "hook_open": "Tinder, but for thrift.",
+      "hook_mid": [
+        "One tap. Shipped."
+      ],
+      "features_showcased": [
+        "swipe-mechanic",
+        "save-to-liked",
+        "liked-wall",
+        "direct-buy",
+        "stripe-pay",
+        "order-placed"
+      ],
+      "duration_s": 15,
+      "primitives": [
+        "WoveFrame",
+        "WoveLogo",
+        "HookText",
+        "AnimatedSwipe",
+        "SwipeCard",
+        "SaveToLikedToast",
+        "LikedGrid",
+        "StripeSheet",
+        "OfferAcceptedToast",
+        "CTAOutro"
+      ],
+      "output": "raw/wove_p1_vb.mp4",
+      "file_size_mb": 6.0,
+      "version": 3,
+      "status": "shipped",
+      "notes": "Authentic flow: swipe → 'Saved to Liked' toast → Liked wall fills → tap → Stripe Pay → Order Placed. The only legitimate grid use in the ad set (user's own Liked items)."
+    },
+    {
+      "id": "wove-p2-va",
+      "pillar": 2,
+      "variant": "A",
+      "title": "Your taste, in 10 swipes.",
+      "hook_open": "It clocks you in 5 swipes.",
+      "hook_mid": [
+        "Calibrated to your taste."
+      ],
+      "features_showcased": [
+        "swipe-mechanic",
+        "taste-profile-learning",
+        "style-dna",
+        "match-confidence-score"
+      ],
+      "duration_s": 15,
+      "primitives": [
+        "WoveFrame",
+        "WoveLogo",
+        "HookText",
+        "AnimatedSwipe",
+        "SwipeCard (with matchScore badge)",
+        "TasteTag",
+        "StyleDnaCard",
+        "CTAOutro"
+      ],
+      "output": "raw/wove_p2_va.mp4",
+      "file_size_mb": 5.6,
+      "version": 2,
+      "status": "shipped",
+      "notes": "Pillar 2 (Style DNA). Each LIKE pops a TasteTag chip ('Vintage', 'Earth', 'Utility'). The tags morph into the Style DNA card, which generates a 94% match score on the Coach bag underneath — the calibration reveal."
+    }
+  ],
+  "primitives_built": [
+    "WoveFrame",
+    "WoveLogo",
+    "HookText",
+    "CTAOutro",
+    "SwipeCard",
+    "AnimatedSwipe",
+    "StyleDnaCard",
+    "CoinFlip",
+    "PayoutChip",
+    "OfferAcceptedToast",
+    "SaveToLikedToast",
+    "LikedGrid",
+    "StripeSheet",
+    "TasteTag",
+    "GridMock (built, unused — superseded by LikedGrid)"
+  ],
+  "primitives_planned": [
+    "ListingForm",
+    "PayoutCompare",
+    "MessageThread",
+    "OrderTracking",
+    "WaitlistCounter",
+    "BigNumber",
+    "Notification"
+  ]
+}

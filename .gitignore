@@ -48,3 +48,7 @@ next-env.d.ts
 
 # superpowers brainstorm/session files
 /.superpowers/
+
+# scratch frame extracts and pipeline tests
+marketing/ads/raw/*.jpg
+marketing/ads/raw/test-*
