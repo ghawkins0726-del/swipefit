@@ -1,0 +1,90 @@
+{
+  "$schema_note": "Per-platform caption variants for each shipped ad. Three platforms per ad. Each caption follows the brand voice spec at docs/superpowers/specs/2026-06-13-wove-brand-voice-design.md. TikTok = lowercase friendly + 3-4 hashtags max. Instagram = sentence case + 'send this to a friend' CTA (sends-per-reach beats likes as a ranking signal). YouTube Shorts = search-friendly title + 1-sentence description.",
+  "url": "wove.shop/waitlist",
+  "ads": {
+    "wove-p1-va": {
+      "title_internal": "Coin Flip + Style DNA + 90/10",
+      "tiktok": {
+        "caption": "send the seller a coin flip. win 50% off. real money on the line. spot #843 left.",
+        "hashtags": ["#thrift", "#resale", "#vintagefashion", "#wove"]
+      },
+      "instagram": {
+        "caption": "Coach bag, $68. Sent a coin flip. Won. Paid $34. Send this to a friend who thrifts. wove.shop/waitlist"
+      },
+      "youtube_shorts": {
+        "title": "Coin flip the seller for 50% off — Wove",
+        "description": "Vintage Coach $34 instead of $68. Send a Coin Flip on Wove, the Tinder-for-thrift app. Join the waitlist: wove.shop/waitlist"
+      }
+    },
+    "wove-p1-vb": {
+      "title_internal": "Liked wall + Stripe Pay",
+      "tiktok": {
+        "caption": "swipe right = saves to liked. tap once. shipped. that's the loop.",
+        "hashtags": ["#thrift", "#resale", "#fashionresale", "#wove"]
+      },
+      "instagram": {
+        "caption": "Your Liked wall fills as you swipe. Tap once. Shipped. Send this to a friend who needs a closet refresh. wove.shop/waitlist"
+      },
+      "youtube_shorts": {
+        "title": "How buying on Wove works — tap once, shipped",
+        "description": "Vintage Levi's $32, shipping tomorrow. Wove is Tinder for thrift. Swipe, save, buy. Join: wove.shop/waitlist"
+      }
+    },
+    "wove-p2-va": {
+      "title_internal": "Style DNA learning + match badge",
+      "tiktok": {
+        "caption": "the algorithm is psychic. five swipes = style profile = 94% match on a coach bag.",
+        "hashtags": ["#styledna", "#thrift", "#fashionai", "#wove"]
+      },
+      "instagram": {
+        "caption": "Vintage. Earth. Utility. Five swipes and the app knew. Send this to your most chronically online thrift friend. wove.shop/waitlist"
+      },
+      "youtube_shorts": {
+        "title": "AI knows your style in 5 swipes — Wove Style DNA",
+        "description": "Style DNA on Wove learns your taste after 5 likes. Vintage Streetwear archetype. 94% match. Join: wove.shop/waitlist"
+      }
+    },
+    "wove-p3-va": {
+      "title_internal": "Seller side — listing → sold → payout",
+      "tiktok": {
+        "caption": "your closet is sitting on cash. sold in 4 hrs. +$28.80 to your balance. wove takes 10.",
+        "hashtags": ["#resell", "#sidehustle", "#thriftflip", "#wove"]
+      },
+      "instagram": {
+        "caption": "$32 vintage sale. $28.80 into your balance. Wove takes 10, not 20. Send this to a friend with a closet to flip. wove.shop/waitlist"
+      },
+      "youtube_shorts": {
+        "title": "How selling on Wove works — keep 90%",
+        "description": "List in 60 seconds. Sold in 4 hours. Sellers keep 90% on Wove vs 80% on Depop. Join: wove.shop/waitlist"
+      }
+    },
+    "wove-p4-va": {
+      "title_internal": "Chat → offer → ship (closed loop)",
+      "tiktok": {
+        "caption": "no more dms and venmo links. chat. offer. accepted. shipped. all in one app.",
+        "hashtags": ["#thrift", "#resale", "#fashionapp", "#wove"]
+      },
+      "instagram": {
+        "caption": "Negotiate. Buy. Track. All in Wove. No more DMs and Venmo links. Send this to a friend who's tired of Depop chaos. wove.shop/waitlist"
+      },
+      "youtube_shorts": {
+        "title": "Chat to delivered, one app — Wove",
+        "description": "Coach bag, $48 offer, accepted in 12 min, shipped, delivered. The whole loop in Wove. Join: wove.shop/waitlist"
+      }
+    },
+    "wove-p5-va": {
+      "title_internal": "Waitlist FOMO",
+      "tiktok": {
+        "caption": "doors close at 1,000. 843 left. premium for life if you're first 1,000.",
+        "hashtags": ["#earlyaccess", "#thrift", "#resale", "#wove"]
+      },
+      "instagram": {
+        "caption": "Premium for life. Seller fees waived. First dibs on drops. 843 spots left before doors close. wove.shop/waitlist"
+      },
+      "youtube_shorts": {
+        "title": "Wove early access — first 1,000 perks",
+        "description": "Premium for life, seller fees waived, first dibs on drops. Only 843 spots left in the early-access waitlist. Join: wove.shop/waitlist"
+      }
+    }
+  }
+}
