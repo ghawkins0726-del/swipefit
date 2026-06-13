@@ -2,11 +2,12 @@
   "$schema_note": "Week 1 dispersal schedule. 8 posts across TikTok, IG Reels, YouTube Shorts. Times are local (assume US Pacific unless overridden). Times chosen per strategy spec §3 (consensus from Hootsuite/Buffer/SocialPilot 2026 analyses). Mon = day 1.",
   "week_starts": "2026-06-15",
   "timezone": "America/Los_Angeles",
-  "platform_caps": {
+  "platform_weekly_cap": {
     "tiktok": 3,
     "instagram": 4,
     "youtube_shorts": 3
   },
+  "$caps_note": "platform_weekly_cap is the UPPER bound from strategy spec §3 (cadence range). Actual week 1 schedule uses 3 TT / 3 IG / 2 YT to stretch the 6-ad pool ~2 weeks before new creative is required.",
   "posts": [
     { "day": "Mon", "time": "19:00", "platform": "instagram", "ad_id": "wove-p1-vb", "rationale": "Strong product-loop opener. IG audience leans fashion-curated; 1B's clean buy flow lands here." },
     { "day": "Tue", "time": "19:00", "platform": "tiktok", "ad_id": "wove-p1-vb", "rationale": "Same ad re-cut for TikTok. 'Tinder, but for thrift' = made for TikTok." },
