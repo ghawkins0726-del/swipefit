@@ -117,6 +117,68 @@
       "version": 2,
       "status": "shipped",
       "notes": "Pillar 2 (Style DNA). Each LIKE pops a TasteTag chip ('Vintage', 'Earth', 'Utility'). The tags morph into the Style DNA card, which generates a 94% match score on the Coach bag underneath — the calibration reveal."
+    },
+    {
+      "id": "wove-p3-va",
+      "pillar": 3,
+      "variant": "A",
+      "title": "Your closet is sitting on cash.",
+      "hook_open": "Your closet is sitting on cash.",
+      "hook_mid": [
+        "Sold in 4 hours."
+      ],
+      "features_showcased": [
+        "seller-side",
+        "sale-notification",
+        "payout-counter",
+        "90/10-payout"
+      ],
+      "duration_s": 15,
+      "primitives": [
+        "WoveFrame",
+        "WoveLogo",
+        "HookText",
+        "SwipeCard",
+        "SoldNotification",
+        "PayoutChip",
+        "CTAOutro"
+      ],
+      "output": "raw/wove_p3_va.mp4",
+      "file_size_mb": 3.0,
+      "version": 1,
+      "status": "shipped",
+      "notes": "Pillar 3 (seller acquisition). Listing → SOLD notification (iOS-style) → big green +$28.80 payout counter → 90/10 payout chip. New audience angle."
+    },
+    {
+      "id": "wove-p4-va",
+      "pillar": 4,
+      "variant": "A",
+      "title": "From DM to delivered.",
+      "hook_open": "From DM to delivered. One app.",
+      "hook_mid": [
+        "Accepted in 12 minutes."
+      ],
+      "features_showcased": [
+        "messaging",
+        "offer-card",
+        "offer-accepted",
+        "order-tracking",
+        "closed-loop"
+      ],
+      "duration_s": 15,
+      "primitives": [
+        "WoveFrame",
+        "WoveLogo",
+        "HookText",
+        "MessageThread (text + offer bubbles)",
+        "OrderTracking",
+        "CTAOutro"
+      ],
+      "output": "raw/wove_p4_va.mp4",
+      "file_size_mb": 1.5,
+      "version": 1,
+      "status": "shipped",
+      "notes": "Pillar 4 (closed loop). Chat thread → offer card sent → accepted → OrderTracking card progresses Paid → Shipped → Delivered. End-to-end story in one continuous shell."
     }
   ],
   "primitives_built": [
@@ -134,15 +196,15 @@
     "LikedGrid",
     "StripeSheet",
     "TasteTag",
+    "SoldNotification",
+    "MessageThread",
+    "OrderTracking",
     "GridMock (built, unused — superseded by LikedGrid)"
   ],
   "primitives_planned": [
     "ListingForm",
     "PayoutCompare",
-    "MessageThread",
-    "OrderTracking",
     "WaitlistCounter",
-    "BigNumber",
-    "Notification"
+    "BigNumber"
   ]
 }
