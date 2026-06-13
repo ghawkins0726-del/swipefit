@@ -6,6 +6,7 @@ import { Ad1B_TinderForThrift } from "./compositions/Ad1B_TinderForThrift";
 import { Ad2A_TasteIn10Swipes } from "./compositions/Ad2A_TasteIn10Swipes";
 import { Ad3A_ClosetCash } from "./compositions/Ad3A_ClosetCash";
 import { Ad4A_DMtoDelivered } from "./compositions/Ad4A_DMtoDelivered";
+import { Ad5A_YoureEarly } from "./compositions/Ad5A_YoureEarly";
 
 const FPS = 30;
 const WIDTH = 1080;
@@ -57,6 +58,14 @@ export const Root: React.FC = () => {
       <Composition
         id="wove-p4-va"
         component={Ad4A_DMtoDelivered}
+        durationInFrames={FPS * 15}
+        fps={FPS}
+        width={WIDTH}
+        height={HEIGHT}
+      />
+      <Composition
+        id="wove-p5-va"
+        component={Ad5A_YoureEarly}
         durationInFrames={FPS * 15}
         fps={FPS}
         width={WIDTH}

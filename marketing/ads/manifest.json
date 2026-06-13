@@ -179,6 +179,34 @@
       "version": 1,
       "status": "shipped",
       "notes": "Pillar 4 (closed loop). Chat thread → offer card sent → accepted → OrderTracking card progresses Paid → Shipped → Delivered. End-to-end story in one continuous shell."
+    },
+    {
+      "id": "wove-p5-va",
+      "pillar": 5,
+      "variant": "A",
+      "title": "You're early.",
+      "hook_open": "You're early.",
+      "hook_mid": [
+        "Doors close at 1,000."
+      ],
+      "features_showcased": [
+        "waitlist-scarcity",
+        "early-access-perks",
+        "conversion-push"
+      ],
+      "duration_s": 15,
+      "primitives": [
+        "WoveLogo",
+        "HookText (full-bleed variant)",
+        "WaitlistCounter",
+        "PerksReveal (inline, ad-specific)",
+        "CTAOutro"
+      ],
+      "output": "raw/wove_p5_va.mp4",
+      "file_size_mb": 6.1,
+      "version": 1,
+      "status": "shipped",
+      "notes": "Pillar 5 (waitlist FOMO / conversion push). No phone shell — full-bleed brand canvas. Hook → ticking counter (847→843) → 3 perks (Premium for life / Seller fees waived / First dibs on drops) → 'Doors close at 1,000.' → CTA."
     }
   ],
   "primitives_built": [
@@ -199,12 +227,12 @@
     "SoldNotification",
     "MessageThread",
     "OrderTracking",
+    "WaitlistCounter",
     "GridMock (built, unused — superseded by LikedGrid)"
   ],
   "primitives_planned": [
     "ListingForm",
     "PayoutCompare",
-    "WaitlistCounter",
     "BigNumber"
   ]
 }
