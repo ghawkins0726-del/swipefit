@@ -10,7 +10,15 @@
 
 1. **Channels:** TikTok + Instagram Reels + YouTube Shorts. Skip X and Threads in batch 1. Each platform gets natively rendered versions of the 6 ads (no cross-platform watermarks — Instagram actively demotes them, confirmed by Mosseri).
 2. **Cadence:** 2–3 TikToks/week, 3–4 Reels/week, 2–3 Shorts/week — total ~8 posts/week. Stretches the 6-ad pool ~2 weeks before new creative is needed.
-3. **Automation stack:** Postiz (OSS, Docker) as the scheduling hub + PostEverywhere MCP in Claude Code as the conversational layer + claude-mem to track what posted where. Human-in-loop only at TikTok publish (Postiz API rejected by TikTok audit) and caption approval.
+3. **Automation stack:** **Metricool free tier** as the scheduling hub (50 posts/mo, auto-publishes, works with Personal TikTok accounts) + claude-mem to track what posted where + Higgsfield/Claude for per-platform variants. Human-in-loop only at caption approval. Optional Upload-Post MCP ($16/mo) for Claude Code conversational posting once volume justifies it.
+
+## 0.1. Decisions locked (2026-06-13)
+
+| Open question | Decision |
+|---|---|
+| TikTok Shop integration day 1? | **No.** Waiting on EIN. Start as Personal/Creator account; upgrade to TikTok Business when EIN clears (likely month 2+). |
+| Postiz / TikTok auto-publish | **Drop Postiz.** Use Metricool free tier — it's an official TikTok partner, auto-publishes for Personal accounts, and 50 posts/month covers our ~32/month cadence with headroom. Postiz only makes sense once we have Business + >50/month volume. |
+| Referral landing page tech | **Business partner is handling.** I'll wire integration points when their build is ready. |
 
 ---
 
@@ -105,51 +113,41 @@ First 1,000       Auto-granted by signup order                Free seller fees f
 - `Workflow` — multi-agent orchestration (this strategy doc was built with one)
 - Our **Remotion pipeline** — produces 9:16 ads; per-platform versions take ~30 sec to re-render
 
-### Recommended additions (top 3, install order)
+### Recommended additions (in order)
 
-#### 1. Postiz (OSS scheduling hub) — **install first**
+#### 1. Metricool (free tier) — **set up first**
 
-- Repo: [`github.com/gitroomhq/postiz-app`](https://github.com/gitroomhq/postiz-app) (AGPL-3.0, 31.9k ⭐, v2.21.8 May 2026)
-- Why: Native support for all 3 of our platforms + 10 more, "agentic" with a CLI built for AI agents, has an official n8n node, self-hosted.
-- AGPL-3.0 caveat: if Wove ever offers Postiz-derived functionality as SaaS to third parties, source-disclosure obligations attach. For internal Wove use this is fine.
-- **Known risk:** [Issue #1362](https://github.com/gitroomhq/postiz-app/issues) — Postiz's TikTok Direct Post API has been rejected by TikTok's UX-compliance audit. **TikTok posts may land as private drafts requiring manual publish until Postiz passes the audit.** Monitor that issue weekly.
+- URL: [metricool.com](https://metricool.com)
+- Why: The only OSS-or-free option that actually auto-publishes to TikTok on a **Personal** account without an EIN-gated Business upgrade. Official TikTok partner — passed the Content Posting API audit that Postiz failed.
+- Cost: **Free tier** = 50 posts/month, 2 connected social profiles per platform, basic analytics. Covers our ~32/month cadence with headroom. Paid Starter ($22/mo) bumps to unlimited posts + more analytics; defer until needed.
+- Capability matrix for Wove: ✅ TikTok auto-publish, ✅ IG Reels (Personal or Business), ✅ YouTube Shorts, ✅ carousels (TikTok Studio doesn't), ✅ desktop + mobile.
+- Setup: Sign up → connect each platform via OAuth → import schedule from §3 timetable. ~20 minutes wall-clock.
 
-```bash
-git clone https://github.com/gitroomhq/postiz-app
-cd postiz-app
-docker compose up -d
-# Access at http://localhost:5000 — connect TikTok, IG, YouTube via OAuth
-```
+#### 2. TikTok Studio (native, zero-config fallback)
 
-#### 2. PostEverywhere MCP (Claude Code conversational layer) — **install second**
+- URL: [tiktok.com/studio](https://tiktok.com/studio) — desktop/browser only
+- Why: Native, free, no third-party dependency. Schedule up to 10 days out from the official tool. Handy for ad-hoc one-off posts when Metricool's free quota is approaching limit.
+- Requirement: Creator account (free upgrade from Personal, no EIN needed; just toggle in app settings).
+- Limitation: 10 days ahead max, videos only (no carousels), browser only.
 
-- Repo: [`github.com/posteverywhere/mcp`](https://github.com/posteverywhere/mcp) (MIT, npm `@posteverywhere/mcp` v1.3.0 published 2026-06-10)
-- Why: Lets you say "post the Coin Flip ad to TikTok at 7pm tonight" in Claude Code and it just happens. Covers our 3 platforms + 5 more.
-- Cost: ~$19/mo for the API key (the MCP install + tool surface is free; actual posting is gated).
-- Refuted claim during research: PostEverywhere does NOT replace Postiz's queue — it's the conversational front-end, Postiz remains the queue/analytics backbone.
+#### 3. Upload-Post MCP (Claude Code conversational layer) — **defer until needed**
 
-```bash
-claude mcp add posteverywhere -- npx -y @posteverywhere/mcp
-# Then set API key per posteverywhere.ai docs
-```
+- Repo: [`upload-post.com`](https://www.upload-post.com) (free tier excludes TikTok; TikTok requires $16/mo Basic plan)
+- MCP install: `claude mcp add upload-post -- npx -y @upload-post/mcp` then paste API key
+- Why: Lets you say "post the Coin Flip ad to TikTok at 7pm" inside Claude Code and the publishing actually happens — 40 MCP tools covering publish/schedule/analyze across 8 platforms.
+- When to install: Only when the manual Metricool dashboard workflow gets tedious (week 3+). For week 1, Metricool dashboard is faster than wiring this up.
 
-#### 3. n8n + workflow #7992 (the actual pipeline) — **install third**
+#### 4. n8n + claude-mem (orchestration, when batching grows)
 
-- Workflow: [n8n.io/workflows/7992](https://n8n.io/workflows/7992-auto-caption-and-post-videos-to-instagram-and-tiktok-with-submagic-postiz-and-openai/)
-- Why: Already templates Google Drive → caption gen → Postiz → IG/TikTok publish. **Don't build this from scratch.** Adapt by:
-  - Drop Submagic (Wove ads already have burned-in captions)
-  - Replace OpenAI caption step with a Claude Code call that uses the brand voice spec
-  - Wire to claude-mem so we don't double-post the same ad to the same platform
+- Tool: n8n via Docker (self-host, free)
+- Why: Once you're producing >8 posts/week and want a "generate captions → approve → schedule" loop, n8n + Metricool API + Claude API becomes worth it. Defer to month 2 — week 1 doesn't need orchestration.
 
 ```bash
-docker run -it --rm \
-  -p 5678:5678 \
-  -v ~/.n8n:/home/node/.n8n \
-  docker.n8n.io/n8nio/n8n
-# Import workflow JSON from #7992 page; edit nodes per above
+# When ready (not week 1):
+docker run -d --name n8n -p 5678:5678 -v ~/.n8n:/home/node/.n8n docker.n8n.io/n8nio/n8n
 ```
 
-### Full architecture
+### Full architecture (week 1 — minimal viable)
 
 ```
                   ┌──────────────────────┐
@@ -161,27 +159,25 @@ docker run -it --rm \
                              ▼
                   ┌──────────────────────┐
                   │  Higgsfield + Claude │  ── per-platform variants
-                  │  (caption gen + voice│
+                  │  + Remotion renders  │
                   └──────────┬───────────┘
                              │
                              ▼
                   ┌──────────────────────┐
                   │  HUMAN APPROVAL      │  ── caption check (off-brand catches)
-                  │  (Postiz draft queue)│
                   └──────────┬───────────┘
                              │
                              ▼
                   ┌──────────────────────┐
-                  │  Postiz (Docker)     │  ── queue + schedule
-                  │  + n8n workflow #7992│
+                  │  Metricool dashboard │  ── queue + auto-publish
+                  │  (free tier)         │
                   └──────────┬───────────┘
                              │
               ┌──────────────┼──────────────┐
               ▼              ▼              ▼
         ┌──────────┐   ┌──────────┐   ┌──────────┐
         │ TikTok   │   │ IG Reels │   │ YT Shorts│
-        │ (manual  │   │ (API ✓)  │   │ (API ✓)  │
-        │  publish)│   │          │   │          │
+        │ (auto ✓) │   │ (auto ✓) │   │ (auto ✓) │
         └──────────┘   └──────────┘   └──────────┘
               │              │              │
               └──────────────┴──────────────┘
@@ -193,12 +189,21 @@ docker run -it --rm \
                   └──────────────────────┘
 ```
 
+### Architecture upgrades (month 2+)
+
+When weekly volume exceeds Metricool free tier OR you want fully conversational posting from Claude Code:
+
+- **+ Upload-Post MCP** ($16/mo) — Claude Code can post directly via natural language
+- **+ n8n** (self-hosted, free) — automated "generate → approve → schedule" pipeline
+- **+ Metricool Starter** ($22/mo) — unlimited posts, more analytics
+- **Postiz** (self-host) — only worth it once on Business account AND volume >100 posts/month
+
 ### Human-in-loop checkpoints
 
-1. **Caption approval** — Claude generates variants per platform, you tap approve before /schedule fires (the SSENSE × Liquid Death voice is hard to auto-generate consistently).
-2. **TikTok publish** — until Postiz #1362 resolves, you'll get a notification when a TikTok draft is queued, then manually publish in the TikTok app (~30 sec/post).
-3. **Comment/DM responses** — out of scope for this pipeline. Belongs in a separate Jarvis-style agent layer (your existing Jarvis project).
-4. **Watermark verification** — automated check needed; for now eyeball each export.
+1. **Caption approval** — Claude generates per-platform variants; you tap approve before scheduling (the SSENSE × Liquid Death voice is hard to auto-generate consistently).
+2. **Comment/DM responses** — out of scope for this pipeline. Belongs in a separate Jarvis-style agent layer (your existing Jarvis project).
+3. **Watermark verification** — automated check needed; for now eyeball each export.
+4. **Metricool quota monitoring** — at 50 posts/month free tier and ~32/month plan, headroom is comfortable but check counter weekly to avoid surprise blocks.
 
 ## 7. Launch plan
 
@@ -206,15 +211,15 @@ docker run -it --rm \
 
 | Day | Action | Owner |
 |---|---|---|
-| Mon | Stand up TikTok, IG, YouTube accounts under @wove handles. Set up landing page with referral/skip-line mechanic. | You |
-| Mon | Install Postiz via Docker; connect IG + YouTube via OAuth. | You with Claude |
-| Tue | Install PostEverywhere MCP in Claude Code. Add $19/mo API key. | You |
-| Tue | Re-render 6 ads × 3 platforms = 18 native versions. Strip watermarks. | Claude (automated via Remotion) |
-| Wed | Schedule week 1 posts in Postiz per timetable in §3. | Claude + your approval |
-| Wed | Set up n8n + clone workflow #7992; adapt to drop Submagic, swap OpenAI for Claude. | You with Claude |
-| Thu | Test post 1 ad to each platform manually to confirm pipeline works end-to-end. | You |
-| Fri | First scheduled post fires (Tinder for thrift → TikTok 9pm). | Postiz |
-| Sat–Sun | Watch engagement; manually respond to first comments to seed conversation. | You |
+| Mon | Stand up TikTok, IG, YouTube accounts under @wove handles. Switch TikTok to Creator account in settings. | You |
+| Mon | Sign up for Metricool free tier. Connect TikTok, IG, YouTube via OAuth. | You |
+| Tue | Re-render 6 ads × 3 platforms = 18 native versions (TikTok / IG / YT) — strip watermarks, platform-native caption styling. | Claude (automated via Remotion) |
+| Tue | Coordinate with business partner on referral landing page integration points (current waitlist position + invite link tracking). | You + partner |
+| Wed | Generate per-platform captions (3 variants/ad/platform) via Claude using brand voice spec. You approve. | Claude + you |
+| Wed | Upload + schedule week 1 posts in Metricool per timetable in §3. | You via dashboard |
+| Thu | Test post 1 ad to each platform to confirm Metricool actually auto-publishes (TikTok especially). | Metricool |
+| Fri | First full scheduled day fires (TikTok 9pm). | Metricool |
+| Sat–Sun | Watch engagement; respond to first comments manually to seed conversation. | You |
 
 ### Week 2 — iterate + add automation
 
@@ -243,19 +248,17 @@ docker run -it --rm \
 - **Weekly:** Friday 5pm — review week's posts, what performed, what didn't, adjust next week's schedule
 - **Monthly:** Review hook patterns, retire underperforming ads, plan next creative batch
 
-## 9. Open questions (worth deciding before week 1)
+## 9. Open questions — resolved
 
-1. **TikTok Shop integration day 1?** TikTok Shop is now the dominant resale discovery surface for under-25 buyers per ThredUp 2025. Adding it changes algorithm treatment significantly. Recommendation: stay waitlist-only initially; add TikTok Shop in month 2 if conversion is the bottleneck.
-2. **Postiz #1362 status:** Check if resolved before committing to Postiz as the TikTok leg. If still open, plan for manual TikTok publish (or evaluate PostEverywhere paid path for that platform only).
-3. **Referral landing page tech:** the in-app counter ("you're #847, refer to move up") needs a real backend. Build alongside the marketing app or use a service like Prefinery/Waitlister.
+All three deferred questions from the original v1 draft have been answered. Logged in §0.1 above. Leaving this section for future revisits.
 
 ## 10. Risks + caveats
 
-- **Single biggest risk:** Postiz TikTok Direct Post audit failure (issue #1362). Mitigation: manual publish workflow ready; PostEverywhere as paid fallback.
 - **Cross-posting penalty:** Instagram's watermark-demotion includes TikTok caption styling, not just the corner logo. Always export ads directly from Remotion source per platform — never re-encode from a TikTok upload.
 - **Creative pool burn:** With only 6 ads and 8 posts/week, the pool burns in ~2 weeks. Plan ad batch 2 by week 2 latest.
-- **AGPL exposure:** If Wove ever wraps Postiz functionality into a hosted Wove SaaS offering for third parties, AGPL source-disclosure obligations apply. For internal use only this is fine.
-- **PostEverywhere cost:** $19/mo isn't large but recurring — confirm with budget owner before committing.
+- **Metricool free tier ceiling:** 50 posts/month. At ~32/month planned cadence we have ~36% headroom — fine for week 1–4, but if we double cadence or run paid promotion variants, we'll hit the ceiling. Upgrade path: Starter $22/mo for unlimited.
+- **TikTok account type:** Toggle to Creator account before connecting Metricool (free, no EIN needed). Personal account works for most schedulers but Creator unlocks TikTok Studio + better analytics.
+- **EIN dependency for later upgrades:** TikTok Business account (and TikTok Shop integration) requires EIN. Plan to upgrade once partner files paperwork.
 - **Source quality:** Most posting-time and cadence claims are marketing-blog tier (Hootsuite, Buffer, SocialPilot). Consensus is strong across 5+ independent 2026 analyses but treat numbers as guideposts, not laws. Adjust based on Wove's actual analytics after 2–4 weeks.
 
 ---
