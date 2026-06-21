@@ -348,6 +348,23 @@ async function _runInitDb(): Promise<void> {
   // Auto-purge events older than 30 days (Stripe's max retry window)
   await db`DELETE FROM processed_webhook_events WHERE processed_at < ${Date.now() - 30 * 24 * 3600 * 1000}`;
 
+  // ── Pre-launch waitlist ──────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS waitlist_signups (
+      id            TEXT PRIMARY KEY,
+      email         TEXT NOT NULL UNIQUE,
+      referral_code TEXT NOT NULL UNIQUE,
+      referred_by   TEXT,
+      position      INT  NOT NULL,
+      utm_source    TEXT,
+      utm_medium    TEXT,
+      utm_campaign  TEXT,
+      created_at    BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_waitlist_referral ON waitlist_signups(referral_code)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_waitlist_referred_by ON waitlist_signups(referred_by)`;
+
   // ── Coin flip ────────────────────────────────────────────────────────────
   await db`
     CREATE TABLE IF NOT EXISTS coin_flip_offers (
@@ -1983,4 +2000,105 @@ export async function recordWebhookEvent(eventId: string): Promise<void> {
     VALUES (${eventId}, ${Date.now()})
     ON CONFLICT (event_id) DO NOTHING
   `;
+}
+
+// ─── Pre-launch waitlist ──────────────────────────────────────────────────────
+
+export interface WaitlistEntry {
+  id: string;
+  email: string;
+  referralCode: string;
+  referredBy: string | null;
+  position: number;        // raw join order
+  effectivePosition: number; // position after referral skips
+  referralCount: number;
+  createdAt: number;
+}
+
+/** Total number of people on the waitlist. */
+export async function getWaitlistCount(): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS c FROM waitlist_signups`;
+  return Number(rows[0]?.c ?? 0);
+}
+
+/** How many people signed up using the given referral code. */
+export async function getReferralCount(referralCode: string): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS c FROM waitlist_signups WHERE referred_by = ${referralCode}`;
+  return Number(rows[0]?.c ?? 0);
+}
+
+function effectivePosition(position: number, referralCount: number): number {
+  // Each referral skips you up 100 spots; never below 1.
+  return Math.max(1, position - referralCount * 100);
+}
+
+/** Look up a waitlist entry by referral code, with live referral count + effective position. */
+export async function getWaitlistEntry(referralCode: string): Promise<WaitlistEntry | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM waitlist_signups WHERE referral_code = ${referralCode}`;
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  const referralCount = await getReferralCount(referralCode);
+  const position = Number(r.position);
+  return {
+    id: r.id as string,
+    email: r.email as string,
+    referralCode: r.referral_code as string,
+    referredBy: (r.referred_by as string | null) ?? null,
+    position,
+    effectivePosition: effectivePosition(position, referralCount),
+    referralCount,
+    createdAt: Number(r.created_at),
+  };
+}
+
+/** Look up a waitlist entry by email (for idempotent re-signups). */
+export async function getWaitlistEntryByEmail(email: string): Promise<WaitlistEntry | null> {
+  const db = sql();
+  const rows = await db`SELECT referral_code FROM waitlist_signups WHERE email = ${email.toLowerCase()}`;
+  if (rows.length === 0) return null;
+  return getWaitlistEntry(rows[0].referral_code as string);
+}
+
+/**
+ * Join the waitlist. Idempotent on email — re-signing up returns the existing entry.
+ * referredBy is the referral code of whoever invited them (validated to exist).
+ */
+export async function joinWaitlist(
+  email: string,
+  referredBy: string | null,
+  utm: { source?: string | null; medium?: string | null; campaign?: string | null },
+): Promise<WaitlistEntry> {
+  const db = sql();
+  const normalized = email.toLowerCase().trim();
+
+  // Idempotent: if they're already on the list, return their existing entry.
+  const existing = await getWaitlistEntryByEmail(normalized);
+  if (existing) return existing;
+
+  // Only honor a referral code that actually exists.
+  let validReferrer: string | null = null;
+  if (referredBy) {
+    const refRows = await db`SELECT 1 FROM waitlist_signups WHERE referral_code = ${referredBy}`;
+    if (refRows.length > 0) validReferrer = referredBy;
+  }
+
+  const id = `wl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const referralCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const now = Date.now();
+  const count = await getWaitlistCount();
+  const position = count + 1;
+
+  await db`
+    INSERT INTO waitlist_signups (id, email, referral_code, referred_by, position, utm_source, utm_medium, utm_campaign, created_at)
+    VALUES (${id}, ${normalized}, ${referralCode}, ${validReferrer}, ${position},
+            ${utm.source ?? null}, ${utm.medium ?? null}, ${utm.campaign ?? null}, ${now})
+  `;
+
+  return {
+    id, email: normalized, referralCode, referredBy: validReferrer,
+    position, effectivePosition: position, referralCount: 0, createdAt: now,
+  };
 }
