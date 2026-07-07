@@ -6,9 +6,9 @@ import { Order } from '@/lib/db-types';
 import { Item } from '@/lib/types';
 
 const STATUS_CONFIG: Record<Order['status'], { label: string; color: string; bg: string }> = {
-  pending_payment: { label: 'Pending Payment', color: 'text-amber-600',  bg: 'bg-amber-50'  },
-  processing:      { label: 'Processing',      color: 'text-blue-600',   bg: 'bg-blue-50'   },
-  shipped:         { label: 'Shipped',         color: 'text-[#E63946]',  bg: 'bg-red-50'    },
+  pending_payment: { label: 'Pending Payment', color: 'text-amber-600',  bg: 'bg-amber-500/10'  },
+  processing:      { label: 'Processing',      color: 'text-blue-600',   bg: 'bg-blue-500/10'   },
+  shipped:         { label: 'Shipped',         color: 'text-[#E63946]',  bg: 'bg-[#E63946]/10'    },
   delivered:       { label: 'Delivered',       color: 'text-emerald-600',bg: 'bg-emerald-50'},
   cancelled:       { label: 'Cancelled',       color: 'text-gray-400',   bg: 'bg-gray-100'  },
 };
@@ -23,7 +23,7 @@ export default function OrderCard({ order }: Props) {
 
   return (
     <Link href={`/orders/${order.id}`}
-      className="flex items-center gap-3 bg-white rounded-2xl p-3.5 shadow-sm active:scale-[0.99] transition-transform"
+      className="flex items-center gap-3 bg-[#161616] rounded-2xl p-3.5 shadow-sm active:scale-[0.99] transition-transform"
     >
       {/* Item thumbnail */}
       <div className="w-16 h-16 rounded-xl bg-zinc-100 overflow-hidden flex-shrink-0">

@@ -25,7 +25,7 @@ const STATUS_LABELS: Record<Order['status'], string> = {
 export default function OrderDetailPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center h-screen bg-[#F5F4F0]">
+      <div className="flex items-center justify-center h-screen bg-black">
         <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
@@ -138,7 +138,7 @@ function OrderDetailInner() {
 
   if (!order || !isLoaded) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F5F4F0]">
+      <div className="flex items-center justify-center h-screen bg-black">
         <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -153,7 +153,7 @@ function OrderDetailInner() {
   const canRate = isBuyer && order.status !== 'pending_payment' && order.status !== 'cancelled';
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col min-h-screen bg-black">
       {/* Header */}
       <div className="bg-[#0A0A0A] pt-12 pb-5 px-5">
         <div className="flex items-center gap-3 mb-4">
@@ -208,8 +208,8 @@ function OrderDetailInner() {
 
         {/* Seller: add tracking */}
         {canShip && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <p className="font-bold text-[#0A0A0A] text-sm mb-3">Add Tracking Number</p>
+          <div className="bg-[#161616] rounded-2xl p-4 shadow-sm">
+            <p className="font-bold text-white text-sm mb-3">Add Tracking Number</p>
             <div className="flex gap-2">
               <input
                 value={tracking}
@@ -220,7 +220,7 @@ function OrderDetailInner() {
               <button
                 onClick={submitTracking}
                 disabled={!tracking.trim() || updating}
-                className="flex items-center gap-1.5 bg-[#0A0A0A] text-white font-bold px-4 rounded-xl text-sm disabled:opacity-40"
+                className="flex items-center gap-1.5 bg-[#E63946] text-white font-bold px-4 rounded-xl text-sm disabled:opacity-40"
               >
                 {updating ? <Loader2 size={14} className="animate-spin" /> : updated ? <Check size={14} /> : 'Ship'}
               </button>
@@ -245,8 +245,8 @@ function OrderDetailInner() {
         )}
 
         {/* Order meta */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-          <p className="font-bold text-[#0A0A0A] text-sm">Order Info</p>
+        <div className="bg-[#161616] rounded-2xl p-4 shadow-sm space-y-3">
+          <p className="font-bold text-white text-sm">Order Info</p>
           {[
             { label: 'Order ID',  value: `#${order.id.slice(-8).toUpperCase()}` },
             { label: 'Placed',    value: new Date(order.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) },
@@ -256,7 +256,7 @@ function OrderDetailInner() {
           ].map(({ label, value }) => (
             <div key={label} className="flex items-center justify-between">
               <span className="text-xs text-[#AAAAAA]">{label}</span>
-              <span className="text-xs font-semibold text-[#0A0A0A]">{value}</span>
+              <span className="text-xs font-semibold text-white">{value}</span>
             </div>
           ))}
         </div>
@@ -267,7 +267,7 @@ function OrderDetailInner() {
             onClick={() => setShowRating(true)}
             className={`flex items-center justify-center gap-2 w-full font-black py-3.5 rounded-2xl text-sm uppercase tracking-widest transition-all active:scale-[0.98] ${
               hasRated
-                ? 'bg-white border-2 border-[#EBEBEB] text-[#0A0A0A]'
+                ? 'bg-[#161616] border-2 border-[#2a2a2a] text-white'
                 : 'btn-halo'
             }`}
           >
@@ -280,7 +280,7 @@ function OrderDetailInner() {
         {order.itemId && otherUserId && (
           <Link
             href={`/messages/${order.itemId}/${otherUserId}`}
-            className="flex items-center justify-center gap-2 w-full bg-white border-2 border-[#EBEBEB] text-[#0A0A0A] font-bold py-3.5 rounded-2xl text-sm"
+            className="flex items-center justify-center gap-2 w-full bg-[#161616] border-2 border-[#2a2a2a] text-white font-bold py-3.5 rounded-2xl text-sm"
           >
             <MessageSquare size={16} />
             Message {isSeller ? 'Buyer' : 'Seller'}

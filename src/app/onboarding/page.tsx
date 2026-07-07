@@ -84,7 +84,7 @@ function SizeChip({
     <button
       onClick={onToggle}
       className={`px-3.5 py-2 rounded-xl border-2 font-bold text-sm transition-all relative ${
-        selected ? 'border-[#E63946] bg-red-50 text-[#E63946]' : 'border-[#EBEBEB] bg-[#F5F4F0] text-[#0A0A0A]'
+        selected ? 'border-[#E63946] bg-[#E63946]/10 text-[#E63946]' : 'border-[#2a2a2a] bg-[#1c1c1c] text-white'
       }`}
     >
       {label}
@@ -144,7 +144,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-black flex flex-col">
       {/* Progress bar */}
       <div className="h-1 bg-gray-100">
         <motion.div
@@ -163,18 +163,18 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
               className="flex-1 flex flex-col"
             >
-              <h1 className="text-2xl font-black text-[#0A0A0A] mb-1">What do you shop for?</h1>
-              <p className="text-[#5A5A5A] text-sm mb-6">This shapes the items and sizing shown in your feed.</p>
+              <h1 className="text-2xl font-black text-white mb-1">What do you shop for?</h1>
+              <p className="text-[#B5B5B5] text-sm mb-6">This shapes the items and sizing shown in your feed.</p>
               <div className="flex flex-col gap-3 flex-1">
                 {GENDER_OPTIONS.map(g => (
                   <button key={g.id} onClick={() => setGender(g.id)}
                     className={`p-4 rounded-2xl border-2 flex items-center gap-4 transition-all ${
-                      gender === g.id ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-[#F5F4F0]'
+                      gender === g.id ? 'border-[#E63946] bg-[#E63946]/10' : 'border-[#2a2a2a] bg-[#1c1c1c]'
                     }`}
                   >
                     <span className="text-3xl">{g.emoji}</span>
                     <div className="text-left">
-                      <div className="font-bold text-[#0A0A0A]">{g.label}</div>
+                      <div className="font-bold text-white">{g.label}</div>
                       <div className="text-xs text-[#AAAAAA]">{g.desc}</div>
                     </div>
                     {gender === g.id && <Check size={18} className="text-[#E63946] ml-auto" />}
@@ -190,12 +190,12 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
               className="flex-1 flex flex-col overflow-y-auto"
             >
-              <h1 className="text-2xl font-black text-[#0A0A0A] mb-1">What sizes do you wear?</h1>
-              <p className="text-[#5A5A5A] text-sm mb-5">Select all that apply — we&apos;ll prioritise items in your size.</p>
+              <h1 className="text-2xl font-black text-white mb-1">What sizes do you wear?</h1>
+              <p className="text-[#B5B5B5] text-sm mb-5">Select all that apply — we&apos;ll prioritise items in your size.</p>
 
               {/* Tops */}
               <div className="mb-5">
-                <p className="text-xs font-black text-[#0A0A0A] uppercase tracking-wide mb-2.5">👕 Tops</p>
+                <p className="text-xs font-black text-white uppercase tracking-wide mb-2.5">👕 Tops</p>
                 <div className="flex flex-wrap gap-2">
                   {TOP_SIZES[gender].map(s => (
                     <SizeChip key={s} label={s} selected={topSizes.includes(s)}
@@ -206,7 +206,7 @@ export default function OnboardingPage() {
 
               {/* Bottoms */}
               <div className="mb-5">
-                <p className="text-xs font-black text-[#0A0A0A] uppercase tracking-wide mb-2.5">
+                <p className="text-xs font-black text-white uppercase tracking-wide mb-2.5">
                   👖 Bottoms {gender === 'men' ? '(waist)' : gender === 'women' ? '(US)' : ''}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -219,7 +219,7 @@ export default function OnboardingPage() {
 
               {/* Shoes */}
               <div className="mb-5">
-                <p className="text-xs font-black text-[#0A0A0A] uppercase tracking-wide mb-2.5">👟 Shoes</p>
+                <p className="text-xs font-black text-white uppercase tracking-wide mb-2.5">👟 Shoes</p>
                 <div className="flex flex-wrap gap-2">
                   {SHOE_SIZES[gender].map(s => (
                     <SizeChip key={s} label={s} selected={shoeSizes.includes(s)}
@@ -236,17 +236,17 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
               className="flex-1 flex flex-col"
             >
-              <h1 className="text-2xl font-black text-[#0A0A0A] mb-1">What&apos;s your vibe?</h1>
-              <p className="text-[#5A5A5A] text-sm mb-6">Pick everything that fits. The algorithm uses this immediately.</p>
+              <h1 className="text-2xl font-black text-white mb-1">What&apos;s your vibe?</h1>
+              <p className="text-[#B5B5B5] text-sm mb-6">Pick everything that fits. The algorithm uses this immediately.</p>
               <div className="grid grid-cols-2 gap-2.5 flex-1">
                 {STYLE_OPTIONS.map(s => (
                   <button key={s.id} onClick={() => setStyles(prev => toggle(prev, s.id))}
                     className={`p-3 rounded-2xl border-2 text-left transition-all relative ${
-                      styles.includes(s.id) ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-[#F5F4F0] hover:border-[#CCC]'
+                      styles.includes(s.id) ? 'border-[#E63946] bg-[#E63946]/10' : 'border-[#2a2a2a] bg-[#1c1c1c] hover:border-[#CCC]'
                     }`}
                   >
                     <div className="text-xl mb-1">{s.emoji}</div>
-                    <div className="font-bold text-sm text-[#0A0A0A]">{s.label}</div>
+                    <div className="font-bold text-sm text-white">{s.label}</div>
                     <div className="text-xs text-[#AAAAAA] truncate">{s.desc}</div>
                     {styles.includes(s.id) && (
                       <div className="absolute top-2 right-2">
@@ -265,17 +265,17 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
               className="flex-1 flex flex-col"
             >
-              <h1 className="text-2xl font-black text-[#0A0A0A] mb-1">What do you shop for?</h1>
-              <p className="text-[#5A5A5A] text-sm mb-6">We&apos;ll weight your feed toward what you love.</p>
+              <h1 className="text-2xl font-black text-white mb-1">What do you shop for?</h1>
+              <p className="text-[#B5B5B5] text-sm mb-6">We&apos;ll weight your feed toward what you love.</p>
               <div className="grid grid-cols-3 gap-3 flex-1">
                 {CAT_OPTIONS.map(c => (
                   <button key={c.id} onClick={() => setCategories(prev => toggle(prev, c.id))}
                     className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${
-                      categories.includes(c.id) ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-[#F5F4F0]'
+                      categories.includes(c.id) ? 'border-[#E63946] bg-[#E63946]/10' : 'border-[#2a2a2a] bg-[#1c1c1c]'
                     }`}
                   >
                     <span className="text-3xl">{c.emoji}</span>
-                    <span className="font-semibold text-xs text-[#0A0A0A]">{c.label}</span>
+                    <span className="font-semibold text-xs text-white">{c.label}</span>
                   </button>
                 ))}
               </div>
@@ -288,17 +288,17 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
               className="flex-1 flex flex-col"
             >
-              <h1 className="text-2xl font-black text-[#0A0A0A] mb-1">Your sweet spot?</h1>
-              <p className="text-[#5A5A5A] text-sm mb-6">This shapes what price range shows up most in your feed.</p>
+              <h1 className="text-2xl font-black text-white mb-1">Your sweet spot?</h1>
+              <p className="text-[#B5B5B5] text-sm mb-6">This shapes what price range shows up most in your feed.</p>
               <div className="flex flex-col gap-2.5">
                 {BUDGET_OPTIONS.map(b => (
                   <button key={b.id} onClick={() => setBudget(b.id)}
                     className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
-                      budget === b.id ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-[#F5F4F0]'
+                      budget === b.id ? 'border-[#E63946] bg-[#E63946]/10' : 'border-[#2a2a2a] bg-[#1c1c1c]'
                     }`}
                   >
                     <div>
-                      <div className="font-bold text-[#0A0A0A]">{b.label}</div>
+                      <div className="font-bold text-white">{b.label}</div>
                       <div className="text-xs text-[#AAAAAA]">{b.sub}</div>
                     </div>
                     {budget === b.id && <Check size={18} className="text-[#E63946]" />}
@@ -317,8 +317,8 @@ export default function OnboardingPage() {
               <div className="w-20 h-20 bg-[#E63946] rounded-3xl flex items-center justify-center mb-6 shadow-xl">
                 <Sparkles size={36} className="text-white" />
               </div>
-              <h1 className="text-3xl font-black text-[#0A0A0A] mb-3">You&apos;re all set!</h1>
-              <p className="text-[#5A5A5A] mb-8">Your personalized feed is ready. The algorithm keeps learning as you swipe.</p>
+              <h1 className="text-3xl font-black text-white mb-3">You&apos;re all set!</h1>
+              <p className="text-[#B5B5B5] mb-8">Your personalized feed is ready. The algorithm keeps learning as you swipe.</p>
             </motion.div>
           )}
 
@@ -330,7 +330,7 @@ export default function OnboardingPage() {
             <button
               onClick={() => setStepIdx(i => i + 1)}
               disabled={!canContinue()}
-              className="w-full bg-[#0A0A0A] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-[#222] transition-colors active:scale-95"
+              className="w-full bg-[#E63946] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-[#c92f3c] transition-colors active:scale-95"
             >
               Continue <ChevronRight size={18} />
             </button>

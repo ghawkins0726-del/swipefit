@@ -147,7 +147,7 @@ export default function MessageBubble({ message, isOwn, otherAvatar, myUserId, o
           <div className="w-7 h-7 rounded-full overflow-hidden bg-[#F2F2F2] flex items-center justify-center flex-shrink-0 mb-0.5">
             {otherAvatar
               ? <img src={otherAvatar} alt="" className="w-full h-full object-cover" />
-              : <span className="text-xs font-black text-[#0A0A0A]">{message.senderName[0]?.toUpperCase()}</span>}
+              : <span className="text-xs font-black text-white">{message.senderName[0]?.toUpperCase()}</span>}
           </div>
         )}
 
@@ -156,7 +156,7 @@ export default function MessageBubble({ message, isOwn, otherAvatar, myUserId, o
 
           {/* Emoji picker (floats above bubble) */}
           {showPicker && (
-            <div className={`absolute bottom-full mb-2 z-50 bg-white rounded-2xl shadow-2xl border border-[#F0F0F0] px-3 py-2.5 flex gap-3 ${isOwn ? 'right-0' : 'left-0'}`}>
+            <div className={`absolute bottom-full mb-2 z-50 bg-[#161616] rounded-2xl shadow-2xl border border-[#2a2a2a] px-3 py-2.5 flex gap-3 ${isOwn ? 'right-0' : 'left-0'}`}>
               {REACTION_EMOJIS.map(e => (
                 <button
                   key={e}
@@ -204,8 +204,8 @@ export default function MessageBubble({ message, isOwn, otherAvatar, myUserId, o
             {parsed.kind === 'text' && (
               <div className={`px-4 py-2.5 text-[14px] leading-relaxed break-words ${
                 isOwn
-                  ? 'bg-[#F2F2F2] text-[#0A0A0A] rounded-[20px] rounded-br-[6px]'
-                  : 'bg-[#F2F2F2] text-[#0A0A0A] rounded-[20px] rounded-bl-[6px]'
+                  ? 'bg-[#F2F2F2] text-white rounded-[20px] rounded-br-[6px]'
+                  : 'bg-[#F2F2F2] text-white rounded-[20px] rounded-bl-[6px]'
               }`}>
                 {parsed.content}
               </div>
@@ -232,7 +232,7 @@ export default function MessageBubble({ message, isOwn, otherAvatar, myUserId, o
                   className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] border transition-colors ${
                     iMine
                       ? 'bg-[#0A0A0A] border-[#0A0A0A] text-white'
-                      : 'bg-white border-[#E0E0E0] text-[#0A0A0A]'
+                      : 'bg-[#161616] border-[#E0E0E0] text-white'
                   }`}
                 >
                   <span>{emoji}</span>

@@ -35,9 +35,9 @@ export default function StyleDnaCard({ dna, compact = false }: Props) {
     return (
       <div className="sf-card p-5 text-center">
         <Dna size={28} className="mx-auto mb-2 text-[#AAAAAA]" />
-        <p className="font-bold text-[#0A0A0A] text-sm mb-1">Style DNA unlocks at 5 swipes</p>
+        <p className="font-bold text-white text-sm mb-1">Style DNA unlocks at 5 swipes</p>
         <p className="text-[#AAAAAA] text-xs">Keep swiping — {dna.basedOn}/5 done</p>
-        <div className="h-1 bg-[#EBEBEB] rounded-full mt-3">
+        <div className="h-1 bg-[#262626] rounded-full mt-3">
           <div className="h-full bg-[#E63946] rounded-full transition-all"
             style={{ width: `${(dna.basedOn / 5) * 100}%` }} />
         </div>
@@ -51,10 +51,10 @@ export default function StyleDnaCard({ dna, compact = false }: Props) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="sf-label mb-0.5">Style DNA</p>
-            <p className="font-black text-[#0A0A0A] text-base">{dna.archetype}</p>
+            <p className="font-black text-white text-base">{dna.archetype}</p>
           </div>
-          <button onClick={share} className="w-8 h-8 flex items-center justify-center bg-[#F5F4F0] rounded-full">
-            <Share2 size={14} className="text-[#5A5A5A]" />
+          <button onClick={share} className="w-8 h-8 flex items-center justify-center bg-[#1c1c1c] rounded-full">
+            <Share2 size={14} className="text-[#B5B5B5]" />
           </button>
         </div>
 
@@ -62,8 +62,8 @@ export default function StyleDnaCard({ dna, compact = false }: Props) {
         <div className="space-y-1.5">
           {sorted.slice(0, 4).map(([dim, score]) => (
             <div key={dim} className="flex items-center gap-2">
-              <p className="text-[10px] font-semibold text-[#5A5A5A] w-16 flex-shrink-0">{dim}</p>
-              <div className="flex-1 h-1.5 bg-[#F5F4F0] rounded-full overflow-hidden">
+              <p className="text-[10px] font-semibold text-[#B5B5B5] w-16 flex-shrink-0">{dim}</p>
+              <div className="flex-1 h-1.5 bg-[#1c1c1c] rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${score}%` }}
@@ -79,7 +79,7 @@ export default function StyleDnaCard({ dna, compact = false }: Props) {
 
         <div className="flex gap-1.5 mt-3">
           {dna.keywords.map(k => (
-            <span key={k} className="text-[9px] font-bold uppercase tracking-wide text-[#5A5A5A] bg-[#F5F4F0] px-2 py-0.5 rounded">
+            <span key={k} className="text-[9px] font-bold uppercase tracking-wide text-[#B5B5B5] bg-[#1c1c1c] px-2 py-0.5 rounded">
               {k}
             </span>
           ))}
@@ -110,10 +110,10 @@ export default function StyleDnaCard({ dna, compact = false }: Props) {
         {sorted.map(([dim, score], i) => (
           <div key={dim}>
             <div className="flex justify-between items-center mb-1">
-              <p className="text-xs font-bold text-[#0A0A0A]">{dim}</p>
+              <p className="text-xs font-bold text-white">{dim}</p>
               <p className="text-xs font-black text-[#AAAAAA]">{score}</p>
             </div>
-            <div className="h-2 bg-[#F5F4F0] rounded-full overflow-hidden">
+            <div className="h-2 bg-[#1c1c1c] rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${score}%` }}
@@ -130,7 +130,7 @@ export default function StyleDnaCard({ dna, compact = false }: Props) {
       <div className="px-5 pb-5 flex items-center justify-between">
         <p className="text-[10px] text-[#AAAAAA]">Based on {dna.basedOn} swipes</p>
         <button onClick={share}
-          className="flex items-center gap-1.5 text-xs font-bold text-[#E63946] bg-[#FDECED] px-3 py-1.5 rounded-full">
+          className="flex items-center gap-1.5 text-xs font-bold text-[#E63946] bg-[#E63946]/15 px-3 py-1.5 rounded-full">
           <Share2 size={11} />
           Share DNA
         </button>

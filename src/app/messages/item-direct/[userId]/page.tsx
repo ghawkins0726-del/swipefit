@@ -59,7 +59,7 @@ export default function ItemDirectPage() {
 
   if (loading || !isLoaded) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F5F4F0]">
+      <div className="flex items-center justify-center h-screen bg-black">
         <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -67,8 +67,8 @@ export default function ItemDirectPage() {
 
   if (!profile) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-[#F5F4F0] gap-4">
-        <p className="text-[#0A0A0A] font-black text-lg">User not found</p>
+      <div className="flex flex-col items-center justify-center h-screen bg-black gap-4">
+        <p className="text-white font-black text-lg">User not found</p>
         <button onClick={() => router.back()} className="text-[#E63946] font-bold text-sm">Go back</button>
       </div>
     );
@@ -77,7 +77,7 @@ export default function ItemDirectPage() {
   const initials = profile.name[0]?.toUpperCase() ?? '?';
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col min-h-screen bg-black">
 
       {/* Header */}
       <div className="bg-[#0A0A0A] pt-14 pb-5 px-5">
@@ -115,14 +115,14 @@ export default function ItemDirectPage() {
                   key={`${c.itemId}-${c.otherUserId}`}
                   href={`/messages/${c.itemId}/${c.otherUserId}`}
                   className={`flex items-center gap-3 rounded-2xl p-3.5 transition-transform active:scale-[0.98] ${
-                    c.unread ? 'bg-red-50 border border-red-100' : 'bg-white shadow-sm'
+                    c.unread ? 'bg-[#E63946]/10 border border-red-100' : 'bg-[#161616] shadow-sm'
                   }`}
                 >
                   <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center text-white font-black text-sm flex-shrink-0">
                     <MessageSquare size={14} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-bold text-[#0A0A0A] truncate ${c.unread ? 'font-black' : ''}`}>
+                    <p className={`text-sm font-bold text-white truncate ${c.unread ? 'font-black' : ''}`}>
                       {c.itemTitle}
                     </p>
                     <p className="text-xs text-[#AAAAAA] truncate mt-0.5">{c.lastMessage}</p>
@@ -143,8 +143,8 @@ export default function ItemDirectPage() {
 
           {listings.filter(i => !i.sold).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <ShoppingBag size={36} className="text-[#EBEBEB] mx-auto mb-3" />
-              <p className="text-[#0A0A0A] font-black text-base mb-1">No active listings</p>
+              <ShoppingBag size={36} className="text-[#3a3a3a] mx-auto mb-3" />
+              <p className="text-white font-black text-base mb-1">No active listings</p>
               <p className="text-[#AAAAAA] text-sm">
                 {profile.name} doesn&apos;t have any items for sale right now.
               </p>
@@ -155,19 +155,19 @@ export default function ItemDirectPage() {
                 <Link
                   key={item.id}
                   href={`/messages/${item.id}/${targetId}`}
-                  className="flex items-center gap-3 bg-white rounded-2xl p-3 shadow-sm active:scale-[0.98] transition-transform"
+                  className="flex items-center gap-3 bg-[#161616] rounded-2xl p-3 shadow-sm active:scale-[0.98] transition-transform"
                 >
-                  <div className="w-14 h-14 rounded-xl bg-[#F5F4F0] overflow-hidden flex-shrink-0">
+                  <div className="w-14 h-14 rounded-xl bg-[#1c1c1c] overflow-hidden flex-shrink-0">
                     {item.images[0] && (
                       <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-black text-[#0A0A0A] text-sm truncate">{item.title}</p>
+                    <p className="font-black text-white text-sm truncate">{item.title}</p>
                     <p className="text-[#AAAAAA] text-xs mt-0.5">{item.brand} · Size {item.size}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="font-black text-[#0A0A0A] text-sm">${item.price}</p>
+                    <p className="font-black text-white text-sm">${item.price}</p>
                     <div className="flex items-center gap-1 mt-1 bg-[#0A0A0A] rounded-lg px-2 py-1">
                       <MessageSquare size={10} className="text-white" />
                       <span className="text-white text-[10px] font-bold">Chat</span>

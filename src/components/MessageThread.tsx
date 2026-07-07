@@ -51,8 +51,8 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
-        <div className="w-7 h-7 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
+      <div className="flex-1 flex items-center justify-center bg-[#161616]">
+        <div className="w-7 h-7 border-2 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -72,7 +72,7 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
   });
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white px-3 py-4">
+    <div className="flex-1 overflow-y-auto bg-[#161616] px-3 py-4">
       {messages.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full pb-8">
           <p className="text-[#888] text-[13px]">No messages yet — say hi!</p>
@@ -96,15 +96,15 @@ export default function MessageThread({ userId, itemId, otherUserId, otherAvatar
               <div className="flex justify-center my-3">
                 <Link
                   href={`/item/${msg.itemId}`}
-                  className="flex items-center gap-2 bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-3 py-2 max-w-[72%] active:opacity-70 transition-opacity"
+                  className="flex items-center gap-2 bg-[#1c1c1c] border border-[#2a2a2a] rounded-2xl px-3 py-2 max-w-[72%] active:opacity-70 transition-opacity"
                 >
                   {msg.itemImage && (
-                    <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBEBEB]">
+                    <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-[#262626]">
                       <img src={msg.itemImage} alt={msg.itemTitle ?? ''} className="w-full h-full object-cover" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[#0A0A0A] truncate">{msg.itemTitle}</p>
+                    <p className="text-[11px] font-black text-white truncate">{msg.itemTitle}</p>
                     {msg.itemPrice != null && (
                       <p className="text-[10px] text-[#AAAAAA]">${msg.itemPrice} · tap to view</p>
                     )}

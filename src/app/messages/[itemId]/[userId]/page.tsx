@@ -138,7 +138,7 @@ export default function ConversationPage() {
 
   if (!isLoaded || !myId) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F5F4F0]">
+      <div className="flex items-center justify-center h-screen bg-black">
         <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -151,7 +151,7 @@ export default function ConversationPage() {
     // Offer already actioned — show result pill, not full banner
     if (pendingOffer.status === 'declined') {
       return (
-        <div className="mx-4 mt-2 mb-1 bg-[#F5F4F0] rounded-2xl px-4 py-3 flex items-center gap-2">
+        <div className="mx-4 mt-2 mb-1 bg-[#1c1c1c] rounded-2xl px-4 py-3 flex items-center gap-2">
           <X size={14} className="text-[#AAAAAA] flex-shrink-0" />
           <p className="text-xs text-[#AAAAAA] font-semibold">Offer declined</p>
         </div>
@@ -161,10 +161,10 @@ export default function ConversationPage() {
     // Seller sees pending offer → can Accept / Counter / Decline
     if (isSeller && pendingOffer.status === 'pending') {
       return (
-        <div className="mx-4 mt-2 mb-1 bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="mx-4 mt-2 mb-1 bg-[#161616] rounded-2xl shadow-sm overflow-hidden">
           <div className="px-4 pt-3 pb-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-black text-[#0A0A0A]">Offer received</p>
+              <p className="text-xs font-black text-white">Offer received</p>
               <span className="text-xs font-black text-[#E63946]">${pendingOffer.amount}</span>
             </div>
             {pendingOffer.message && (
@@ -174,27 +174,27 @@ export default function ConversationPage() {
 
           {counterMode ? (
             <div className="px-4 pb-3 flex items-center gap-2">
-              <div className="flex-1 flex items-center bg-[#F5F4F0] rounded-xl px-3 py-2 gap-1.5">
+              <div className="flex-1 flex items-center bg-[#1c1c1c] rounded-xl px-3 py-2 gap-1.5">
                 <DollarSign size={13} className="text-[#AAAAAA] flex-shrink-0" />
                 <input
                   type="number"
                   value={counterInput}
                   onChange={e => setCounterInput(e.target.value)}
                   placeholder="Counter amount"
-                  className="flex-1 bg-transparent text-sm font-bold text-[#0A0A0A] outline-none w-0 min-w-0"
+                  className="flex-1 bg-transparent text-sm font-bold text-white outline-none w-0 min-w-0"
                   autoFocus
                 />
               </div>
               <button
                 disabled={!counterInput || offerActing}
                 onClick={() => respondToOffer('countered', parseFloat(counterInput))}
-                className="bg-[#0A0A0A] text-white text-xs font-black px-3 py-2 rounded-xl disabled:opacity-40"
+                className="bg-[#E63946] text-white text-xs font-black px-3 py-2 rounded-xl disabled:opacity-40"
               >
                 Send
               </button>
               <button
                 onClick={() => { setCounterMode(false); setCounterInput(''); }}
-                className="w-8 h-8 bg-[#F5F4F0] rounded-xl flex items-center justify-center"
+                className="w-8 h-8 bg-[#1c1c1c] rounded-xl flex items-center justify-center"
               >
                 <X size={13} className="text-[#AAAAAA]" />
               </button>
@@ -214,14 +214,14 @@ export default function ConversationPage() {
                   setCounterInput(String(pendingOffer.amount));
                   setCounterMode(true);
                 }}
-                className="flex-1 flex items-center justify-center gap-1 bg-[#F5F4F0] text-[#0A0A0A] text-xs font-black py-2 rounded-xl disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1 bg-[#1c1c1c] text-white text-xs font-black py-2 rounded-xl disabled:opacity-50"
               >
                 <Tag size={12} /> Counter
               </button>
               <button
                 disabled={offerActing}
                 onClick={() => respondToOffer('declined')}
-                className="w-9 h-9 flex items-center justify-center bg-[#F5F4F0] rounded-xl flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center bg-[#1c1c1c] rounded-xl flex-shrink-0"
               >
                 <X size={14} className="text-[#AAAAAA]" />
               </button>
@@ -234,9 +234,9 @@ export default function ConversationPage() {
     // Seller already accepted / countered — show status
     if (isSeller && pendingOffer.status === 'accepted') {
       return (
-        <div className="mx-4 mt-2 mb-1 bg-green-50 border border-green-100 rounded-2xl px-4 py-3 flex items-center gap-2">
-          <Check size={14} className="text-green-600 flex-shrink-0" />
-          <p className="text-xs text-green-700 font-semibold">
+        <div className="mx-4 mt-2 mb-1 bg-green-500/10 border border-green-500/25 rounded-2xl px-4 py-3 flex items-center gap-2">
+          <Check size={14} className="text-green-400 flex-shrink-0" />
+          <p className="text-xs text-green-400 font-semibold">
             You accepted ${pendingOffer.amount} — waiting for buyer to pay
           </p>
         </div>
@@ -245,9 +245,9 @@ export default function ConversationPage() {
 
     if (isSeller && pendingOffer.status === 'countered') {
       return (
-        <div className="mx-4 mt-2 mb-1 bg-[#F5F4F0] rounded-2xl px-4 py-3 flex items-center gap-2">
+        <div className="mx-4 mt-2 mb-1 bg-[#1c1c1c] rounded-2xl px-4 py-3 flex items-center gap-2">
           <Tag size={14} className="text-[#AAAAAA] flex-shrink-0" />
-          <p className="text-xs text-[#0A0A0A] font-semibold">
+          <p className="text-xs text-white font-semibold">
             You countered at ${pendingOffer.counterAmount} — waiting for buyer
           </p>
         </div>
@@ -257,16 +257,16 @@ export default function ConversationPage() {
     // Buyer sees offer status
     if (isBuyer && pendingOffer.status === 'accepted') {
       return (
-        <div className="mx-4 mt-2 mb-1 bg-green-50 border border-green-100 rounded-2xl overflow-hidden">
+        <div className="mx-4 mt-2 mb-1 bg-green-500/10 border border-green-500/25 rounded-2xl overflow-hidden">
           <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-            <p className="text-xs font-black text-green-700">Offer accepted! 🎉</p>
-            <span className="text-xs font-black text-green-600">${pendingOffer.amount}</span>
+            <p className="text-xs font-black text-green-400">Offer accepted! 🎉</p>
+            <span className="text-xs font-black text-green-400">${pendingOffer.amount}</span>
           </div>
           <div className="px-4 pb-3">
             <button
               disabled={checkoutLoading}
               onClick={() => startCheckout(pendingOffer.amount)}
-              className="w-full flex items-center justify-center gap-1.5 bg-[#0A0A0A] text-white text-xs font-black py-2.5 rounded-xl disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-1.5 bg-[#E63946] text-white text-xs font-black py-2.5 rounded-xl disabled:opacity-50"
             >
               <ShoppingCart size={12} />
               {checkoutLoading ? 'Loading…' : `Complete purchase · $${pendingOffer.amount}`}
@@ -278,9 +278,9 @@ export default function ConversationPage() {
 
     if (isBuyer && pendingOffer.status === 'countered' && pendingOffer.counterAmount != null) {
       return (
-        <div className="mx-4 mt-2 mb-1 bg-white border border-[#EBEBEB] rounded-2xl overflow-hidden shadow-sm">
+        <div className="mx-4 mt-2 mb-1 bg-[#161616] border border-[#2a2a2a] rounded-2xl overflow-hidden shadow-sm">
           <div className="px-4 pt-3 pb-2">
-            <p className="text-xs font-black text-[#0A0A0A]">Counter offer</p>
+            <p className="text-xs font-black text-white">Counter offer</p>
             <p className="text-xs text-[#AAAAAA] mt-0.5">
               You offered ${pendingOffer.amount} · Seller countered at{' '}
               <span className="text-[#E63946] font-bold">${pendingOffer.counterAmount}</span>
@@ -290,13 +290,13 @@ export default function ConversationPage() {
             <button
               disabled={checkoutLoading}
               onClick={() => startCheckout(pendingOffer.counterAmount!)}
-              className="flex-1 flex items-center justify-center gap-1 bg-[#0A0A0A] text-white text-xs font-black py-2 rounded-xl disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-1 bg-[#E63946] text-white text-xs font-black py-2 rounded-xl disabled:opacity-50"
             >
               <Check size={12} />
               {checkoutLoading ? 'Loading…' : `Accept $${pendingOffer.counterAmount}`}
             </button>
             <button
-              className="w-9 h-9 flex items-center justify-center bg-[#F5F4F0] rounded-xl"
+              className="w-9 h-9 flex items-center justify-center bg-[#1c1c1c] rounded-xl"
               title="Pass on counter offer"
             >
               <X size={14} className="text-[#AAAAAA]" />
@@ -308,9 +308,9 @@ export default function ConversationPage() {
 
     if (isBuyer && pendingOffer.status === 'pending') {
       return (
-        <div className="mx-4 mt-2 mb-1 bg-[#F5F4F0] rounded-2xl px-4 py-3 flex items-center gap-2">
+        <div className="mx-4 mt-2 mb-1 bg-[#1c1c1c] rounded-2xl px-4 py-3 flex items-center gap-2">
           <div className="w-2 h-2 bg-[#E63946] rounded-full animate-pulse flex-shrink-0" />
-          <p className="text-xs text-[#0A0A0A] font-semibold">
+          <p className="text-xs text-white font-semibold">
             Your offer of ${pendingOffer.amount} is pending
           </p>
         </div>
@@ -321,7 +321,7 @@ export default function ConversationPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col h-screen bg-black">
 
       {/* Header */}
       <div className="bg-[#0A0A0A] px-4 pt-12 pb-4 flex items-center gap-3 flex-shrink-0">

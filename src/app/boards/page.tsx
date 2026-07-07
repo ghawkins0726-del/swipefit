@@ -71,13 +71,13 @@ export default function BoardsPage() {
   // Board detail view
   if (activeBoard) {
     return (
-      <div className="flex flex-col min-h-screen bg-white">
-        <div className="pt-14 pb-3 px-4 flex items-center gap-3 border-b border-[#EBEBEB]">
+      <div className="flex flex-col min-h-screen bg-black">
+        <div className="pt-14 pb-3 px-4 flex items-center gap-3 border-b border-[#2a2a2a]">
           <button onClick={() => setActiveBoard(null)} className="w-9 h-9 flex items-center justify-center">
-            <ArrowLeft size={22} className="text-[#0A0A0A]" />
+            <ArrowLeft size={22} className="text-white" />
           </button>
           <span className="text-xl mr-1">{activeBoard.emoji}</span>
-          <h1 className="font-black text-[18px] text-[#0A0A0A] flex-1">{activeBoard.name}</h1>
+          <h1 className="font-black text-[18px] text-white flex-1">{activeBoard.name}</h1>
           <button onClick={() => deleteBoard(activeBoard.id)} className="w-9 h-9 flex items-center justify-center">
             <Trash2 size={18} className="text-[#AAAAAA]" />
           </button>
@@ -87,7 +87,7 @@ export default function BoardsPage() {
           {boardItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
               <div className="text-4xl mb-3">{activeBoard.emoji}</div>
-              <p className="font-bold text-[#0A0A0A]">Board is empty</p>
+              <p className="font-bold text-white">Board is empty</p>
               <p className="text-[#AAAAAA] text-sm mt-1">Save items from the feed using the bookmark button</p>
             </div>
           ) : (
@@ -120,14 +120,14 @@ export default function BoardsPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-black">
       {/* Header */}
-      <div className="pt-14 pb-3 px-4 flex items-center justify-between border-b border-[#EBEBEB]">
+      <div className="pt-14 pb-3 px-4 flex items-center justify-between border-b border-[#2a2a2a]">
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center">
-            <ArrowLeft size={22} className="text-[#0A0A0A]" />
+            <ArrowLeft size={22} className="text-white" />
           </button>
-          <h1 className="font-black text-[20px] text-[#0A0A0A]">My Boards</h1>
+          <h1 className="font-black text-[20px] text-white">My Boards</h1>
         </div>
         <button
           onClick={() => setShowNew(true)}
@@ -139,14 +139,14 @@ export default function BoardsPage() {
 
       {/* New board form */}
       {showNew && (
-        <div className="px-4 py-3 border-b border-[#EBEBEB] flex gap-2">
+        <div className="px-4 py-3 border-b border-[#2a2a2a] flex gap-2">
           <input
             autoFocus
             value={newName}
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && createBoard()}
             placeholder="Board name..."
-            className="flex-1 bg-[#F5F4F0] rounded-xl px-3 py-2.5 text-sm font-medium text-[#0A0A0A] outline-none placeholder:text-[#AAAAAA]"
+            className="flex-1 bg-[#1c1c1c] rounded-xl px-3 py-2.5 text-sm font-medium text-white outline-none placeholder:text-[#AAAAAA]"
           />
           <button onClick={createBoard} className="px-4 py-2.5 bg-[#E63946] rounded-xl text-white font-bold text-sm">
             Create
@@ -166,7 +166,7 @@ export default function BoardsPage() {
         ) : collections.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="text-5xl mb-4">📌</div>
-            <p className="font-black text-[#0A0A0A] text-lg mb-1">No boards yet</p>
+            <p className="font-black text-white text-lg mb-1">No boards yet</p>
             <p className="text-[#AAAAAA] text-sm mb-6">Create a board and save items as you swipe</p>
             <button onClick={() => setShowNew(true)}
               className="bg-[#E63946] text-white px-5 py-2.5 rounded-full font-bold text-sm">
@@ -177,11 +177,11 @@ export default function BoardsPage() {
           <div className="grid grid-cols-2 gap-3">
             {collections.map(col => (
               <button key={col.id} onClick={() => openBoard(col)}
-                className="bg-[#F5F4F0] rounded-2xl overflow-hidden text-left active:opacity-80 transition-opacity">
+                className="bg-[#1c1c1c] rounded-2xl overflow-hidden text-left active:opacity-80 transition-opacity">
                 {/* Preview grid */}
                 <div className="aspect-square grid grid-cols-2 gap-[1px] bg-[#E8E8E8]">
                   {[0, 1, 2, 3].map(i => (
-                    <div key={i} className="bg-[#F5F4F0] overflow-hidden">
+                    <div key={i} className="bg-[#1c1c1c] overflow-hidden">
                       {col.previewImages[i] && (
                         <img src={col.previewImages[i]} alt="" className="w-full h-full object-cover" />
                       )}
@@ -191,7 +191,7 @@ export default function BoardsPage() {
                 <div className="px-3 py-2.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-base">{col.emoji}</span>
-                    <span className="font-bold text-[#0A0A0A] text-[13px] truncate">{col.name}</span>
+                    <span className="font-bold text-white text-[13px] truncate">{col.name}</span>
                   </div>
                   <p className="text-[#AAAAAA] text-[11px] mt-0.5">{col.itemCount} item{col.itemCount !== 1 ? 's' : ''}</p>
                 </div>

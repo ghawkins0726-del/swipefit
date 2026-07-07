@@ -45,8 +45,8 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
 
   if (!isLoaded || !myId) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="w-8 h-8 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="w-8 h-8 border-2 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -55,44 +55,44 @@ export default function DmPage({ params }: { params: Promise<{ userId: string }>
   const avatar = profile?.avatar;
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-black">
 
       {/* ── Header ── */}
-      <div className="pt-14 pb-3 px-4 flex items-center gap-3 bg-white border-b border-[#F2F2F2] flex-shrink-0">
+      <div className="pt-14 pb-3 px-4 flex items-center gap-3 bg-[#161616] border-b border-[#2a2a2a] flex-shrink-0">
         <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center">
-          <ArrowLeft size={22} className="text-[#0A0A0A]" />
+          <ArrowLeft size={22} className="text-white" />
         </button>
 
         <Link href={`/user/${targetId}`} className="flex items-center gap-2.5 flex-1 min-w-0 active:opacity-70 transition-opacity">
           <div className="w-9 h-9 rounded-full overflow-hidden bg-[#F2F2F2] flex items-center justify-center flex-shrink-0">
             {avatar
               ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
-              : <span className="font-black text-sm text-[#0A0A0A]">{name[0]?.toUpperCase()}</span>}
+              : <span className="font-black text-sm text-white">{name[0]?.toUpperCase()}</span>}
           </div>
-          <span className="font-bold text-[16px] text-[#0A0A0A] truncate">{name}</span>
+          <span className="font-bold text-[16px] text-white truncate">{name}</span>
           {isVerified(targetId) && <VerifiedBadge size="xs" />}
           {isCofounder(targetId) && <CofounderBadge />}
         </Link>
 
         <button className="w-9 h-9 flex items-center justify-center">
-          <MoreHorizontal size={22} className="text-[#0A0A0A]" />
+          <MoreHorizontal size={22} className="text-white" />
         </button>
       </div>
 
       {/* ── Item context banner (shown when opened from item page) ── */}
       {contextItem && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-[#F5F4F0] border-b border-[#EBEBEB] flex-shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-[#1c1c1c] border-b border-[#2a2a2a] flex-shrink-0">
           <Link
             href={`/item/${contextItem.id}`}
             className="flex items-center gap-3 flex-1 min-w-0 active:opacity-70 transition-opacity"
           >
             {contextItem.images?.[0] && (
-              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-[#EBEBEB]">
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-[#262626]">
                 <img src={contextItem.images[0]} alt={contextItem.title} className="w-full h-full object-cover" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-[#0A0A0A] truncate">{contextItem.title}</p>
+              <p className="text-xs font-black text-white truncate">{contextItem.title}</p>
               <p className="text-xs text-[#AAAAAA]">${contextItem.price} · tap to view</p>
             </div>
           </Link>

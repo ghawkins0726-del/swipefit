@@ -13,8 +13,8 @@ interface Tier {
   perks: string[];
 }
 const TIERS: Tier[] = [
-  { cap: 100,  emoji: '🏆', name: 'Founding Member',
-    perks: ['Founding-member badge (in-app)', 'Premium free for life', 'Direct line to the founder'] },
+  { cap: 100,  emoji: '🏆', name: 'Premium Member',
+    perks: ['Premium-member badge (in-app)', 'Premium free for life', 'Direct line to the founder'] },
   { cap: 1000, emoji: '💸', name: 'Free Seller Fees Forever',
     perks: ['0% seller fees forever (not 10%)', 'Premium free for life', 'First dibs on Daily Drop'] },
   { cap: 5000, emoji: '⭐', name: 'Early Access+',

@@ -35,7 +35,7 @@ export default function OrderTracking({ order }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm">
+    <div className="bg-[#161616] rounded-2xl p-4 shadow-sm">
       {STEPS.map((step, i) => {
         const done = i < currentIdx;
         const active = i === currentIdx;

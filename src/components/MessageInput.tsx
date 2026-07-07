@@ -168,17 +168,17 @@ export default function MessageInput({ itemId, receiverId, senderName, onSent, r
       {showMediaSheet && (
         <>
           <div className="fixed inset-0 bg-black/40 z-50" onClick={() => setShowMediaSheet(false)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl px-4 pt-4 pb-10 safe-area-bottom">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#161616] rounded-t-3xl px-4 pt-4 pb-10 safe-area-bottom">
             <div className="w-10 h-1 bg-[#E0E0E0] rounded-full mx-auto mb-5" />
             <button
               onClick={() => cameraInputRef.current?.click()}
-              className="w-full flex items-center gap-4 py-4 border-b border-[#F2F2F2] active:bg-[#F9F9F9] rounded-xl px-2"
+              className="w-full flex items-center gap-4 py-4 border-b border-[#2a2a2a] active:bg-[#F9F9F9] rounded-xl px-2"
             >
               <div className="w-11 h-11 bg-[#F2F2F2] rounded-full flex items-center justify-center flex-shrink-0">
-                <Camera size={20} className="text-[#0A0A0A]" />
+                <Camera size={20} className="text-white" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-[15px] text-[#0A0A0A]">Take Photo</p>
+                <p className="font-semibold text-[15px] text-white">Take Photo</p>
                 <p className="text-[12px] text-[#888]">Use your camera</p>
               </div>
             </button>
@@ -187,10 +187,10 @@ export default function MessageInput({ itemId, receiverId, senderName, onSent, r
               className="w-full flex items-center gap-4 py-4 active:bg-[#F9F9F9] rounded-xl px-2"
             >
               <div className="w-11 h-11 bg-[#F2F2F2] rounded-full flex items-center justify-center flex-shrink-0">
-                <ImageIcon size={20} className="text-[#0A0A0A]" />
+                <ImageIcon size={20} className="text-white" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-[15px] text-[#0A0A0A]">Choose from Library</p>
+                <p className="font-semibold text-[15px] text-white">Choose from Library</p>
                 <p className="text-[12px] text-[#888]">Pick from your photos</p>
               </div>
             </button>
@@ -202,7 +202,7 @@ export default function MessageInput({ itemId, receiverId, senderName, onSent, r
       <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
       <input ref={cameraInputRef}  type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
 
-      <div className="flex-shrink-0 bg-white border-t border-[#F2F2F2]">
+      <div className="flex-shrink-0 bg-[#161616] border-t border-[#2a2a2a]">
 
         {/* ── Reply strip ── */}
         {replyTo && (
@@ -258,7 +258,7 @@ export default function MessageInput({ itemId, receiverId, senderName, onSent, r
             <button onClick={cancelRecording} className="text-[#888] text-[14px] font-semibold">Cancel</button>
             <div className="flex-1 flex items-center justify-center gap-2.5">
               <div className="w-2 h-2 rounded-full bg-[#FF2E47] animate-pulse" />
-              <span className="font-mono font-bold text-[18px] text-[#0A0A0A] tabular-nums">{fmt(recordDuration)}</span>
+              <span className="font-mono font-bold text-[18px] text-white tabular-nums">{fmt(recordDuration)}</span>
             </div>
             <button onClick={stopAndSend}
               className="w-12 h-12 bg-[#FF2E47] rounded-full flex items-center justify-center shadow-lg shadow-[#FF2E47]/30 active:scale-95 transition-transform">
@@ -274,7 +274,7 @@ export default function MessageInput({ itemId, receiverId, senderName, onSent, r
           <div className="flex items-end gap-2 px-3 pb-8 pt-1">
             <button onClick={() => setShowMediaSheet(true)} disabled={sending}
               className="w-9 h-9 flex items-center justify-center flex-shrink-0 mb-0.5 active:scale-90 transition-transform">
-              <Camera size={22} className="text-[#0A0A0A]" />
+              <Camera size={22} className="text-white" />
             </button>
 
             <div className="flex-1 bg-[#F2F2F2] rounded-[22px] px-4 py-2 flex items-end">
@@ -285,7 +285,7 @@ export default function MessageInput({ itemId, receiverId, senderName, onSent, r
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder="Message..."
                 rows={1}
-                className="flex-1 bg-transparent text-[15px] text-[#0A0A0A] placeholder-[#999] focus:outline-none resize-none leading-relaxed"
+                className="flex-1 bg-transparent text-[15px] text-white placeholder-[#999] focus:outline-none resize-none leading-relaxed"
                 style={{ maxHeight: 96 }}
               />
             </div>
@@ -300,7 +300,7 @@ export default function MessageInput({ itemId, receiverId, senderName, onSent, r
             ) : (
               <button onClick={startRecording} disabled={sending}
                 className="w-9 h-9 flex items-center justify-center flex-shrink-0 mb-0.5 active:scale-90 transition-transform disabled:opacity-40">
-                <Mic size={22} className="text-[#0A0A0A]" />
+                <Mic size={22} className="text-white" />
               </button>
             )}
           </div>

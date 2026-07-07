@@ -151,7 +151,7 @@ export default function DnaPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#F5F4F0]">
+    <div className="flex flex-col h-[100dvh] bg-black">
 
       {/* ── Header ── */}
       <div className="bg-[#0A0A0A] pt-12 px-5 pb-0 flex-shrink-0">
@@ -171,7 +171,7 @@ export default function DnaPage() {
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all flex items-center justify-center gap-1.5 ${
                 tab === t.id
-                  ? 'bg-white text-[#0A0A0A] shadow-sm'
+                  ? 'bg-[#E63946] text-white shadow-sm'
                   : 'text-white/70'
               }`}>
               {t.label}
@@ -192,8 +192,8 @@ export default function DnaPage() {
             ) : dna ? (
               <>
                 <StyleDnaCard dna={dna} />
-                <div className="bg-white rounded-2xl p-5">
-                  <p className="font-black text-[#0A0A0A] text-sm mb-2">How it works</p>
+                <div className="bg-[#161616] rounded-2xl p-5">
+                  <p className="font-black text-white text-sm mb-2">How it works</p>
                   <p className="text-[#AAAAAA] text-sm leading-relaxed">
                     Every swipe shapes your DNA. Likes, super-likes, and passes all train the algorithm. The more you swipe, the sharper your recommendations get.
                   </p>
@@ -204,7 +204,7 @@ export default function DnaPage() {
                     Daily Drop
                   </button>
                   <button onClick={() => setTab('outfit')}
-                    className="flex-1 bg-white text-[#0A0A0A] font-black py-4 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest border-2 border-[#0A0A0A] active:scale-[0.97] transition-transform shadow-[0_8px_20px_-8px_rgba(0,0,0,0.25)]">
+                    className="flex-1 bg-[#161616] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest border-2 border-[#E63946] active:scale-[0.97] transition-transform shadow-[0_8px_20px_-8px_rgba(0,0,0,0.25)]">
                     <ShoppingBag size={14} />
                     Build Outfit
                   </button>
@@ -212,10 +212,10 @@ export default function DnaPage() {
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-4">
-                  <Dna size={24} className="text-[#EBEBEB]" />
+                <div className="w-16 h-16 bg-[#161616] rounded-3xl flex items-center justify-center mb-4">
+                  <Dna size={24} className="text-[#3a3a3a]" />
                 </div>
-                <p className="font-black text-[#0A0A0A] text-base mb-1">Swipe 5 items to unlock</p>
+                <p className="font-black text-white text-base mb-1">Swipe 5 items to unlock</p>
                 <p className="text-[#AAAAAA] text-sm text-center mb-6">Your Style DNA builds with every swipe</p>
                 <Link href="/feed" className="bg-[#E63946] text-white px-8 py-3 rounded-2xl font-bold text-sm">
                   Go Swipe
@@ -400,7 +400,7 @@ export default function DnaPage() {
         {tab === 'outfit' && (
           <>
             {/* Aesthetic genre selector */}
-            <div className="flex-shrink-0 bg-white border-b border-[#EBEBEB]">
+            <div className="flex-shrink-0 bg-[#161616] border-b border-[#2a2a2a]">
               <div className="pt-3 px-4 pb-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#AAAAAA] mb-2">Aesthetic</p>
                 <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
@@ -409,8 +409,8 @@ export default function DnaPage() {
                       onClick={() => setGenre(prev => prev === g.label ? '' : g.label)}
                       className={`flex-shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all whitespace-nowrap border ${
                         genre === g.label
-                          ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-                          : 'bg-white text-[#0A0A0A] border-[#EBEBEB]'
+                          ? 'bg-[#E63946] text-white border-[#0A0A0A]'
+                          : 'bg-[#161616] text-white border-[#2a2a2a]'
                       }`}>
                       <span>{g.emoji}</span>
                       {g.label}
@@ -421,14 +421,14 @@ export default function DnaPage() {
             </div>
 
             {/* Chat — scrollable with bottom padding so messages clear the sticky input bar */}
-            <div className="flex-1 overflow-y-auto px-4 space-y-4 pt-4 pb-[224px] bg-[#F5F4F0]">
+            <div className="flex-1 overflow-y-auto px-4 space-y-4 pt-4 pb-[224px] bg-[#1c1c1c]">
               <AnimatePresence initial={false}>
                 {messages.map((msg, i) => {
                   if (msg.role === 'user') {
                     return (
                       <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                         className="flex justify-end">
-                        <div className="bg-[#0A0A0A] text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[75%] text-sm font-medium">
+                        <div className="bg-[#E63946] text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[75%] text-sm font-medium">
                           {msg.text}
                         </div>
                       </motion.div>
@@ -445,11 +445,11 @@ export default function DnaPage() {
 
                       <div className="flex-1 min-w-0">
                         {/* Reply bubble */}
-                        <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm mb-3">
+                        <div className="bg-[#161616] rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm mb-3">
                           {msg.outfit.length > 0 && (
                             <p className="text-[10px] font-black uppercase tracking-widest text-[#E63946] mb-1">Fit · Outfit</p>
                           )}
-                          <p className="text-sm text-[#0A0A0A] leading-relaxed font-medium whitespace-pre-wrap">{msg.text}</p>
+                          <p className="text-sm text-white leading-relaxed font-medium whitespace-pre-wrap">{msg.text}</p>
                         </div>
 
                         {/* Outfit board */}
@@ -474,7 +474,7 @@ export default function DnaPage() {
                                     <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
                                   </div>
                                   <div className="mt-2 px-0.5">
-                                    <p className="font-bold text-[#0A0A0A] text-xs truncate leading-tight">{item.title}</p>
+                                    <p className="font-bold text-white text-xs truncate leading-tight">{item.title}</p>
                                     <p className="text-[#AAAAAA] text-[10px] mt-0.5">{item.brand}</p>
                                   </div>
                                 </Link>
@@ -492,7 +492,7 @@ export default function DnaPage() {
                     <div className="w-8 h-8 bg-[#0A0A0A] rounded-full flex items-center justify-center flex-shrink-0">
                       <Sparkles size={13} className="text-[#E63946]" />
                     </div>
-                    <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                    <div className="bg-[#161616] rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                       <div className="flex items-center gap-1">
                         <span className="w-1.5 h-1.5 bg-[#E63946] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <span className="w-1.5 h-1.5 bg-[#E63946] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -507,18 +507,18 @@ export default function DnaPage() {
 
             {/* Input — fixed above the navbar, with clearance for the raised Swipe button */}
             <div
-              className="fixed left-0 right-0 z-40 bg-white border-t border-[#EBEBEB] shadow-[0_-8px_24px_rgba(0,0,0,0.04)]"
+              className="fixed left-0 right-0 z-40 bg-[#161616] border-t border-[#2a2a2a] shadow-[0_-8px_24px_rgba(0,0,0,0.04)]"
               style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}
             >
               {/* Label header — makes it obvious this is where to type */}
               <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
                 <div className="flex items-center gap-1.5">
                   <Sparkles size={11} className="text-[#E63946]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#0A0A0A]">Ask Fit</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Ask Fit</span>
                 </div>
                 {genre && (
                   <div className="flex items-center gap-1.5">
-                    <span className="bg-[#0A0A0A] text-white text-[9px] font-black px-2 py-0.5 rounded-full">{genre}</span>
+                    <span className="bg-[#E63946] text-white text-[9px] font-black px-2 py-0.5 rounded-full">{genre}</span>
                     <button onClick={() => setGenre('')} className="text-[#AAAAAA] text-[10px] underline">clear</button>
                   </div>
                 )}
@@ -534,7 +534,7 @@ export default function DnaPage() {
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && sendMessage()}
                   placeholder="Type anything — brands, advice, outfit ideas…"
-                  className="flex-1 bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-4 py-3 text-sm text-[#0A0A0A] placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#E63946] focus:bg-white transition-colors"
+                  className="flex-1 bg-[#1c1c1c] border border-[#2a2a2a] rounded-2xl px-4 py-3 text-sm text-white placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#E63946] focus:bg-[#161616] transition-colors"
                 />
                 <button onClick={() => sendMessage()} disabled={!input.trim() || chatLoading}
                   className="btn-halo-send w-12 h-12 flex-shrink-0">

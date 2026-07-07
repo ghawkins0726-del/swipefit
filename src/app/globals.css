@@ -2,15 +2,15 @@
 
 /* ─── Brand tokens ─────────────────────────────────────────────────────────── */
 :root {
-  --sf-bg: #F5F4F0;          /* warm off-white — editorial feel */
-  --sf-surface: #FFFFFF;
-  --sf-ink: #0A0A0A;         /* near-black */
-  --sf-ink-2: #5A5A5A;       /* secondary text */
+  --sf-bg: #000000;          /* warm off-white — editorial feel */
+  --sf-surface: #161616;
+  --sf-ink: #FFFFFF;         /* near-black */
+  --sf-ink-2: #B5B5B5;       /* secondary text */
   --sf-ink-3: #AAAAAA;       /* placeholder / meta */
   --sf-accent: #E63946;      /* SwipeFit red — the one pop of color */
-  --sf-accent-dim: #FDECED;
-  --sf-border: #EBEBEB;
-  --sf-card-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --sf-accent-dim: rgba(230,57,70,0.15);
+  --sf-border: #262626;
+  --sf-card-shadow: 0 2px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
 }
 
 @theme inline {
