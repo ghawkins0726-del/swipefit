@@ -117,7 +117,7 @@ function WaitlistInner() {
     } catch { /* clipboard blocked */ }
   }
 
-  const spotsLeft = total != null ? Math.max(0, 1000 - total) : null;
+  const spotsLeft = total != null ? Math.max(0, 5000 - total) : null;
 
   return (
     <div className="min-h-[100dvh] bg-black text-white relative overflow-hidden">
@@ -157,7 +157,7 @@ function WaitlistInner() {
                 </div>
                 {spotsLeft != null && spotsLeft > 0 && (
                   <p className="text-xs mt-1.5 font-bold uppercase tracking-widest" style={{ color: '#E63946' }}>
-                    You&apos;re early — doors close at 1,000
+                    You&apos;re early — doors close at 5,000
                   </p>
                 )}
               </div>
@@ -284,7 +284,7 @@ function WaitlistInner() {
               </button>
 
               <p className="text-[11px] mt-6" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                {total != null ? `${total.toLocaleString()} people waiting · ` : ''}Doors close at 1,000
+                {total != null ? `${total.toLocaleString()} people waiting · ` : ''}Doors close at 5,000
               </p>
             </motion.div>
           )}
