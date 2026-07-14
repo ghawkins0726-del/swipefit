@@ -60,7 +60,10 @@ export default function SwipeCard({ item, onSwipe, isTop, onDragUpdate, imgIndex
         {/* ── Image section ── */}
         <div className="relative flex-1 min-h-0">
           <img
-            src={item.images[imgIndex]}
+            // Clamp: imgIndex lives in the parent and can briefly exceed this
+            // item's photo count during a stack transition — never render a
+            // broken image for that frame.
+            src={item.images[Math.min(imgIndex, item.images.length - 1)] ?? item.images[0]}
             alt={item.title}
             className="absolute inset-0 w-full h-full object-cover object-center"
             draggable={false}
