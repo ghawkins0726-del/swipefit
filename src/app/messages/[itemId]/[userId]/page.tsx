@@ -125,7 +125,6 @@ export default function ConversationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           itemId: pendingOffer.itemId,
-          sellerId: pendingOffer.sellerId,
           amount,
         }),
       });

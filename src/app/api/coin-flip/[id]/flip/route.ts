@@ -129,7 +129,7 @@ export async function POST(
     }, { status: 402 });
   }
 
-  // Payment succeeded — create order, mark completed
+  // Payment succeeded — create order, mark completed.
   const now = Date.now();
   const order: Order = {
     id: uuid(),
@@ -141,7 +141,34 @@ export async function POST(
     createdAt: now,
     updatedAt: now,
   };
-  await createOrder(order);
+  // The charge already captured. If the item was bought out from under this flip
+  // between the pre-check (line 47) and here, createOrder throws ITEM_ALREADY_SOLD
+  // — refund the buyer rather than leave them charged with no order.
+  try {
+    await createOrder(order);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'ITEM_ALREADY_SOLD') {
+      await stripe.refunds.create({ payment_intent: paymentIntentId });
+      await updateCoinFlipOfferStatus(id, 'cancelled', { flipResult, stripePaymentIntentId: paymentIntentId });
+      const refundMsg = `The item sold before your flip could complete, so your $${chargeAmount} payment was fully refunded. No charge stands.`;
+      await sendMessage({
+        id: uuid(), senderId: 'system', senderName: 'Wove',
+        receiverId: buyerId, itemId: offer.itemId,
+        text: refundMsg, read: false, createdAt: now,
+        replyToId: null, replyToText: null, replyToSender: null, reactions: {},
+      });
+      await createNotification({
+        id: `notif_${now}_${uuid().slice(0, 8)}`,
+        userId: buyerId, type: 'coin_flip_result',
+        title: 'Flip voided — you were refunded',
+        body: refundMsg,
+        payload: JSON.stringify({ coinFlipId: id }),
+        createdAt: now,
+      });
+      return NextResponse.json({ error: 'Item was just purchased by someone else — your payment was refunded', code: 'item_already_sold' }, { status: 409 });
+    }
+    throw err;
+  }
   await updateCoinFlipOfferStatus(id, 'completed', { flipResult, stripePaymentIntentId: paymentIntentId });
 
   const resultMsg = flipResult === 'win'

@@ -1033,20 +1033,89 @@ export async function getUnreadCount(userId: string): Promise<number> {
 export async function createOrder(order: Order): Promise<void> {
   const db = sql();
 
-  // Atomically mark the item as sold — if another buyer got here first the
-  // UPDATE returns 0 rows and we abort before inserting the order.
-  const updated = await db`
-    UPDATE items SET sold = true
-    WHERE id = ${order.itemId} AND NOT sold
+  // Mark the item sold and insert the order in a SINGLE data-modifying CTE so
+  // the two steps are atomic. (The neon() HTTP driver runs each tagged query as
+  // its own stateless request, so a BEGIN/COMMIT pair across separate calls is a
+  // no-op — a CTE is the only way to get atomicity in one round trip.)
+  // The INSERT selects FROM the CTE, so it only runs when the UPDATE actually
+  // claimed the item; if another buyer got here first the UPDATE returns 0 rows,
+  // nothing is inserted, and RETURNING yields no rows → ITEM_ALREADY_SOLD.
+  const inserted = await db`
+    WITH claimed AS (
+      UPDATE items SET sold = true
+      WHERE id = ${order.itemId} AND NOT sold
+      RETURNING id
+    )
+    INSERT INTO orders (id, buyer_id, seller_id, item_id, amount, status, shipping_address, tracking_number, created_at, updated_at)
+    SELECT ${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt}
+    FROM claimed
     RETURNING id
   `;
-  if (updated.length === 0) {
+  if (inserted.length === 0) {
     throw new Error('ITEM_ALREADY_SOLD');
   }
+}
 
-  await db`
+/**
+ * Create an order for a resell listing. Unlike createOrder, this does NOT touch
+ * items.sold — a resold item's original row is already sold=true. The race guard
+ * is on the resell listing itself: the CTE claims it (active → sold) and only
+ * inserts the order if the claim succeeded. Concurrent buyers → one wins, the
+ * loser gets RESELL_ALREADY_SOLD. The listing is released back to 'active' if the
+ * checkout is later abandoned (see cancelResellOrderAndReleaseListing).
+ */
+export async function createResellOrder(order: Order, resellListingId: string): Promise<void> {
+  const db = sql();
+  const inserted = await db`
+    WITH claimed AS (
+      UPDATE resell_listings SET status = 'sold', updated_at = ${Date.now()}
+      WHERE id = ${resellListingId} AND status = 'active'
+      RETURNING id
+    )
     INSERT INTO orders (id, buyer_id, seller_id, item_id, amount, status, shipping_address, tracking_number, created_at, updated_at)
-    VALUES (${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt})
+    SELECT ${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt}
+    FROM claimed
+    RETURNING id
+  `;
+  if (inserted.length === 0) {
+    throw new Error('RESELL_ALREADY_SOLD');
+  }
+}
+
+/**
+ * Roll back a still-unpaid item order: if the order is still pending_payment,
+ * cancel it and release the item back to the pool. No-op if the order already
+ * advanced (e.g. payment landed), so a late expiry event can't un-sell a paid
+ * item. Atomic via CTE for the same HTTP-driver reason as createOrder.
+ */
+export async function cancelOrderAndReleaseItem(orderId: string): Promise<void> {
+  const db = sql();
+  await db`
+    WITH cancelled AS (
+      UPDATE orders SET status = 'cancelled', updated_at = ${Date.now()}
+      WHERE id = ${orderId} AND status = 'pending_payment'
+      RETURNING item_id
+    )
+    UPDATE items SET sold = false
+    WHERE id IN (SELECT item_id FROM cancelled)
+  `;
+}
+
+/**
+ * Roll back a still-unpaid resell order: if the order is still pending_payment,
+ * cancel it and put the resell listing back to 'active'. No-op once the order
+ * has advanced.
+ */
+export async function cancelResellOrderAndReleaseListing(orderId: string, resellListingId: string): Promise<void> {
+  const db = sql();
+  await db`
+    WITH cancelled AS (
+      UPDATE orders SET status = 'cancelled', updated_at = ${Date.now()}
+      WHERE id = ${orderId} AND status = 'pending_payment'
+      RETURNING id
+    )
+    UPDATE resell_listings SET status = 'active', updated_at = ${Date.now()}
+    WHERE id = ${resellListingId} AND EXISTS (SELECT 1 FROM cancelled)
   `;
 }
 
@@ -1870,9 +1939,12 @@ export async function createResellListingWithHistory(
   historyEntry: ResellPriceHistory,
 ): Promise<void> {
   const db = sql();
-  await db`BEGIN`;
-  try {
-    await db`
+  // Non-interactive transaction: the neon() HTTP driver batches these into one
+  // atomic request. A BEGIN/COMMIT pair across separate db`` calls would NOT be
+  // atomic (each tagged call is its own stateless HTTP request), so use the
+  // driver's transaction() helper to get real all-or-nothing semantics.
+  await db.transaction([
+    db`
       INSERT INTO resell_listings (
         id, original_order_id, seller_user_id, item_id, condition,
         price, images, status, created_at, updated_at
@@ -1883,17 +1955,13 @@ export async function createResellListingWithHistory(
         ${listing.createdAt}, ${listing.updatedAt}
       )
       ON CONFLICT (id) DO NOTHING
-    `;
-    await db`
+    `,
+    db`
       INSERT INTO resell_price_history (id, item_id, order_id, seller_user_id, price, condition, created_at)
       VALUES (${historyEntry.id}, ${historyEntry.itemId}, ${historyEntry.orderId}, ${historyEntry.sellerUserId}, ${historyEntry.price}, ${historyEntry.condition}, ${historyEntry.createdAt})
       ON CONFLICT (id) DO NOTHING
-    `;
-    await db`COMMIT`;
-  } catch (err) {
-    await db`ROLLBACK`;
-    throw err;
-  }
+    `,
+  ]);
 }
 
 export async function getOrderHoldExpiresAt(orderId: string): Promise<number | null> {
@@ -1987,19 +2055,32 @@ export async function getCollaborativeItemIds(
 
 
 // ─── Stripe webhook idempotency ───────────────────────────────────────────────
-export async function isWebhookEventProcessed(eventId: string): Promise<boolean> {
+/**
+ * Atomically claim a webhook event for processing. Returns true if THIS call
+ * won the claim (caller should process the event), false if it was already
+ * claimed (caller should no-op). The INSERT..ON CONFLICT DO NOTHING RETURNING
+ * both checks and records in one race-free round trip — never record before the
+ * handler runs, or a handler failure would leave the event marked processed and
+ * Stripe's retry would skip it forever. Pair with releaseWebhookEvent on failure.
+ */
+export async function claimWebhookEvent(eventId: string): Promise<boolean> {
   const db = sql();
-  const rows = await db`SELECT 1 FROM processed_webhook_events WHERE event_id = ${eventId}`;
-  return rows.length > 0;
-}
-
-export async function recordWebhookEvent(eventId: string): Promise<void> {
-  const db = sql();
-  await db`
+  const rows = await db`
     INSERT INTO processed_webhook_events (event_id, processed_at)
     VALUES (${eventId}, ${Date.now()})
     ON CONFLICT (event_id) DO NOTHING
+    RETURNING event_id
   `;
+  return rows.length > 0;
+}
+
+/**
+ * Release a previously claimed event so Stripe's retry can reprocess it. Call
+ * this when a handler throws after claimWebhookEvent succeeded.
+ */
+export async function releaseWebhookEvent(eventId: string): Promise<void> {
+  const db = sql();
+  await db`DELETE FROM processed_webhook_events WHERE event_id = ${eventId}`;
 }
 
 // ─── Pre-launch waitlist ──────────────────────────────────────────────────────

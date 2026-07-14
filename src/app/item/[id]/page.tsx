@@ -96,7 +96,7 @@ export default function ItemPage() {
     const res = await fetch('/api/stripe/item-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId: item.id, sellerId: item.sellerId, amount: item.price }),
+      body: JSON.stringify({ itemId: item.id, amount: item.price }),
     });
     const data = await res.json();
     if (data.url) {

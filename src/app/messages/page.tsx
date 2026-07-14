@@ -56,7 +56,7 @@ function ActivityDrawer({
     if (!offer.item) return;
     setCheckoutLoading(offer.id);
     try {
-      const res = await fetch('/api/stripe/item-checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: offer.itemId, sellerId: offer.sellerId, amount }) });
+      const res = await fetch('/api/stripe/item-checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: offer.itemId, amount }) });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
     } finally { setCheckoutLoading(null); }

@@ -6,7 +6,8 @@ import {
   getResellListingById,
   getItemById,
   getOrCreateUser,
-  createOrder,
+  createResellOrder,
+  cancelResellOrderAndReleaseListing,
 } from '@/lib/db';
 import { Order } from '@/lib/db-types';
 
@@ -47,7 +48,11 @@ export async function POST(req: NextRequest) {
   const now = Date.now();
   const orderId = uuid();
 
-  // Create order in DB (status: pending_payment)
+  // Create order in DB (status: pending_payment). createResellOrder atomically
+  // claims the listing (active → sold); if another buyer won the race it throws
+  // RESELL_ALREADY_SOLD. It does NOT touch items.sold — the resold item's
+  // original row is already sold=true, which is exactly why the plain
+  // createOrder path (with its item sold-guard) cannot be used here.
   const order: Order = {
     id: orderId,
     buyerId: userId,
@@ -58,16 +63,27 @@ export async function POST(req: NextRequest) {
     createdAt: now,
     updatedAt: now,
   };
-  await createOrder(order);
+  try {
+    await createResellOrder(order, resellListingId);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'RESELL_ALREADY_SOLD') {
+      return NextResponse.json({ error: 'Listing was just purchased by someone else' }, { status: 409 });
+    }
+    throw err;
+  }
 
   // Build Stripe checkout session
   const stripe = getStripe();
   const amountCents = Math.round(listing.price * 100);
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PCT);
 
-  const session = await stripe.checkout.sessions.create({
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card'],
+    // Release the listing if the buyer never pays (checkout.session.expired).
+    expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     line_items: [
       {
         price_data: {
@@ -102,7 +118,12 @@ export async function POST(req: NextRequest) {
     shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU'] },
     success_url: `${process.env.NEXT_PUBLIC_URL}/orders/${orderId}?payment=success`,
     cancel_url: `${process.env.NEXT_PUBLIC_URL}/item/${listing.itemId}`,
-  });
+    });
+  } catch (err) {
+    // Session creation failed after we claimed the listing — release it.
+    await cancelResellOrderAndReleaseListing(orderId, resellListingId);
+    throw err;
+  }
 
   return NextResponse.json({ url: session.url, orderId });
 }

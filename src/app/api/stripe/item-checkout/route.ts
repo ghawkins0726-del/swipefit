@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { v4 as uuid } from 'uuid';
 import { getStripe } from '@/lib/stripe';
-import { getItemById, createOrder, getOrCreateUser, getOffersByUser } from '@/lib/db';
+import { getItemById, createOrder, cancelOrderAndReleaseItem, getOrCreateUser, getOffersByUser } from '@/lib/db';
 import { Order } from '@/lib/db-types';
 
 // Platform takes 10% — seller gets 90%. Tweak here if you change the cut.
@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { itemId, sellerId, amount } = await req.json();
-  if (!itemId || !sellerId || !amount) {
+  const { itemId, amount } = await req.json();
+  if (!itemId || !amount) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
@@ -21,6 +21,11 @@ export async function POST(req: NextRequest) {
   if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
   if (item.sold) return NextResponse.json({ error: 'Item already sold' }, { status: 409 });
   if (item.sellerId === userId) return NextResponse.json({ error: 'Cannot buy your own item' }, { status: 400 });
+
+  // The payout destination and order.sellerId ALWAYS come from the item row,
+  // never the request body — otherwise a buyer could redirect the seller's
+  // payout to any Connect account they control.
+  const sellerId = item.sellerId;
 
   // ── Amount validation: never trust the client price ────────────────────────
   // Look for an accepted or countered offer from this buyer for this item.
@@ -81,39 +86,50 @@ export async function POST(req: NextRequest) {
   const amountCents = Math.round(validatedAmount * 100);
   const platformFeeCents = Math.round(amountCents * PLATFORM_FEE_PCT);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price_data: {
-          currency: 'usd',
-          unit_amount: amountCents,
-          product_data: {
-            name: item.title,
-            description: `${item.brand} · Size ${item.size} · ${item.condition.replace('_', ' ')}`,
-            ...(item.images?.[0] ? { images: [item.images[0]] } : {}),
+  // If session creation fails, the item is already locked (sold=true) from
+  // createOrder above. Release it so an infra hiccup doesn't brick the listing.
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      // Give up the reservation if the buyer never pays. checkout.session.expired
+      // then fires and releases the item (see the webhook handler).
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            unit_amount: amountCents,
+            product_data: {
+              name: item.title,
+              description: `${item.brand} · Size ${item.size} · ${item.condition.replace('_', ' ')}`,
+              ...(item.images?.[0] ? { images: [item.images[0]] } : {}),
+            },
           },
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      payment_intent_data: {
+        application_fee_amount: platformFeeCents,
+        transfer_data: { destination: seller.stripeAccountId },
       },
-    ],
-    payment_intent_data: {
-      application_fee_amount: platformFeeCents,
-      transfer_data: { destination: seller.stripeAccountId },
-    },
-    metadata: {
-      type: 'item_purchase',
-      orderId: order.id,
-      buyerId: userId,
-      sellerId,
-      itemId,
-      platformFeeCents: String(platformFeeCents),
-    },
-    shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU'] },
-    success_url: `${process.env.NEXT_PUBLIC_URL}/orders/${order.id}?payment=success`,
-    cancel_url: `${process.env.NEXT_PUBLIC_URL}/item/${itemId}`,
-  });
+      metadata: {
+        type: 'item_purchase',
+        orderId: order.id,
+        buyerId: userId,
+        sellerId,
+        itemId,
+        platformFeeCents: String(platformFeeCents),
+      },
+      shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU'] },
+      success_url: `${process.env.NEXT_PUBLIC_URL}/orders/${order.id}?payment=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_URL}/item/${itemId}`,
+    });
+  } catch (err) {
+    await cancelOrderAndReleaseItem(order.id);
+    throw err;
+  }
 
   return NextResponse.json({ url: session.url, orderId: order.id });
 }
