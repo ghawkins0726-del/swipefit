@@ -84,6 +84,7 @@ export default function SwipeFeed({ userId }: Props) {
   const [empty, setEmpty] = useState(false);
   const [lastSwiped, setLastSwiped] = useState<{ item: Item & { _reason?: string; matchScore?: number }; action: string } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
+  const [swipeError, setSwipeError] = useState<string | null>(null);
 
   // Image index lifted here so progress dots can live outside the card
   const [imgIndex, setImgIndex] = useState(0);
@@ -115,24 +116,54 @@ export default function SwipeFeed({ userId }: Props) {
   useEffect(() => { fetchBatch(); }, [fetchBatch]);
   useEffect(() => { if (stack.length <= 2 && !loading) fetchBatch(); }, [stack.length, loading, fetchBatch]);
 
+  // Put an unsaved swipe's card back on top of the stack so nothing is lost
+  // silently. Guards against double-insert if the user already undid it.
+  const restoreCard = (item: Item & { _reason?: string; matchScore?: number }, message: string) => {
+    setStack(prev => (prev.some(i => i.id === item.id) ? prev : [item, ...prev]));
+    setSwipeCount(c => Math.max(0, c - 1));
+    setLastSwiped(null);
+    setImgIndex(0);
+    setSwipeError(message);
+    setTimeout(() => setSwipeError(null), 2500);
+  };
+
   const handleSwipe = async (action: 'like' | 'dislike' | 'superlike') => {
     const item = stack[0];
     if (!item) return;
     cardX.set(0);
     setLastSwiped({ item, action });
     setLastAction(action);
+    // Reset the image index in the same batch as the stack update — the effect
+    // above runs post-paint, one frame too late for the next card's first render.
+    setImgIndex(0);
     setStack(prev => prev.slice(1));
     setSwipeCount(c => c + 1);
-    await fetch('/api/swipe', {
+    setTimeout(() => setLastAction(null), 600);
+
+    // Optimistic UI, but never silently lose a swipe: the server can 429 (rate
+    // limit) or fail transiently, and /api/feed excludes items by *recorded*
+    // swipes — a dropped like would just reappear later with no trace.
+    const post = () => fetch('/api/swipe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ itemId: item.id, action }),
     });
-    setTimeout(() => setLastAction(null), 600);
+    try {
+      let res = await post();
+      if (!res.ok && res.status !== 429) res = await post(); // one retry for transient failures
+      if (!res.ok) {
+        restoreCard(item, res.status === 429
+          ? 'Whoa, slow down — that one didn’t save'
+          : 'That swipe didn’t save — try again');
+      }
+    } catch {
+      restoreCard(item, 'No connection — that swipe didn’t save');
+    }
   };
 
   const handleUndo = async () => {
     if (!lastSwiped) return;
+    setImgIndex(0); // same reason as in handleSwipe — reset with the stack update
     setStack(prev => [lastSwiped.item, ...prev]);
     setSwipeCount(c => Math.max(0, c - 1));
     setLastSwiped(null);
@@ -269,6 +300,21 @@ export default function SwipeFeed({ userId }: Props) {
           </GlowButton>
         </div>
       </div>
+
+      {/* ── Unsaved-swipe toast ── */}
+      <AnimatePresence>
+        {swipeError && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest text-white bg-[#161616] border border-white/15 shadow-[0_0_24px_rgba(0,0,0,0.6)] whitespace-nowrap"
+          >
+            {swipeError}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {stack[0] && (
         <CoinFlipModal
