@@ -2,6 +2,7 @@
  * Database layer — Neon serverless Postgres.
  * Works in Vercel serverless functions and local dev (after `vercel env pull`).
  */
+import { randomUUID } from 'crypto';
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
 import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier, ResellListing, ResellPriceHistory } from './db-types';
@@ -338,6 +339,42 @@ async function _runInitDb(): Promise<void> {
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS reseller_reputation FLOAT DEFAULT 0`;
   await db`ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_expires_at BIGINT`;
 
+  // Stripe webhook idempotency — store processed event IDs to prevent replay
+  await db`
+    CREATE TABLE IF NOT EXISTS processed_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      processed_at BIGINT NOT NULL
+    )
+  `;
+  // Auto-purge events older than 30 days (Stripe's max retry window)
+  await db`DELETE FROM processed_webhook_events WHERE processed_at < ${Date.now() - 30 * 24 * 3600 * 1000}`;
+
+  // ── Pre-launch waitlist ──────────────────────────────────────────────────
+  await db`
+    CREATE TABLE IF NOT EXISTS waitlist_signups (
+      id            TEXT PRIMARY KEY,
+      email         TEXT NOT NULL UNIQUE,
+      referral_code TEXT NOT NULL UNIQUE,
+      referred_by   TEXT,
+      position      INT  NOT NULL,
+      utm_source    TEXT,
+      utm_medium    TEXT,
+      utm_campaign  TEXT,
+      created_at    BIGINT NOT NULL
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS idx_waitlist_referral ON waitlist_signups(referral_code)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_waitlist_referred_by ON waitlist_signups(referred_by)`;
+  // Monotonic join order assigned atomically by a sequence — the source of truth
+  // for waitlist position. (COUNT(*)+1 races under concurrent signups and hands
+  // out duplicate positions; a sequence never does.)
+  await db`CREATE SEQUENCE IF NOT EXISTS waitlist_join_seq`;
+  await db`ALTER TABLE waitlist_signups ADD COLUMN IF NOT EXISTS join_order BIGINT NOT NULL DEFAULT nextval('waitlist_join_seq')`;
+  // Launch gating: which signups have been sent a Clerk sign-up invitation.
+  await db`ALTER TABLE waitlist_signups ADD COLUMN IF NOT EXISTS invited BOOLEAN NOT NULL DEFAULT FALSE`;
+  await db`ALTER TABLE waitlist_signups ADD COLUMN IF NOT EXISTS invited_at BIGINT`;
+  await db`CREATE INDEX IF NOT EXISTS idx_waitlist_invited ON waitlist_signups(invited, join_order)`;
+
   // ── Coin flip ────────────────────────────────────────────────────────────
   await db`
     CREATE TABLE IF NOT EXISTS coin_flip_offers (
@@ -362,7 +399,7 @@ async function _runInitDb(): Promise<void> {
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_strikes INT NOT NULL DEFAULT 0`;
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status  TEXT NOT NULL DEFAULT 'active'`;
 
-  // ── Collections (boards) — referenced by /api/collections + getCollections ──
+  // ── Collections (boards) ─────────────────────────────────────────────────
   await db`
     CREATE TABLE IF NOT EXISTS collections (
       id         TEXT PRIMARY KEY,
@@ -384,7 +421,6 @@ async function _runInitDb(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id, added_at DESC)`;
   await db`CREATE INDEX IF NOT EXISTS idx_collection_items_item       ON collection_items(item_id)`;
 
-  // preferred_sizes on users — referenced by getUserPreferences / saveUserPreferences
   await db`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_sizes TEXT`;
 }
 
@@ -1006,11 +1042,91 @@ export async function getUnreadCount(userId: string): Promise<number> {
 // ─── Orders ───────────────────────────────────────────────────────────────────
 export async function createOrder(order: Order): Promise<void> {
   const db = sql();
-  await db`
+
+  // Mark the item sold and insert the order in a SINGLE data-modifying CTE so
+  // the two steps are atomic. (The neon() HTTP driver runs each tagged query as
+  // its own stateless request, so a BEGIN/COMMIT pair across separate calls is a
+  // no-op — a CTE is the only way to get atomicity in one round trip.)
+  // The INSERT selects FROM the CTE, so it only runs when the UPDATE actually
+  // claimed the item; if another buyer got here first the UPDATE returns 0 rows,
+  // nothing is inserted, and RETURNING yields no rows → ITEM_ALREADY_SOLD.
+  const inserted = await db`
+    WITH claimed AS (
+      UPDATE items SET sold = true
+      WHERE id = ${order.itemId} AND NOT sold
+      RETURNING id
+    )
     INSERT INTO orders (id, buyer_id, seller_id, item_id, amount, status, shipping_address, tracking_number, created_at, updated_at)
-    VALUES (${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt})
+    SELECT ${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt}
+    FROM claimed
+    RETURNING id
   `;
-  await db`UPDATE items SET sold = true WHERE id = ${order.itemId}`;
+  if (inserted.length === 0) {
+    throw new Error('ITEM_ALREADY_SOLD');
+  }
+}
+
+/**
+ * Create an order for a resell listing. Unlike createOrder, this does NOT touch
+ * items.sold — a resold item's original row is already sold=true. The race guard
+ * is on the resell listing itself: the CTE claims it (active → sold) and only
+ * inserts the order if the claim succeeded. Concurrent buyers → one wins, the
+ * loser gets RESELL_ALREADY_SOLD. The listing is released back to 'active' if the
+ * checkout is later abandoned (see cancelResellOrderAndReleaseListing).
+ */
+export async function createResellOrder(order: Order, resellListingId: string): Promise<void> {
+  const db = sql();
+  const inserted = await db`
+    WITH claimed AS (
+      UPDATE resell_listings SET status = 'sold', updated_at = ${Date.now()}
+      WHERE id = ${resellListingId} AND status = 'active'
+      RETURNING id
+    )
+    INSERT INTO orders (id, buyer_id, seller_id, item_id, amount, status, shipping_address, tracking_number, created_at, updated_at)
+    SELECT ${order.id}, ${order.buyerId}, ${order.sellerId}, ${order.itemId}, ${order.amount}, ${order.status}, ${order.shippingAddress ?? null}, ${order.trackingNumber ?? null}, ${order.createdAt}, ${order.updatedAt}
+    FROM claimed
+    RETURNING id
+  `;
+  if (inserted.length === 0) {
+    throw new Error('RESELL_ALREADY_SOLD');
+  }
+}
+
+/**
+ * Roll back a still-unpaid item order: if the order is still pending_payment,
+ * cancel it and release the item back to the pool. No-op if the order already
+ * advanced (e.g. payment landed), so a late expiry event can't un-sell a paid
+ * item. Atomic via CTE for the same HTTP-driver reason as createOrder.
+ */
+export async function cancelOrderAndReleaseItem(orderId: string): Promise<void> {
+  const db = sql();
+  await db`
+    WITH cancelled AS (
+      UPDATE orders SET status = 'cancelled', updated_at = ${Date.now()}
+      WHERE id = ${orderId} AND status = 'pending_payment'
+      RETURNING item_id
+    )
+    UPDATE items SET sold = false
+    WHERE id IN (SELECT item_id FROM cancelled)
+  `;
+}
+
+/**
+ * Roll back a still-unpaid resell order: if the order is still pending_payment,
+ * cancel it and put the resell listing back to 'active'. No-op once the order
+ * has advanced.
+ */
+export async function cancelResellOrderAndReleaseListing(orderId: string, resellListingId: string): Promise<void> {
+  const db = sql();
+  await db`
+    WITH cancelled AS (
+      UPDATE orders SET status = 'cancelled', updated_at = ${Date.now()}
+      WHERE id = ${orderId} AND status = 'pending_payment'
+      RETURNING id
+    )
+    UPDATE resell_listings SET status = 'active', updated_at = ${Date.now()}
+    WHERE id = ${resellListingId} AND EXISTS (SELECT 1 FROM cancelled)
+  `;
 }
 
 export async function getOrdersByUser(userId: string, role: 'buyer' | 'seller'): Promise<(Order & { item: Item | null })[]> {
@@ -1134,7 +1250,7 @@ export async function getAllMessagesBetween(userId: string, otherUserId: string,
     db`
       SELECT m.*,
         CASE WHEN m.item_id != 'dm' THEN i.title ELSE NULL END AS item_title,
-        CASE WHEN m.item_id != 'dm' THEN (i.images->>0) ELSE NULL END AS item_image,
+        CASE WHEN m.item_id != 'dm' THEN (i.images::jsonb->>0) ELSE NULL END AS item_image,
         CASE WHEN m.item_id != 'dm' THEN i.price ELSE NULL END AS item_price
       FROM messages m
       LEFT JOIN items i ON i.id = m.item_id AND m.item_id != 'dm'
@@ -1833,9 +1949,12 @@ export async function createResellListingWithHistory(
   historyEntry: ResellPriceHistory,
 ): Promise<void> {
   const db = sql();
-  await db`BEGIN`;
-  try {
-    await db`
+  // Non-interactive transaction: the neon() HTTP driver batches these into one
+  // atomic request. A BEGIN/COMMIT pair across separate db`` calls would NOT be
+  // atomic (each tagged call is its own stateless HTTP request), so use the
+  // driver's transaction() helper to get real all-or-nothing semantics.
+  await db.transaction([
+    db`
       INSERT INTO resell_listings (
         id, original_order_id, seller_user_id, item_id, condition,
         price, images, status, created_at, updated_at
@@ -1846,17 +1965,13 @@ export async function createResellListingWithHistory(
         ${listing.createdAt}, ${listing.updatedAt}
       )
       ON CONFLICT (id) DO NOTHING
-    `;
-    await db`
+    `,
+    db`
       INSERT INTO resell_price_history (id, item_id, order_id, seller_user_id, price, condition, created_at)
       VALUES (${historyEntry.id}, ${historyEntry.itemId}, ${historyEntry.orderId}, ${historyEntry.sellerUserId}, ${historyEntry.price}, ${historyEntry.condition}, ${historyEntry.createdAt})
       ON CONFLICT (id) DO NOTHING
-    `;
-    await db`COMMIT`;
-  } catch (err) {
-    await db`ROLLBACK`;
-    throw err;
-  }
+    `,
+  ]);
 }
 
 export async function getOrderHoldExpiresAt(orderId: string): Promise<number | null> {
@@ -1948,3 +2063,206 @@ export async function getCollaborativeItemIds(
   return new Set(rows.map(r => r.item_id as string));
 }
 
+
+// ─── Stripe webhook idempotency ───────────────────────────────────────────────
+/**
+ * Atomically claim a webhook event for processing. Returns true if THIS call
+ * won the claim (caller should process the event), false if it was already
+ * claimed (caller should no-op). The INSERT..ON CONFLICT DO NOTHING RETURNING
+ * both checks and records in one race-free round trip — never record before the
+ * handler runs, or a handler failure would leave the event marked processed and
+ * Stripe's retry would skip it forever. Pair with releaseWebhookEvent on failure.
+ */
+export async function claimWebhookEvent(eventId: string): Promise<boolean> {
+  const db = sql();
+  const rows = await db`
+    INSERT INTO processed_webhook_events (event_id, processed_at)
+    VALUES (${eventId}, ${Date.now()})
+    ON CONFLICT (event_id) DO NOTHING
+    RETURNING event_id
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Release a previously claimed event so Stripe's retry can reprocess it. Call
+ * this when a handler throws after claimWebhookEvent succeeded.
+ */
+export async function releaseWebhookEvent(eventId: string): Promise<void> {
+  const db = sql();
+  await db`DELETE FROM processed_webhook_events WHERE event_id = ${eventId}`;
+}
+
+// ─── Pre-launch waitlist ──────────────────────────────────────────────────────
+
+export interface WaitlistEntry {
+  id: string;
+  email: string;
+  referralCode: string;
+  referredBy: string | null;
+  position: number;        // raw join order
+  effectivePosition: number; // position after referral skips
+  referralCount: number;
+  createdAt: number;
+}
+
+/** Total number of people on the waitlist. */
+export async function getWaitlistCount(): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS c FROM waitlist_signups`;
+  return Number(rows[0]?.c ?? 0);
+}
+
+/** How many people signed up using the given referral code. */
+export async function getReferralCount(referralCode: string): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS c FROM waitlist_signups WHERE referred_by = ${referralCode}`;
+  return Number(rows[0]?.c ?? 0);
+}
+
+// Referral perk, bounded so it can't be farmed to the top with disposable
+// signups: each *counted* referral skips you up REFERRAL_BOOST spots, and only
+// the first MAX_COUNTED_REFERRALS count. (Was 100/uncapped — 50 throwaway
+// signups took anyone to #1.)
+const REFERRAL_BOOST = 25;
+const MAX_COUNTED_REFERRALS = 10;
+
+function effectivePosition(position: number, referralCount: number): number {
+  const counted = Math.min(referralCount, MAX_COUNTED_REFERRALS);
+  return Math.max(1, position - counted * REFERRAL_BOOST);
+}
+
+/**
+ * Canonical form of an email for de-duplication. Lowercase, trim, drop any
+ * "+tag" subaddress, and strip dots from gmail/googlemail local parts (Gmail
+ * ignores them) so `a.b+x@gmail.com` and `ab@gmail.com` collapse to one signup.
+ * Prevents the referral mechanic from being farmed with address variants.
+ */
+function normalizeEmail(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  const at = trimmed.lastIndexOf('@');
+  if (at === -1) return trimmed;
+  let local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  local = local.split('+')[0];
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    local = local.replace(/\./g, '');
+  }
+  return `${local}@${domain}`;
+}
+
+/** Collision-resistant referral code (8 hex chars from a UUID). */
+function generateReferralCode(): string {
+  return randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+/** Look up a waitlist entry by referral code, with live referral count + effective position. */
+export async function getWaitlistEntry(referralCode: string): Promise<WaitlistEntry | null> {
+  const db = sql();
+  const rows = await db`SELECT * FROM waitlist_signups WHERE referral_code = ${referralCode}`;
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  const referralCount = await getReferralCount(referralCode);
+  // join_order (sequence-assigned) is the canonical position; the legacy
+  // `position` column is no longer written.
+  const position = Number(r.join_order);
+  return {
+    id: r.id as string,
+    email: r.email as string,
+    referralCode: r.referral_code as string,
+    referredBy: (r.referred_by as string | null) ?? null,
+    position,
+    effectivePosition: effectivePosition(position, referralCount),
+    referralCount,
+    createdAt: Number(r.created_at),
+  };
+}
+
+/** Look up a waitlist entry by email (for idempotent re-signups). */
+export async function getWaitlistEntryByEmail(email: string): Promise<WaitlistEntry | null> {
+  const db = sql();
+  const rows = await db`SELECT referral_code FROM waitlist_signups WHERE email = ${normalizeEmail(email)}`;
+  if (rows.length === 0) return null;
+  return getWaitlistEntry(rows[0].referral_code as string);
+}
+
+/**
+ * Join the waitlist. Idempotent on the normalized email — re-signing up (or a
+ * concurrent double-submit) returns the existing entry instead of erroring.
+ * referredBy is the referral code of whoever invited them (validated to exist).
+ */
+export async function joinWaitlist(
+  email: string,
+  referredBy: string | null,
+  utm: { source?: string | null; medium?: string | null; campaign?: string | null },
+): Promise<WaitlistEntry> {
+  const db = sql();
+  const normalized = normalizeEmail(email);
+
+  // Only honor a referral code that actually exists.
+  let validReferrer: string | null = null;
+  if (referredBy) {
+    const refRows = await db`SELECT 1 FROM waitlist_signups WHERE referral_code = ${referredBy}`;
+    if (refRows.length > 0) validReferrer = referredBy;
+  }
+
+  const id = `wl_${randomUUID()}`;
+  const referralCode = generateReferralCode();
+  const now = Date.now();
+
+  // Atomic insert-or-noop. position is left 0 (legacy column, NOT NULL) — the
+  // real position comes from the sequence-backed join_order default. ON CONFLICT
+  // makes concurrent/duplicate signups a no-op rather than a unique-violation 500.
+  const inserted = await db`
+    INSERT INTO waitlist_signups (id, email, referral_code, referred_by, position, utm_source, utm_medium, utm_campaign, created_at)
+    VALUES (${id}, ${normalized}, ${referralCode}, ${validReferrer}, 0,
+            ${utm.source ?? null}, ${utm.medium ?? null}, ${utm.campaign ?? null}, ${now})
+    ON CONFLICT (email) DO NOTHING
+    RETURNING referral_code
+  `;
+
+  // No row inserted → already on the list (or lost the race). Return the winner.
+  const code = inserted.length > 0
+    ? (inserted[0].referral_code as string)
+    : (await db`SELECT referral_code FROM waitlist_signups WHERE email = ${normalized}`)[0]?.referral_code as string | undefined;
+
+  if (!code) throw new Error('WAITLIST_JOIN_FAILED');
+  return (await getWaitlistEntry(code))!;
+}
+
+// ─── Launch gating: waitlist → Clerk invitations ──────────────────────────────
+
+/**
+ * The next `limit` un-invited signups, in the order they should be let in:
+ * by effective position (referral skips honored), then raw join order. Returns
+ * both the id (to mark invited) and email (to send the Clerk invitation).
+ */
+export async function getUninvitedBatch(limit: number): Promise<{ id: string; email: string }[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT w.id, w.email,
+      GREATEST(1, w.join_order - LEAST(
+        (SELECT COUNT(*) FROM waitlist_signups r WHERE r.referred_by = w.referral_code),
+        ${MAX_COUNTED_REFERRALS}
+      ) * ${REFERRAL_BOOST}) AS eff
+    FROM waitlist_signups w
+    WHERE w.invited = FALSE
+    ORDER BY eff ASC, w.join_order ASC
+    LIMIT ${limit}
+  `;
+  return rows.map(r => ({ id: r.id as string, email: r.email as string }));
+}
+
+/** Mark the given signups as invited. */
+export async function markWaitlistInvited(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = sql();
+  await db`UPDATE waitlist_signups SET invited = TRUE, invited_at = ${Date.now()} WHERE id = ANY(${ids})`;
+}
+
+/** Count of signups not yet invited (for the admin release endpoint's summary). */
+export async function getUninvitedCount(): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS c FROM waitlist_signups WHERE invited = FALSE`;
+  return Number(rows[0]?.c ?? 0);
+}

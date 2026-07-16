@@ -56,32 +56,32 @@ export default function DashboardPage() {
 
   if (loading || !isLoaded) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F5F4F0]">
+      <div className="flex items-center justify-center min-h-screen bg-black">
         <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   const stats = [
-    { icon: <Eye size={18} className="text-blue-500" />, label: 'Total Views', value: analytics?.totalViews.toLocaleString() ?? '0', bg: 'bg-blue-50' },
-    { icon: <Heart size={18} className="text-[#E63946]" />, label: 'Total Likes', value: analytics?.totalLikes.toLocaleString() ?? '0', bg: 'bg-red-50' },
+    { icon: <Eye size={18} className="text-blue-500" />, label: 'Total Views', value: analytics?.totalViews.toLocaleString() ?? '0', bg: 'bg-blue-500/10' },
+    { icon: <Heart size={18} className="text-[#E63946]" />, label: 'Total Likes', value: analytics?.totalLikes.toLocaleString() ?? '0', bg: 'bg-[#E63946]/10' },
     { icon: <ShoppingBag size={18} className="text-emerald-500" />, label: 'Items Sold', value: analytics?.totalSold ?? 0, bg: 'bg-emerald-50' },
-    { icon: <TrendingUp size={18} className="text-[#E63946]" />, label: 'Conversion', value: `${analytics?.conversionRate}%`, bg: 'bg-red-50' },
+    { icon: <TrendingUp size={18} className="text-[#E63946]" />, label: 'Conversion', value: `${analytics?.conversionRate}%`, bg: 'bg-[#E63946]/10' },
   ];
 
   const pendingOffers = offers.filter(o => o.status === 'pending');
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col min-h-screen bg-black">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-5 pt-12 pb-4">
+      <div className="bg-[#161616] border-b border-gray-100 px-5 pt-12 pb-4">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center">
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <h1 className="text-xl font-black text-gray-900">Seller Dashboard</h1>
           {pendingOffers.length > 0 && (
-            <div className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+            <div className="ml-auto bg-[#E63946]/100 text-white text-xs font-bold px-2 py-0.5 rounded-full">
               {pendingOffers.length} offers
             </div>
           )}
@@ -92,12 +92,12 @@ export default function DashboardPage() {
           {(['overview', 'listings', 'offers'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-all ${
-                tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                tab === t ? 'bg-[#161616] text-gray-900 shadow-sm' : 'text-gray-500'
               }`}
             >
               {t}
               {t === 'offers' && pendingOffers.length > 0 && (
-                <span className="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5">{pendingOffers.length}</span>
+                <span className="ml-1 bg-[#E63946]/100 text-white text-xs rounded-full px-1.5">{pendingOffers.length}</span>
               )}
             </button>
           ))}
@@ -111,7 +111,7 @@ export default function DashboardPage() {
             {/* Stat cards */}
             <div className="grid grid-cols-2 gap-3">
               {stats.map(({ icon, label, value, bg }) => (
-                <div key={label} className="bg-white rounded-2xl p-4 shadow-sm">
+                <div key={label} className="bg-[#161616] rounded-2xl p-4 shadow-sm">
                   <div className={`w-9 h-9 ${bg} rounded-xl flex items-center justify-center mb-3`}>{icon}</div>
                   <p className="text-2xl font-black text-gray-900">{value}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{label}</p>
@@ -131,7 +131,7 @@ export default function DashboardPage() {
 
             {/* 7-day activity */}
             {analytics?.recentSwipes && analytics.recentSwipes.length > 0 && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="bg-[#161616] rounded-2xl p-4 shadow-sm">
                 <h3 className="font-bold text-gray-700 text-sm mb-3">7-Day Engagement</h3>
                 <div className="flex items-end gap-1.5 h-20">
                   {analytics.recentSwipes.map(({ day, count }) => {
@@ -151,7 +151,7 @@ export default function DashboardPage() {
             )}
 
             {/* Quick actions */}
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-[#161616] rounded-2xl shadow-sm overflow-hidden">
               <Link href="/sell" className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 hover:bg-gray-50">
                 <ShoppingBag size={18} className="text-[#E63946]" />
                 <span className="flex-1 text-sm font-semibold text-gray-700">List new item</span>
@@ -174,13 +174,13 @@ export default function DashboardPage() {
                 <ShoppingBag size={36} className="text-gray-200 mx-auto mb-3" />
                 <p className="text-gray-400 text-sm">No listings yet</p>
                 <Link href="/sell"
-                  className="inline-block mt-4 bg-[#0A0A0A] text-white px-6 py-2.5 rounded-full font-semibold text-sm">
+                  className="inline-block mt-4 bg-[#E63946] text-white px-6 py-2.5 rounded-full font-semibold text-sm">
                   List your first item
                 </Link>
               </div>
             ) : analytics?.items.map(item => (
               <Link key={item.id} href={`/item/${item.id}`}
-                className="flex items-center gap-3 bg-white rounded-2xl p-3 shadow-sm hover:shadow-md transition-shadow"
+                className="flex items-center gap-3 bg-[#161616] rounded-2xl p-3 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="w-16 h-16 rounded-xl bg-zinc-100 overflow-hidden flex-shrink-0">
                   <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
@@ -218,7 +218,7 @@ export default function DashboardPage() {
                 <p className="text-gray-400 text-sm">No offers yet</p>
               </div>
             ) : offers.map(offer => (
-              <div key={offer.id} className="bg-white rounded-2xl p-4 shadow-sm">
+              <div key={offer.id} className="bg-[#161616] rounded-2xl p-4 shadow-sm">
                 <div className="flex gap-3">
                   {offer.item && (
                     <div className="w-14 h-14 rounded-xl bg-zinc-100 overflow-hidden flex-shrink-0">
@@ -245,7 +245,7 @@ export default function DashboardPage() {
                 {offer.status === 'pending' && (
                   <div className="flex gap-2 mt-3">
                     <button onClick={() => handleOfferAction(offer.id, 'declined')}
-                      className="flex-1 py-2 border border-red-200 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-50 transition-colors">
+                      className="flex-1 py-2 border border-red-200 text-red-500 rounded-xl text-sm font-semibold hover:bg-[#E63946]/10 transition-colors">
                       Decline
                     </button>
                     <button onClick={() => handleOfferAction(offer.id, 'accepted')}

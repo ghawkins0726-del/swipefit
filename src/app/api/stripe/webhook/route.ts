@@ -13,6 +13,10 @@ import {
   getUserByStripeAccount,
   setStripeAccountReady,
   markResellListingSold,
+  claimWebhookEvent,
+  releaseWebhookEvent,
+  cancelOrderAndReleaseItem,
+  cancelResellOrderAndReleaseListing,
 } from '@/lib/db';
 
 // 31 days from now in ms — premium window, refreshed on each invoice.paid
@@ -35,6 +39,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
+  // ── Idempotency: claim the event atomically ──────────────────────────────
+  // Stripe retries webhooks on non-2xx responses. claimWebhookEvent records the
+  // event and tells us whether THIS delivery won the claim, in one race-free
+  // round trip. Crucially the claim is released if processing throws (below), so
+  // a transient handler failure returns 500 → Stripe retries → we reprocess.
+  // Recording *before* processing without that rollback would permanently drop
+  // any event whose handler failed once.
+  const claimed = await claimWebhookEvent(event.id);
+  if (!claimed) return NextResponse.json({ received: true });
+
+  try {
   switch (event.type) {
 
     // ── Checkout completed ────────────────────────────────────────────────────
@@ -138,6 +153,21 @@ export async function POST(req: NextRequest) {
       break;
     }
 
+    // ── Checkout abandoned / expired ──────────────────────────────────────────
+    // The buyer never paid within the session's expires_at window. Release the
+    // reservation created at checkout time so the listing doesn't stay bricked.
+    // cancelOrder* are no-ops if the order already advanced past pending_payment.
+    case 'checkout.session.expired': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const meta = session.metadata ?? {};
+      if (meta.type === 'item_purchase' && meta.orderId) {
+        await cancelOrderAndReleaseItem(meta.orderId);
+      } else if (meta.type === 'resell_purchase' && meta.orderId && meta.resellListingId) {
+        await cancelResellOrderAndReleaseListing(meta.orderId, meta.resellListingId);
+      }
+      break;
+    }
+
     // ── Subscription renewal ──────────────────────────────────────────────────
     case 'invoice.paid': {
       const invoice = event.data.object as Stripe.Invoice;
@@ -186,6 +216,13 @@ export async function POST(req: NextRequest) {
       }
       break;
     }
+  }
+  } catch (err) {
+    // Processing failed — release the claim so Stripe's retry reprocesses the
+    // event, and return 500 so Stripe knows to retry.
+    await releaseWebhookEvent(event.id);
+    console.error(`Webhook handler failed for event ${event.id} (${event.type}):`, err);
+    return NextResponse.json({ error: 'Handler failed' }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

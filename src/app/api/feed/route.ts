@@ -40,10 +40,10 @@ export async function GET(req: NextRequest) {
     ...(userPrefs?.bottomSizes ?? []),
     ...(userPrefs?.shoeSizes ?? []),
   ]);
-  const sizeFilter  = userSizes.size > 0 ? [...userSizes] : [];
-  const excludeIds  = [...seenIds];
+  const sizeFilter = userSizes.size > 0 ? [...userSizes] : [];
+  const excludeIds = [...seenIds];
 
-  // Fetch only unseen, size-matched items directly from the DB (≤100 rows).
+  // Fetch only unseen, size-matched items directly from the DB (SQL push-down).
   const allItems = await getItems(100, 0, excludeIds, sizeFilter);
 
   const itemMap = new Map<string, Item>(allItems.map(i => [i.id, i]));
@@ -52,9 +52,8 @@ export async function GET(req: NextRequest) {
   const dnaItemMap = new Map(allItems.map(i => [i.id, { styles: i.styles, priceRange: i.priceRange }]));
   const dna = computeStyleDna(swipes, dnaItemMap);
 
-  // Existing algorithm produces a ranked list with a score per item.
-  // seenIds is passed for API compatibility but all returned items are already unseen.
-  const ranked = rankItems(allItems, prefs, seenIds, allItems.length); // rank all, slice later
+  // seenIds passed for API compatibility; allItems already excludes seen (SQL push-down).
+  const ranked = rankItems(allItems, prefs, seenIds, allItems.length);
 
   // ── Taste layer (only if user has enough interaction history) ───────────────
   const tasteProfile = await getTasteProfile(userId);
@@ -78,21 +77,18 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Blend & re-rank ─────────────────────────────────────────────────────────
+  // Normalise algo scores to [0,1] using the max in this batch so they are
+  // on the same scale as tasteScore and collabBonus before blending.
+  const maxAlgoScore = Math.max(...ranked.map(r => r.score), 1);
+
   const scored = ranked.map(r => {
-    const item = itemMap.get(r.itemId);
+    if (!tasteActive) return { ...r, _finalScore: r.score };
 
-    // Soft size boost: +0.1 when item size matches any of the user's stored sizes.
-    // Kept small so it nudges ranking without overriding freshness or taste signals.
-    const sizeBonus = (userSizes.size > 0 && item && userSizes.has(item.size)) ? 0.10 : 0;
-
-    if (!tasteActive) return { ...r, _finalScore: r.score + sizeBonus };
-
-    // Normalise the algorithm score to [0,1] using the max in this batch
-    const algoScore   = r.score;                            // already 0-1 from rankItems
+    const algoScore   = r.score / maxAlgoScore;             // normalised to [0,1]
     const tasteScore  = tasteBoosts.get(r.itemId) ?? 0.5;  // 0.5 = neutral when no classification
     const collabBonus = collabItemIds.has(r.itemId) ? 1 : 0;
 
-    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB + sizeBonus;
+    const finalScore = algoScore * W_ALGO + tasteScore * W_TASTE + collabBonus * W_COLLAB;
     return { ...r, _finalScore: finalScore };
   });
 

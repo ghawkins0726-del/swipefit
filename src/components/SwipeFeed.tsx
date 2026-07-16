@@ -10,29 +10,25 @@ interface Props { userId: string; }
 
 /* ── Glow action button ─────────────────────────────────────────── */
 function GlowButton({
-  children,
-  onClick,
-  size = 'md',
-  glowColor,
-  variant = 'dark',
+  children, onClick, size = 'md', glowColor, variant = 'dark',
 }: {
   children: React.ReactNode;
   onClick: () => void;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md';
   glowColor: string;
   variant?: 'dark' | 'light';
 }) {
   const [pressed, setPressed] = useState(false);
-  const dim = size === 'sm' ? 48 : size === 'lg' ? 72 : 62;
+  const dim = size === 'sm' ? 54 : 64;
   const bg = variant === 'light'
-    ? (pressed ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.93)')
-    : (pressed ? 'rgba(28,28,34,0.92)' : 'rgba(18,18,24,0.82)');
+    ? (pressed ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.93)')
+    : (pressed ? 'rgba(30,30,36,0.95)' : 'rgba(22,22,28,0.88)');
   const border = variant === 'light'
     ? `2px solid ${glowColor}55`
-    : '1.5px solid rgba(255,255,255,0.12)';
+    : '1.5px solid rgba(255,255,255,0.10)';
   const shadow = pressed
-    ? `0 0 36px 16px ${glowColor}CC, 0 0 72px 28px ${glowColor}55, 0 8px 24px rgba(0,0,0,0.4)`
-    : `0 0 24px 9px ${glowColor}88, 0 0 48px 18px ${glowColor}44, 0 4px 16px rgba(0,0,0,0.3)`;
+    ? `0 0 36px 16px ${glowColor}CC, 0 0 72px 28px ${glowColor}55`
+    : `0 0 22px 8px ${glowColor}88, 0 0 44px 16px ${glowColor}44`;
 
   return (
     <button
@@ -43,20 +39,17 @@ function GlowButton({
       onTouchStart={() => setPressed(true)}
       onTouchEnd={() => setPressed(false)}
       style={{
-        width: dim,
-        height: dim,
+        width: dim, height: dim,
         borderRadius: '50%',
         background: bg,
         backdropFilter: variant === 'dark' ? 'blur(16px)' : 'none',
         WebkitBackdropFilter: variant === 'dark' ? 'blur(16px)' : 'none',
         border,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
         boxShadow: shadow,
         transform: pressed ? 'scale(0.91)' : 'scale(1)',
-        transition: 'box-shadow 0.15s ease, transform 0.1s ease, background 0.1s ease',
+        transition: 'box-shadow 0.15s ease, transform 0.1s ease',
         cursor: 'pointer',
       }}
     >
@@ -65,51 +58,50 @@ function GlowButton({
   );
 }
 
-/* ── SVG icons ──────────────────────────────────────────────────── */
+/* ── Icons ──────────────────────────────────────────────────────── */
 const UndoIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(210,210,225,0.85)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 14 4 9l5-5" />
-    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(210,210,225,0.85)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
   </svg>
 );
-
 const XIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E63946" strokeWidth="2.8" strokeLinecap="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63946" strokeWidth="2.8" strokeLinecap="round">
     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
-
 const HeartIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="#16a34a" stroke="#16a34a" strokeWidth="1">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="#22c55e" stroke="#22c55e" strokeWidth="1">
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
   </svg>
 );
 
-/* ─────────────────────────────────────────────────────────────────
-   Main feed
-───────────────────────────────────────────────────────────────── */
+/* ── Main feed ──────────────────────────────────────────────────── */
 export default function SwipeFeed({ userId }: Props) {
   const [stack, setStack] = useState<(Item & { _reason?: string; matchScore?: number })[]>([]);
   const [loading, setLoading] = useState(true);
   const [swipeCount, setSwipeCount] = useState(0);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [empty, setEmpty] = useState(false);
-
   const [lastSwiped, setLastSwiped] = useState<{ item: Item & { _reason?: string; matchScore?: number }; action: string } | null>(null);
   const [showCoinFlip, setShowCoinFlip] = useState(false);
+  const [swipeError, setSwipeError] = useState<string | null>(null);
 
-  // Background glow on drag
+  // Image index lifted here so progress dots can live outside the card
+  const [imgIndex, setImgIndex] = useState(0);
+  const topItem = stack[0];
+  useEffect(() => { setImgIndex(0); }, [topItem?.id]);
+
+  // Background drag glow
   const cardX = useMotionValue(0);
-  const bgGreenOpacity = useTransform(cardX, [0, 5, 200], [0, 0, 0.22]);
-  const bgRedOpacity   = useTransform(cardX, [-200, -5, 0], [0.22, 0, 0]);
+  const bgGreenOpacity = useTransform(cardX, [0, 5, 200], [0, 0, 0.18]);
+  const bgRedOpacity   = useTransform(cardX, [-200, -5, 0], [0.18, 0, 0]);
 
   const fetchBatch = useCallback(async () => {
     try {
       const res = await fetch('/api/feed?batch=8');
       const data = await res.json();
-      if (!data.feed?.length) {
-        setEmpty(true);
-      } else {
+      if (!data.feed?.length) { setEmpty(true); }
+      else {
         setStack(prev => {
           const existingIds = new Set(prev.map((i: Item) => i.id));
           const fresh = data.feed.filter((i: Item) => !existingIds.has(i.id));
@@ -122,9 +114,18 @@ export default function SwipeFeed({ userId }: Props) {
   }, []);
 
   useEffect(() => { fetchBatch(); }, [fetchBatch]);
-  useEffect(() => {
-    if (stack.length <= 2 && !loading) fetchBatch();
-  }, [stack.length, loading, fetchBatch]);
+  useEffect(() => { if (stack.length <= 2 && !loading) fetchBatch(); }, [stack.length, loading, fetchBatch]);
+
+  // Put an unsaved swipe's card back on top of the stack so nothing is lost
+  // silently. Guards against double-insert if the user already undid it.
+  const restoreCard = (item: Item & { _reason?: string; matchScore?: number }, message: string) => {
+    setStack(prev => (prev.some(i => i.id === item.id) ? prev : [item, ...prev]));
+    setSwipeCount(c => Math.max(0, c - 1));
+    setLastSwiped(null);
+    setImgIndex(0);
+    setSwipeError(message);
+    setTimeout(() => setSwipeError(null), 2500);
+  };
 
   const handleSwipe = async (action: 'like' | 'dislike' | 'superlike') => {
     const item = stack[0];
@@ -132,18 +133,37 @@ export default function SwipeFeed({ userId }: Props) {
     cardX.set(0);
     setLastSwiped({ item, action });
     setLastAction(action);
+    // Reset the image index in the same batch as the stack update — the effect
+    // above runs post-paint, one frame too late for the next card's first render.
+    setImgIndex(0);
     setStack(prev => prev.slice(1));
     setSwipeCount(c => c + 1);
-    await fetch('/api/swipe', {
+    setTimeout(() => setLastAction(null), 600);
+
+    // Optimistic UI, but never silently lose a swipe: the server can 429 (rate
+    // limit) or fail transiently, and /api/feed excludes items by *recorded*
+    // swipes — a dropped like would just reappear later with no trace.
+    const post = () => fetch('/api/swipe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ itemId: item.id, action }),
     });
-    setTimeout(() => setLastAction(null), 600);
+    try {
+      let res = await post();
+      if (!res.ok && res.status !== 429) res = await post(); // one retry for transient failures
+      if (!res.ok) {
+        restoreCard(item, res.status === 429
+          ? 'Whoa, slow down — that one didn’t save'
+          : 'That swipe didn’t save — try again');
+      }
+    } catch {
+      restoreCard(item, 'No connection — that swipe didn’t save');
+    }
   };
 
   const handleUndo = async () => {
     if (!lastSwiped) return;
+    setImgIndex(0); // same reason as in handleSwipe — reset with the stack update
     setStack(prev => [lastSwiped.item, ...prev]);
     setSwipeCount(c => Math.max(0, c - 1));
     setLastSwiped(null);
@@ -154,10 +174,9 @@ export default function SwipeFeed({ userId }: Props) {
     });
   };
 
-  const exitX      = lastAction === 'like' ? 600 : -600;
-  const exitRotate = lastAction === 'like' ? 22 : -22;
+  const exitX      = lastAction === 'like' || lastAction === 'superlike' ? 600 : -600;
+  const exitRotate = lastAction === 'like' || lastAction === 'superlike' ? 22 : -22;
 
-  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading && stack.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-black">
@@ -166,7 +185,6 @@ export default function SwipeFeed({ userId }: Props) {
     );
   }
 
-  // ── Empty ──────────────────────────────────────────────────────────────────
   if (empty && stack.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-black">
@@ -174,10 +192,8 @@ export default function SwipeFeed({ userId }: Props) {
           <div className="text-4xl mb-4">✨</div>
           <h3 className="font-black text-lg text-white mb-2">You&apos;ve seen everything!</h3>
           <p className="text-white/50 text-sm mb-6">Check back soon — new drops daily.</p>
-          <button
-            onClick={() => { setStack([]); setEmpty(false); setLoading(true); fetchBatch(); }}
-            className="bg-[#E63946] text-white px-6 py-2.5 rounded-full font-bold text-sm"
-          >
+          <button onClick={() => { setStack([]); setEmpty(false); setLoading(true); fetchBatch(); }}
+            className="bg-[#E63946] text-white px-6 py-2.5 rounded-full font-bold text-sm">
             Refresh feed
           </button>
         </div>
@@ -185,59 +201,86 @@ export default function SwipeFeed({ userId }: Props) {
     );
   }
 
-  return (
-    <div className="absolute inset-0 bg-black" style={{ touchAction: 'none', overscrollBehavior: 'none' }}>
+  const numImages = topItem?.images.length ?? 0;
 
-      {/* ── Background drag glow ── */}
+  return (
+    <div
+      className="absolute inset-0 bg-black flex flex-col"
+      style={{ touchAction: 'none', overscrollBehavior: 'none',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 88px)',
+        paddingBottom: 'calc(max(16px, env(safe-area-inset-bottom)) + 72px)',
+        paddingLeft: 16, paddingRight: 16 }}
+    >
+      {/* Background drag glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <motion.div
-          style={{ opacity: bgGreenOpacity, background: 'radial-gradient(ellipse at 60% 50%, rgba(34,197,94,0.3) 0%, transparent 65%)' }}
-          className="absolute inset-0"
-        />
-        <motion.div
-          style={{ opacity: bgRedOpacity, background: 'radial-gradient(ellipse at 40% 50%, rgba(230,57,70,0.3) 0%, transparent 65%)' }}
-          className="absolute inset-0"
-        />
+        <motion.div style={{ opacity: bgGreenOpacity, background: 'radial-gradient(ellipse at 60% 50%, rgba(34,197,94,0.25) 0%, transparent 65%)' }} className="absolute inset-0" />
+        <motion.div style={{ opacity: bgRedOpacity, background: 'radial-gradient(ellipse at 40% 50%, rgba(230,57,70,0.25) 0%, transparent 65%)' }} className="absolute inset-0" />
       </div>
 
-      {/* ── Card stack — fills the ENTIRE container ── */}
-      <div className="absolute inset-0 overflow-hidden z-10">
+      {/* ── Card stack ── */}
+      <div className="flex-1 relative min-h-0 z-10">
         <AnimatePresence>
           {stack.slice(0, 3).map((item, index) => (
             <motion.div
               key={item.id}
-              style={{
-                zIndex: 10 - index,
-                scale: 1 - index * 0.03,
-                y: index * 8,
-              }}
-              exit={{
-                x: exitX,
-                opacity: 0,
-                rotate: exitRotate,
-                transition: { type: 'spring', stiffness: 260, damping: 26, opacity: { duration: 0.15 } },
-              }}
+              style={{ zIndex: 10 - index, scale: 1 - index * 0.025, y: index * 7 }}
+              exit={{ x: exitX, opacity: 0, rotate: exitRotate,
+                transition: { type: 'spring', stiffness: 260, damping: 26, opacity: { duration: 0.15 } } }}
               className="absolute inset-0"
             >
               <SwipeCard
                 item={item}
                 onSwipe={handleSwipe}
                 isTop={index === 0}
-                onDragUpdate={index === 0 ? (xVal) => cardX.set(xVal) : undefined}
+                onDragUpdate={index === 0 ? v => cardX.set(v) : undefined}
+                imgIndex={index === 0 ? imgIndex : 0}
+                onImgChange={index === 0 ? setImgIndex : () => {}}
               />
             </motion.div>
           ))}
         </AnimatePresence>
 
+        {/* Swipe feedback badge */}
+        <AnimatePresence>
+          {lastAction && (
+            <motion.div
+              key={lastAction + swipeCount}
+              initial={{ opacity: 0, scale: 0.7, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-6 py-2 rounded-full font-black text-sm uppercase tracking-widest text-white ${
+                lastAction === 'like'
+                  ? 'bg-green-500 shadow-[0_0_30px_rgba(34,197,94,0.7)]'
+                  : 'bg-[#E63946] shadow-[0_0_30px_rgba(230,57,70,0.7)]'
+              }`}
+            >
+              {lastAction === 'like' ? '❤ Liked' : lastAction === 'superlike' ? '⭐ Superliked' : '✕ Passed'}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* ── Action buttons — 4 equal columns, undo dead-center at 50% ── */}
-      <div
-        className="absolute left-0 right-0 z-20 grid grid-cols-4 items-center pointer-events-auto"
-        style={{ bottom: 'calc(max(16px, env(safe-area-inset-bottom)) + 88px)' }}
-      >
+      {/* ── Progress lines (below card, above buttons) ── */}
+      {numImages > 1 && (
+        <div className="flex gap-1.5 justify-center py-4 z-10 flex-shrink-0">
+          {Array.from({ length: numImages }).map((_, i) => (
+            <div
+              key={i}
+              className="h-[3px] rounded-full transition-all duration-200"
+              style={{
+                width: 28,
+                background: i === imgIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.25)',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Action buttons — 4-col grid: dislike · undo · like · coin flip ── */}
+      <div className="grid grid-cols-4 items-center z-10 flex-shrink-0 pt-6">
         <div className="flex justify-center">
-          <GlowButton size="lg" glowColor="#E63946" variant="light" onClick={() => handleSwipe('dislike')}>
+          <GlowButton size="md" glowColor="#E63946" variant="light" onClick={() => handleSwipe('dislike')}>
             <XIcon />
           </GlowButton>
         </div>
@@ -247,7 +290,7 @@ export default function SwipeFeed({ userId }: Props) {
           </GlowButton>
         </div>
         <div className="flex justify-center">
-          <GlowButton size="lg" glowColor="#22C55E" variant="light" onClick={() => handleSwipe('like')}>
+          <GlowButton size="md" glowColor="#22C55E" variant="light" onClick={() => handleSwipe('like')}>
             <HeartIcon />
           </GlowButton>
         </div>
@@ -258,6 +301,20 @@ export default function SwipeFeed({ userId }: Props) {
         </div>
       </div>
 
+      {/* ── Unsaved-swipe toast ── */}
+      <AnimatePresence>
+        {swipeError && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest text-white bg-[#161616] border border-white/15 shadow-[0_0_24px_rgba(0,0,0,0.6)] whitespace-nowrap"
+          >
+            {swipeError}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {stack[0] && (
         <CoinFlipModal

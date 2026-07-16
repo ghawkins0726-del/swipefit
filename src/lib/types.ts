@@ -24,7 +24,7 @@ export interface SwipeRecord {
   id: string;
   userId: string;
   itemId: string;
-  action: 'like' | 'dislike' | 'superlike' | 'purchase';
+  action: 'like' | 'dislike' | 'superlike' | 'purchase' | 'pass';
   timestamp: number;
 }
 

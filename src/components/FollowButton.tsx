@@ -63,8 +63,8 @@ export default function FollowButton({
         errored
           ? 'bg-[#FF2E47]/15 text-[#FF2E47] border border-[#FF2E47]/30'
           : following
-            ? 'bg-white text-[#0A0A0A] border border-[#EBEBEB]'
-            : 'bg-[#0A0A0A] text-white border border-[#0A0A0A] shadow-[0_8px_20px_-8px_rgba(0,0,0,0.3)]'
+            ? 'bg-[#161616] text-white border border-[#2a2a2a]'
+            : 'bg-[#E63946] text-white border border-[#0A0A0A] shadow-[0_8px_20px_-8px_rgba(0,0,0,0.3)]'
       }`}
     >
       {loading

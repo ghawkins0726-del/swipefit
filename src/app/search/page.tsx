@@ -84,13 +84,13 @@ function SearchInner() {
   const activeFilterCount = [filters.category, filters.condition, filters.minPrice, filters.maxPrice].filter(Boolean).length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col min-h-screen bg-black">
       {/* Header */}
-      <div className="bg-white border-b border-[#EBEBEB] px-4 pt-12 pb-3 sticky top-0 z-30">
-        <Logo size={26} href="/feed" className="text-[#0A0A0A] mb-3" />
+      <div className="bg-[#161616] border-b border-[#2a2a2a] px-4 pt-12 pb-3 sticky top-0 z-30">
+        <Logo size={26} href="/feed" className="text-white mb-3" />
 
         {/* Mode pills */}
-        <div className="flex gap-1 bg-[#F5F4F0] rounded-2xl p-1 mb-3">
+        <div className="flex gap-1 bg-[#1c1c1c] rounded-2xl p-1 mb-3">
           {([
             { id: 'items',  label: 'Items',  icon: ShoppingBag },
             { id: 'people', label: 'People', icon: Users },
@@ -98,7 +98,7 @@ function SearchInner() {
             <button key={m.id} onClick={() => setMode(m.id)}
               className={`flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-wide flex items-center justify-center gap-1.5 transition-all ${
                 mode === m.id
-                  ? 'bg-[#0A0A0A] text-white shadow-sm'
+                  ? 'bg-[#E63946] text-white shadow-sm'
                   : 'text-[#AAAAAA]'
               }`}>
               <m.icon size={12} />
@@ -108,7 +108,7 @@ function SearchInner() {
         </div>
 
         <form onSubmit={handleSearch} className="flex gap-2">
-          <div className="flex-1 flex items-center bg-[#F5F4F0] rounded-xl px-3 gap-2">
+          <div className="flex-1 flex items-center bg-[#1c1c1c] rounded-xl px-3 gap-2">
             <Search size={16} className="text-[#AAAAAA] flex-shrink-0" />
             <input
               type="text"
@@ -130,12 +130,12 @@ function SearchInner() {
               onClick={() => setShowFilters(v => !v)}
               className={`flex items-center gap-1.5 px-3 rounded-xl text-sm font-medium border transition-colors ${
                 showFilters || activeFilterCount > 0
-                  ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-                  : 'bg-white text-[#5A5A5A] border-[#EBEBEB]'
+                  ? 'bg-[#E63946] text-white border-[#0A0A0A]'
+                  : 'bg-[#161616] text-[#B5B5B5] border-[#2a2a2a]'
               }`}
             >
               <SlidersHorizontal size={15} />
-              {activeFilterCount > 0 && <span className="bg-white text-[#E63946] rounded-full w-4 h-4 text-xs flex items-center justify-center font-bold">{activeFilterCount}</span>}
+              {activeFilterCount > 0 && <span className="bg-[#161616] text-[#E63946] rounded-full w-4 h-4 text-xs flex items-center justify-center font-bold">{activeFilterCount}</span>}
             </button>
           )}
         </form>
@@ -149,8 +149,8 @@ function SearchInner() {
                   onClick={() => setFilters(f => ({ ...f, category: c }))}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
                     filters.category === c
-                      ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-                      : 'bg-white text-[#5A5A5A] border-[#EBEBEB]'
+                      ? 'bg-[#E63946] text-white border-[#0A0A0A]'
+                      : 'bg-[#161616] text-[#B5B5B5] border-[#2a2a2a]'
                   }`}
                 >
                   {c || 'All'}
@@ -160,13 +160,13 @@ function SearchInner() {
             <div className="flex gap-2">
               <input type="number" placeholder="Min $" value={filters.minPrice}
                 onChange={e => setFilters(f => ({ ...f, minPrice: e.target.value }))}
-                className="flex-1 border border-[#EBEBEB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/20" />
+                className="flex-1 border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/20" />
               <input type="number" placeholder="Max $" value={filters.maxPrice}
                 onChange={e => setFilters(f => ({ ...f, maxPrice: e.target.value }))}
-                className="flex-1 border border-[#EBEBEB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/20" />
+                className="flex-1 border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/20" />
               <select value={filters.sort}
                 onChange={e => setFilters(f => ({ ...f, sort: e.target.value }))}
-                className="flex-1 border border-[#EBEBEB] rounded-xl px-2 py-2 text-sm focus:outline-none bg-white">
+                className="flex-1 border border-[#2a2a2a] rounded-xl px-2 py-2 text-sm focus:outline-none bg-[#161616]">
                 {SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
@@ -190,16 +190,16 @@ function SearchInner() {
               </div>
             ) : items.length === 0 ? (
               <div className="text-center py-16">
-                <Search size={36} className="text-[#EBEBEB] mx-auto mb-3" />
+                <Search size={36} className="text-[#3a3a3a] mx-auto mb-3" />
                 <p className="text-[#AAAAAA] text-sm">No results found</p>
-                <p className="text-[#EBEBEB] text-xs mt-1">Try a different search or category</p>
+                <p className="text-[#3a3a3a] text-xs mt-1">Try a different search or category</p>
               </div>
             ) : (
               <>
                 <p className="text-xs text-[#AAAAAA] mb-3">{items.length} results</p>
                 <div className="grid grid-cols-2 gap-3">
                   {items.map(item => (
-                    <Link key={item.id} href={`/item/${item.id}`} className="bg-white rounded-2xl overflow-hidden shadow-sm">
+                    <Link key={item.id} href={`/item/${item.id}`} className="bg-[#161616] rounded-2xl overflow-hidden shadow-sm">
                       <div className="relative aspect-square bg-zinc-100">
                         <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
                         <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs font-bold px-2 py-0.5 rounded-full">
@@ -207,7 +207,7 @@ function SearchInner() {
                         </div>
                       </div>
                       <div className="p-2.5">
-                        <p className="font-semibold text-[#0A0A0A] text-sm truncate">{item.title}</p>
+                        <p className="font-semibold text-white text-sm truncate">{item.title}</p>
                         <p className="text-[#AAAAAA] text-xs">{item.brand} · {item.size}</p>
                         <div className="flex items-center gap-1 mt-1">
                           <Heart size={10} className="text-[#E63946] fill-[#E63946]/40" />
@@ -233,20 +233,20 @@ function SearchInner() {
               </div>
             ) : people.length === 0 && query.trim() ? (
               <div className="text-center py-16">
-                <Users size={36} className="text-[#EBEBEB] mx-auto mb-3" />
+                <Users size={36} className="text-[#3a3a3a] mx-auto mb-3" />
                 <p className="text-[#AAAAAA] text-sm">No people found</p>
-                <p className="text-[#EBEBEB] text-xs mt-1">Try a different name</p>
+                <p className="text-[#3a3a3a] text-xs mt-1">Try a different name</p>
               </div>
             ) : people.length === 0 ? (
               <div className="text-center py-16">
-                <Users size={36} className="text-[#EBEBEB] mx-auto mb-3" />
+                <Users size={36} className="text-[#3a3a3a] mx-auto mb-3" />
                 <p className="text-[#AAAAAA] text-sm">Type a name to find people</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {people.map(u => (
                   <div key={u.id}
-                    className="flex items-center gap-3 bg-white rounded-2xl p-3 shadow-sm">
+                    className="flex items-center gap-3 bg-[#161616] rounded-2xl p-3 shadow-sm">
                     <Link href={`/users/${u.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-12 h-12 rounded-2xl bg-[#0A0A0A] overflow-hidden flex items-center justify-center text-white font-black text-lg flex-shrink-0">
                         {u.avatar
@@ -254,7 +254,7 @@ function SearchInner() {
                           : <span>{u.name[0]?.toUpperCase()}</span>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-black text-[#0A0A0A] text-sm truncate">{u.name}</p>
+                        <p className="font-black text-white text-sm truncate">{u.name}</p>
                         {u.bio
                           ? <p className="text-[#AAAAAA] text-xs truncate mt-0.5">{u.bio}</p>
                           : <p className="text-[#AAAAAA] text-xs mt-0.5">{u.totalListings} listing{u.totalListings === 1 ? '' : 's'}</p>}
@@ -277,7 +277,7 @@ function SearchInner() {
 export default function SearchPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-[#F5F4F0]">
+      <div className="flex items-center justify-center min-h-screen bg-black">
         <div className="w-10 h-10 border-4 border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     }>

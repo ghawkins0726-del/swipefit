@@ -83,26 +83,26 @@ export default function RatingModal({
           <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-            className="w-full bg-white rounded-t-3xl px-5 pt-5 pb-10"
+            className="w-full bg-[#161616] rounded-t-3xl px-5 pt-5 pb-10"
           >
             {state === 'done' ? (
               <div className="text-center py-8">
                 <div className="w-14 h-14 bg-gradient-to-br from-[#FF2E47] to-[#ff8c42] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#FF2E47]/30">
                   <Check size={24} className="text-white" strokeWidth={3} />
                 </div>
-                <h3 className="font-black text-xl text-[#0A0A0A]">Thanks for rating!</h3>
+                <h3 className="font-black text-xl text-white">Thanks for rating!</h3>
                 <p className="text-[#AAAAAA] text-sm mt-1">Your feedback helps other buyers.</p>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h3 className="font-black text-xl text-[#0A0A0A]">Rate your seller</h3>
-                    <p className="text-[#AAAAAA] text-xs mt-0.5">How was your experience with <span className="font-bold text-[#0A0A0A]">{sellerName}</span>?</p>
+                    <h3 className="font-black text-xl text-white">Rate your seller</h3>
+                    <p className="text-[#AAAAAA] text-xs mt-0.5">How was your experience with <span className="font-bold text-white">{sellerName}</span>?</p>
                   </div>
                   {state === 'idle' && (
-                    <button onClick={onClose} className="w-9 h-9 bg-[#F5F4F0] rounded-xl flex items-center justify-center">
-                      <X size={16} className="text-[#5A5A5A]" />
+                    <button onClick={onClose} className="w-9 h-9 bg-[#1c1c1c] rounded-xl flex items-center justify-center">
+                      <X size={16} className="text-[#B5B5B5]" />
                     </button>
                   )}
                 </div>
@@ -127,7 +127,7 @@ export default function RatingModal({
                           className={`transition-colors ${
                             i <= display
                               ? 'text-[#FF2E47] fill-[#FF2E47] drop-shadow-[0_0_12px_rgba(255,46,71,0.6)]'
-                              : 'text-[#EBEBEB]'
+                              : 'text-[#3a3a3a]'
                           }`}
                         />
                       </button>
@@ -144,7 +144,7 @@ export default function RatingModal({
                   onChange={e => setComment(e.target.value.slice(0, 280))}
                   placeholder="Add a comment (optional)…"
                   rows={3}
-                  className="w-full bg-[#F5F4F0] border border-[#EBEBEB] rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#0A0A0A] resize-none mb-4"
+                  className="w-full bg-[#1c1c1c] border border-[#2a2a2a] rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#0A0A0A] resize-none mb-4"
                 />
 
                 {error && <p className="text-[#FF2E47] text-xs font-semibold mb-3">{error}</p>}

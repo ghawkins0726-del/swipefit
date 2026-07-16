@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { checkRateLimit, aiLimiter } from '@/lib/ratelimit';
 import { getLikedItems } from '@/lib/db';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -14,11 +15,30 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const limited = await checkRateLimit(aiLimiter, userId);
+  if (limited) return limited;
+
   const { message, genre, history = [] } = await req.json() as {
     message: string;
     genre?: string;
     history?: HistoryMessage[];
   };
+
+  // Guard against runaway API cost — cap inputs before hitting Claude
+  if (!message || typeof message !== 'string') {
+    return NextResponse.json({ error: 'Missing message' }, { status: 400 });
+  }
+  if (message.length > 1000) {
+    return NextResponse.json({ error: 'Message too long (max 1000 chars)' }, { status: 400 });
+  }
+  if (!Array.isArray(history)) {
+    return NextResponse.json({ error: 'Invalid history' }, { status: 400 });
+  }
+  // Only keep the last 20 turns to cap context size and cost
+  const safeHistory = history.slice(-20).map(h => ({
+    role: h.role,
+    content: typeof h.content === 'string' ? h.content.slice(0, 2000) : '',
+  }));
 
   const liked = await getLikedItems(userId);
 
@@ -72,7 +92,7 @@ DO NOT call the tool when they're:
 ═══ CONTEXT ═══${genreContext}${wardrobeContext}`;
 
   // Build messages for Claude — strict alternating roles, skip empties
-  const claudeMessages: Anthropic.MessageParam[] = history
+  const claudeMessages: Anthropic.MessageParam[] = safeHistory
     .filter(h => h.content && h.content.trim().length > 0)
     .map(h => ({
       role: h.role,

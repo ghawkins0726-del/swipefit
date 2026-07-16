@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuid } from 'uuid';
 import { withAuth, parseJson, apiError } from '@/lib/api-helpers';
+import { checkRateLimit, messagesLimiter } from '@/lib/ratelimit';
 import {
   sendMessage, getConversation, getAllMessagesBetween, markMessagesRead,
   markAllMessagesReadFromSender, getItemById, createNotification,
@@ -8,6 +9,9 @@ import {
 } from '@/lib/db';
 
 export const POST = withAuth(async (req, { userId, getDisplayName }) => {
+  const limited = await checkRateLimit(messagesLimiter, userId);
+  if (limited) return limited;
+
   const senderName = await getDisplayName('SwipeFit User');
 
   const body = await parseJson<{
@@ -21,6 +25,9 @@ export const POST = withAuth(async (req, { userId, getDisplayName }) => {
   if (!body) return apiError.badRequest('Invalid body');
   const { receiverId, itemId, text, replyToId, replyToText, replyToSender } = body;
   if (!receiverId || !itemId || !text) return apiError.badRequest('Missing fields');
+  if (typeof text !== 'string' || text.trim().length === 0) return apiError.badRequest('Message cannot be empty');
+  if (text.length > 2000) return apiError.badRequest('Message too long (max 2000 chars)');
+  if (userId === receiverId) return apiError.badRequest('Cannot message yourself');
 
   const message = {
     id: uuid(), senderId: userId, senderName, receiverId, itemId, text,
@@ -56,7 +63,6 @@ export const GET = withAuth(async (req, { userId }) => {
     return NextResponse.json(await getConversationList(userId));
   }
   if (!otherId) return apiError.badRequest('Missing otherId');
-  // No itemId → return all messages between the two users (unified view)
   if (!itemId) {
     return NextResponse.json(await getAllMessagesBetween(userId, otherId));
   }

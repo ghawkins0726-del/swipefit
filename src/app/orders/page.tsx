@@ -34,18 +34,18 @@ export default function OrdersPage() {
   const orders = tab === 'buying' ? buyingOrders : sellingOrders;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col min-h-screen bg-black">
       {/* Header */}
       <div className="bg-[#0A0A0A] pt-12 pb-5 px-5">
         <Logo size={26} href="/feed" className="text-white mb-3" />
         <h1 className="text-white font-black text-2xl">Orders</h1>
-        <p className="text-white/40 text-sm mt-0.5">
+        <p className="text-white/70 text-sm mt-0.5">
           {buyingOrders.length} purchased · {sellingOrders.length} sold
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-[#EBEBEB] flex">
+      <div className="bg-[#161616] border-b border-[#2a2a2a] flex">
         {([
           { id: 'buying',  icon: <ShoppingBag size={14} />, label: 'Buying',  count: buyingOrders.length  },
           { id: 'selling', icon: <Store size={14} />,       label: 'Selling', count: sellingOrders.length },
@@ -59,7 +59,7 @@ export default function OrdersPage() {
             {icon}
             {label}
             {count > 0 && (
-              <span className={`text-xs rounded-full px-1.5 font-bold ${tab === id ? 'bg-red-50 text-[#E63946]' : 'bg-[#F5F4F0] text-[#AAAAAA]'}`}>
+              <span className={`text-xs rounded-full px-1.5 font-bold ${tab === id ? 'bg-[#E63946]/10 text-[#E63946]' : 'bg-[#1c1c1c] text-[#AAAAAA]'}`}>
                 {count}
               </span>
             )}
@@ -77,14 +77,14 @@ export default function OrdersPage() {
           <div className="text-center py-16">
             {tab === 'buying' ? (
               <>
-                <ShoppingBag size={40} className="text-[#EBEBEB] mx-auto mb-3" />
-                <p className="text-[#0A0A0A] font-semibold mb-1">No purchases yet</p>
+                <ShoppingBag size={40} className="text-[#3a3a3a] mx-auto mb-3" />
+                <p className="text-white font-semibold mb-1">No purchases yet</p>
                 <p className="text-[#AAAAAA] text-sm">Items you buy will appear here</p>
               </>
             ) : (
               <>
-                <Store size={40} className="text-[#EBEBEB] mx-auto mb-3" />
-                <p className="text-[#0A0A0A] font-semibold mb-1">No sales yet</p>
+                <Store size={40} className="text-[#3a3a3a] mx-auto mb-3" />
+                <p className="text-white font-semibold mb-1">No sales yet</p>
                 <p className="text-[#AAAAAA] text-sm">Items you sell will appear here</p>
               </>
             )}

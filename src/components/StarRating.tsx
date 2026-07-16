@@ -27,7 +27,7 @@ export default function StarRating({
   return (
     <span className={`inline-flex items-center gap-1 ${className}`}>
       <Star size={size} className="text-[#FF2E47] fill-[#FF2E47]" />
-      <span className="font-black text-[#0A0A0A]">{average.toFixed(1)}</span>
+      <span className="font-black text-white">{average.toFixed(1)}</span>
       {showCount && count > 0 && <span className="text-[#AAAAAA] text-xs">({count})</span>}
     </span>
   );

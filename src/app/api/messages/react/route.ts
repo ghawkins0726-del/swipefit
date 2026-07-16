@@ -7,6 +7,10 @@ export const POST = withAuth(async (req, { userId }) => {
   if (!body) return apiError.badRequest('Invalid body');
   const { messageId, emoji } = body;
   if (!messageId || !emoji) return apiError.badRequest('Missing fields');
+  // Emoji length cap — prevent storing arbitrary strings
+  if (typeof emoji !== 'string' || emoji.length > 10) {
+    return apiError.badRequest('Invalid emoji');
+  }
 
   const result = await toggleReaction(messageId, userId, emoji);
   return NextResponse.json({ ok: true, action: result });

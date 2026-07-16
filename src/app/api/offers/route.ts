@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { checkRateLimit, offersLimiter } from '@/lib/ratelimit';
 import { v4 as uuid } from 'uuid';
 import {
   createOffer, getOffersByUser, getOfferById,
@@ -10,12 +11,16 @@ export async function POST(req: NextRequest) {
   const { userId: buyerId } = await auth();
   if (!buyerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const limited = await checkRateLimit(offersLimiter, buyerId);
+  if (limited) return limited;
+
   const body = await req.json();
   const { itemId, amount, message } = body;
   if (!itemId || !amount) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
   const item = await getItemById(itemId);
   if (!item) return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+  if (item.sellerId === buyerId) return NextResponse.json({ error: 'Cannot offer on your own item' }, { status: 400 });
 
   const clerkUser = await currentUser();
   const buyerName = clerkUser?.username

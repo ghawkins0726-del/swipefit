@@ -24,8 +24,8 @@ const CONDITION_LABELS: Record<string, string> = {
 
 const CONDITION_DOT: Record<string, string> = {
   new: 'bg-emerald-500',
-  like_new: 'bg-blue-500',
-  good: 'bg-yellow-500',
+  like_new: 'bg-blue-500/100',
+  good: 'bg-yellow-500/100',
   fair: 'bg-orange-500',
 };
 
@@ -96,7 +96,7 @@ export default function ItemPage() {
     const res = await fetch('/api/stripe/item-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId: item.id, sellerId: item.sellerId, amount: item.price }),
+      body: JSON.stringify({ itemId: item.id, amount: item.price }),
     });
     const data = await res.json();
     if (data.url) {
@@ -123,7 +123,7 @@ export default function ItemPage() {
 
   if (!item || !isLoaded) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F5F4F0]">
+      <div className="flex items-center justify-center min-h-screen bg-black">
         <div className="w-8 h-8 border-[3px] border-[#E63946] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -134,7 +134,7 @@ export default function ItemPage() {
   const daysAgo = Math.floor((Date.now() - item.createdAt) / 86400000);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F4F0]">
+    <div className="flex flex-col min-h-screen bg-black">
 
       {/* ── Image Gallery ── */}
       <div className="relative bg-[#0A0A0A] select-none" style={{ paddingBottom: '112%' }}>
@@ -155,7 +155,7 @@ export default function ItemPage() {
         {/* Sold overlay */}
         {isSold && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <div className="bg-white text-[#0A0A0A] font-black text-2xl tracking-widest uppercase px-8 py-3 rotate-[-8deg]">
+            <div className="bg-[#161616] text-white font-black text-2xl tracking-widest uppercase px-8 py-3 rotate-[-8deg]">
               SOLD
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function ItemPage() {
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
               {item.images.map((_, i) => (
                 <button key={i} onClick={() => setImgIndex(i)}
-                  className={`h-1.5 rounded-full transition-all ${i === imgIndex ? 'bg-white w-5' : 'bg-white/40 w-1.5'}`} />
+                  className={`h-1.5 rounded-full transition-all ${i === imgIndex ? 'bg-[#161616] w-5' : 'bg-white/40 w-1.5'}`} />
               ))}
             </div>
           </>
@@ -213,7 +213,7 @@ export default function ItemPage() {
         <AnimatePresence>
           {copied && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[#0A0A0A] text-white text-xs font-bold px-4 py-2 rounded-full">
+              className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[#E63946] text-white text-xs font-bold px-4 py-2 rounded-full">
               Link copied!
             </motion.div>
           )}
@@ -226,22 +226,22 @@ export default function ItemPage() {
         {/* Title + price */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black text-[#0A0A0A] leading-tight">{item.title}</h1>
+            <h1 className="text-xl font-black text-white leading-tight">{item.title}</h1>
             <p className="text-[#AAAAAA] text-sm mt-0.5 font-medium">{item.brand}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <div className="text-2xl font-black text-[#0A0A0A]">${item.price}</div>
+            <div className="text-2xl font-black text-white">${item.price}</div>
           </div>
         </div>
 
         {/* Condition + styles */}
         <div className="flex gap-2 flex-wrap">
-          <span className="flex items-center gap-1.5 text-xs font-bold bg-[#0A0A0A] text-white px-3 py-1.5 rounded-full">
+          <span className="flex items-center gap-1.5 text-xs font-bold bg-[#E63946] text-white px-3 py-1.5 rounded-full">
             <span className={`w-1.5 h-1.5 rounded-full ${CONDITION_DOT[item.condition]}`} />
             {CONDITION_LABELS[item.condition]}
           </span>
           {item.styles.map(s => (
-            <span key={s} className="text-xs text-[#5A5A5A] bg-white border border-[#EBEBEB] px-3 py-1.5 rounded-full font-semibold capitalize">{s}</span>
+            <span key={s} className="text-xs text-[#B5B5B5] bg-[#161616] border border-[#2a2a2a] px-3 py-1.5 rounded-full font-semibold capitalize">{s}</span>
           ))}
         </div>
 
@@ -253,11 +253,11 @@ export default function ItemPage() {
             { icon: <Palette size={13} />, label: 'Colors', value: item.colors.join(', ') || '—' },
             { icon: <Calendar size={13} />, label: 'Listed', value: daysAgo === 0 ? 'Today' : `${daysAgo}d ago` },
           ].map(({ icon, label, value }) => (
-            <div key={label} className="bg-white rounded-2xl p-3.5 flex items-start gap-2.5">
+            <div key={label} className="bg-[#161616] rounded-2xl p-3.5 flex items-start gap-2.5">
               <span className="text-[#AAAAAA] mt-0.5">{icon}</span>
               <div className="min-w-0">
                 <p className="text-[10px] text-[#AAAAAA] uppercase tracking-wider font-bold">{label}</p>
-                <p className="text-sm font-bold text-[#0A0A0A] capitalize truncate">{value}</p>
+                <p className="text-sm font-bold text-white capitalize truncate">{value}</p>
               </div>
             </div>
           ))}
@@ -265,15 +265,15 @@ export default function ItemPage() {
 
         {/* Description */}
         {item.description && (
-          <div className="bg-white rounded-2xl p-4">
-            <h2 className="text-xs font-black uppercase tracking-widest text-[#0A0A0A] mb-2">About this piece</h2>
-            <p className="text-[#5A5A5A] text-sm leading-relaxed">{item.description}</p>
+          <div className="bg-[#161616] rounded-2xl p-4">
+            <h2 className="text-xs font-black uppercase tracking-widest text-white mb-2">About this piece</h2>
+            <p className="text-[#B5B5B5] text-sm leading-relaxed">{item.description}</p>
           </div>
         )}
 
         {/* Seller */}
-        <div className="bg-white rounded-2xl p-4">
-          <h2 className="text-xs font-black uppercase tracking-widest text-[#0A0A0A] mb-3">Seller</h2>
+        <div className="bg-[#161616] rounded-2xl p-4">
+          <h2 className="text-xs font-black uppercase tracking-widest text-white mb-3">Seller</h2>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-[#0A0A0A] rounded-2xl flex items-center justify-center text-white font-black text-base flex-shrink-0">
@@ -281,7 +281,7 @@ export default function ItemPage() {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <p className="font-black text-[#0A0A0A] text-sm">{item.sellerName}</p>
+                  <p className="font-black text-white text-sm">{item.sellerName}</p>
                   {isVerified(item.sellerId) && <VerifiedBadge size="xs" />}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -295,13 +295,13 @@ export default function ItemPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-xs text-[#AAAAAA] bg-[#F5F4F0] rounded-xl px-2.5 py-1.5">
+              <div className="flex items-center gap-1 text-xs text-[#AAAAAA] bg-[#1c1c1c] rounded-xl px-2.5 py-1.5">
                 <Heart size={11} className="text-[#E63946]" />
                 <span className="font-bold">{likeCount}</span>
               </div>
               {!isMine && (
                 <Link href={`/messages/dm/${item.sellerId}?item=${item.id}`}
-                  className="bg-[#0A0A0A] text-white rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5">
+                  className="bg-[#E63946] text-white rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5">
                   <MessageSquare size={12} />
                   Message
                 </Link>
@@ -312,21 +312,21 @@ export default function ItemPage() {
 
         {/* Trust badges */}
         <div className="flex gap-2">
-          <div className="flex-1 bg-white rounded-2xl p-3 flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-green-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Shield size={14} className="text-green-600" />
+          <div className="flex-1 bg-[#161616] rounded-2xl p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-green-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Shield size={14} className="text-green-400" />
             </div>
             <div>
-              <p className="text-xs font-black text-[#0A0A0A]">Buyer Protection</p>
+              <p className="text-xs font-black text-white">Buyer Protection</p>
               <p className="text-[10px] text-[#AAAAAA]">Full refund if item not as described</p>
             </div>
           </div>
-          <div className="flex-1 bg-white rounded-2xl p-3 flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="flex-1 bg-[#161616] rounded-2xl p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
               <Truck size={14} className="text-blue-600" />
             </div>
             <div>
-              <p className="text-xs font-black text-[#0A0A0A]">Fast Shipping</p>
+              <p className="text-xs font-black text-white">Fast Shipping</p>
               <p className="text-[10px] text-[#AAAAAA]">Most items ship within 2 days</p>
             </div>
           </div>
@@ -334,14 +334,14 @@ export default function ItemPage() {
       </div>
 
       {/* ── Bottom CTA ── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#EBEBEB] px-4 py-3 pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 bg-[#161616] border-t border-[#2a2a2a] px-4 py-3 pb-safe">
         {isSold ? (
-          <div className="flex items-center justify-center gap-2 bg-[#F5F4F0] rounded-2xl py-4">
+          <div className="flex items-center justify-center gap-2 bg-[#1c1c1c] rounded-2xl py-4">
             <Package2 size={18} className="text-[#AAAAAA]" />
             <span className="font-black text-[#AAAAAA] text-sm uppercase tracking-widest">Sold</span>
           </div>
         ) : isMine ? (
-          <div className="flex items-center justify-center gap-2 bg-[#F5F4F0] rounded-2xl py-4">
+          <div className="flex items-center justify-center gap-2 bg-[#1c1c1c] rounded-2xl py-4">
             <span className="font-bold text-[#AAAAAA] text-sm">This is your listing</span>
           </div>
         ) : (
@@ -349,14 +349,14 @@ export default function ItemPage() {
             {/* Like */}
             <button onClick={handleLike}
               className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)] ${
-                liked ? 'border-[#E63946] bg-red-50' : 'border-[#EBEBEB] bg-white'
+                liked ? 'border-[#E63946] bg-[#E63946]/10' : 'border-[#2a2a2a] bg-white'
               }`}>
               <Heart size={20} className={liked ? 'text-[#E63946] fill-[#E63946]' : 'text-[#AAAAAA]'} />
             </button>
 
             {/* Make Offer */}
             <button onClick={() => setShowOffer(true)}
-              className="flex-1 bg-white border-2 border-[#0A0A0A] text-[#0A0A0A] font-black rounded-2xl flex items-center justify-center gap-1.5 text-sm uppercase tracking-widest hover:bg-[#F5F4F0] transition-colors shadow-[0_8px_20px_-8px_rgba(0,0,0,0.2)]">
+              className="flex-1 bg-[#161616] border-2 border-[#E63946] text-white font-black rounded-2xl flex items-center justify-center gap-1.5 text-sm uppercase tracking-widest hover:bg-[#1c1c1c] transition-colors shadow-[0_8px_20px_-8px_rgba(0,0,0,0.2)]">
               Offer
             </button>
 
@@ -421,36 +421,36 @@ export default function ItemPage() {
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-              className="w-full bg-white rounded-t-3xl px-5 pt-5 pb-10"
+              className="w-full bg-[#161616] rounded-t-3xl px-5 pt-5 pb-10"
             >
               {offerState === 'sent' ? (
                 <div className="text-center py-8">
                   <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Check size={24} className="text-green-600" />
+                    <Check size={24} className="text-green-400" />
                   </div>
-                  <h3 className="font-black text-xl text-[#0A0A0A]">Offer sent!</h3>
+                  <h3 className="font-black text-xl text-white">Offer sent!</h3>
                   <p className="text-[#AAAAAA] text-sm mt-1">The seller will respond soon.</p>
                 </div>
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-5">
                     <div>
-                      <h3 className="font-black text-xl text-[#0A0A0A]">Make an offer</h3>
-                      <p className="text-sm text-[#AAAAAA] mt-0.5">Listed at <span className="font-black text-[#0A0A0A]">${item.price}</span></p>
+                      <h3 className="font-black text-xl text-white">Make an offer</h3>
+                      <p className="text-sm text-[#AAAAAA] mt-0.5">Listed at <span className="font-black text-white">${item.price}</span></p>
                     </div>
-                    <button onClick={() => setShowOffer(false)} className="w-9 h-9 bg-[#F5F4F0] rounded-xl flex items-center justify-center">
-                      <X size={16} className="text-[#5A5A5A]" />
+                    <button onClick={() => setShowOffer(false)} className="w-9 h-9 bg-[#1c1c1c] rounded-xl flex items-center justify-center">
+                      <X size={16} className="text-[#B5B5B5]" />
                     </button>
                   </div>
 
                   <div className="relative mb-3">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0A0A0A] font-black text-lg">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white font-black text-lg">$</span>
                     <input
                       type="number"
                       placeholder="Your offer"
                       value={offerAmount}
                       onChange={e => setOfferAmount(e.target.value)}
-                      className="w-full border-2 border-[#EBEBEB] focus:border-[#0A0A0A] rounded-2xl pl-9 pr-4 py-4 text-2xl font-black text-[#0A0A0A] focus:outline-none transition-colors"
+                      className="w-full border-2 border-[#2a2a2a] focus:border-[#0A0A0A] rounded-2xl pl-9 pr-4 py-4 text-2xl font-black text-white focus:outline-none transition-colors"
                       autoFocus
                     />
                   </div>
@@ -458,7 +458,7 @@ export default function ItemPage() {
                   {offerAmount && item.price && (
                     <p className={`text-xs font-bold mb-3 ${
                       parseFloat(offerAmount) >= item.price * 0.85
-                        ? 'text-green-600' : parseFloat(offerAmount) >= item.price * 0.70
+                        ? 'text-green-400' : parseFloat(offerAmount) >= item.price * 0.70
                         ? 'text-yellow-600' : 'text-[#E63946]'
                     }`}>
                       {parseFloat(offerAmount) >= item.price
@@ -476,13 +476,13 @@ export default function ItemPage() {
                     value={offerNote}
                     onChange={e => setOfferNote(e.target.value)}
                     rows={2}
-                    className="w-full border-2 border-[#EBEBEB] focus:border-[#0A0A0A] rounded-2xl px-4 py-3 text-sm text-[#0A0A0A] focus:outline-none resize-none mb-4 transition-colors"
+                    className="w-full border-2 border-[#2a2a2a] focus:border-[#0A0A0A] rounded-2xl px-4 py-3 text-sm text-white focus:outline-none resize-none mb-4 transition-colors"
                   />
 
                   <button
                     onClick={sendOffer}
                     disabled={!offerAmount || offerState === 'sending'}
-                    className="w-full bg-[#0A0A0A] text-white font-black py-4 rounded-2xl disabled:opacity-40 active:scale-95 transition-all text-sm uppercase tracking-widest"
+                    className="w-full bg-[#E63946] text-white font-black py-4 rounded-2xl disabled:opacity-40 active:scale-95 transition-all text-sm uppercase tracking-widest"
                   >
                     {offerState === 'sending' ? 'Sending…' : 'Send Offer'}
                   </button>
@@ -510,38 +510,38 @@ export default function ItemPage() {
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-              className="w-full bg-white rounded-t-3xl px-5 pt-5 pb-10"
+              className="w-full bg-[#161616] rounded-t-3xl px-5 pt-5 pb-10"
             >
               {buyState === 'done' ? (
                 <div className="text-center py-8">
                   <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Check size={24} className="text-green-600" />
+                    <Check size={24} className="text-green-400" />
                   </div>
-                  <h3 className="font-black text-xl text-[#0A0A0A]">Order placed!</h3>
+                  <h3 className="font-black text-xl text-white">Order placed!</h3>
                   <p className="text-[#AAAAAA] text-sm mt-1">Taking you to your order…</p>
                 </div>
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-5">
-                    <h3 className="font-black text-xl text-[#0A0A0A]">Confirm purchase</h3>
+                    <h3 className="font-black text-xl text-white">Confirm purchase</h3>
                     {buyState === 'idle' && (
-                      <button onClick={() => setShowBuy(false)} className="w-9 h-9 bg-[#F5F4F0] rounded-xl flex items-center justify-center">
-                        <X size={16} className="text-[#5A5A5A]" />
+                      <button onClick={() => setShowBuy(false)} className="w-9 h-9 bg-[#1c1c1c] rounded-xl flex items-center justify-center">
+                        <X size={16} className="text-[#B5B5B5]" />
                       </button>
                     )}
                   </div>
 
                   {/* Item preview */}
-                  <div className="flex items-center gap-4 bg-[#F5F4F0] rounded-2xl p-4 mb-5">
+                  <div className="flex items-center gap-4 bg-[#1c1c1c] rounded-2xl p-4 mb-5">
                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                       <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-[#0A0A0A] text-sm truncate">{item.title}</p>
+                      <p className="font-black text-white text-sm truncate">{item.title}</p>
                       <p className="text-[#AAAAAA] text-xs">{item.brand} · Size {item.size}</p>
                       <p className="text-xs text-[#AAAAAA] mt-0.5">{CONDITION_LABELS[item.condition]}</p>
                     </div>
-                    <p className="font-black text-[#0A0A0A] text-xl flex-shrink-0">${item.price}</p>
+                    <p className="font-black text-white text-xl flex-shrink-0">${item.price}</p>
                   </div>
 
                   {/* Order summary */}
@@ -553,12 +553,12 @@ export default function ItemPage() {
                     ].map(({ label, value }) => (
                       <div key={label} className="flex items-center justify-between">
                         <span className="text-sm text-[#AAAAAA]">{label}</span>
-                        <span className="text-sm font-bold text-[#0A0A0A]">{value}</span>
+                        <span className="text-sm font-bold text-white">{value}</span>
                       </div>
                     ))}
-                    <div className="border-t border-[#EBEBEB] pt-2.5 flex items-center justify-between">
-                      <span className="font-black text-[#0A0A0A]">Total</span>
-                      <span className="font-black text-[#0A0A0A] text-xl">${item.price}</span>
+                    <div className="border-t border-[#2a2a2a] pt-2.5 flex items-center justify-between">
+                      <span className="font-black text-white">Total</span>
+                      <span className="font-black text-white text-xl">${item.price}</span>
                     </div>
                   </div>
 

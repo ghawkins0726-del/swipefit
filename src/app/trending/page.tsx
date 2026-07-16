@@ -31,7 +31,7 @@ export default function TrendingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-5 pt-12 pb-4">
+      <div className="bg-[#161616] border-b border-gray-100 px-5 pt-12 pb-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-[#E63946] rounded-xl flex items-center justify-center">
             <TrendingUp size={16} className="text-white" />
@@ -46,7 +46,7 @@ export default function TrendingPage() {
               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors capitalize ${
                 cat === c
                   ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-600 border-gray-200'
+                  : 'bg-[#161616] text-gray-600 border-gray-200'
               }`}
             >
               {c}
@@ -71,7 +71,7 @@ export default function TrendingPage() {
                 <div className="flex gap-2.5">
                   {top3.map((item, i) => (
                     <Link key={item.id} href={`/item/${item.id}`}
-                      className="flex-1 bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                      className="flex-1 bg-[#161616] rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                     >
                       <div className="relative aspect-square bg-zinc-100">
                         <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
@@ -102,7 +102,7 @@ export default function TrendingPage() {
                 <div className="space-y-2.5">
                   {rest.map((item, i) => (
                     <Link key={item.id} href={`/item/${item.id}`}
-                      className="flex items-center gap-3 bg-white rounded-2xl p-3 shadow-sm hover:shadow-md transition-shadow"
+                      className="flex items-center gap-3 bg-[#161616] rounded-2xl p-3 shadow-sm hover:shadow-md transition-shadow"
                     >
                       <span className="text-gray-300 font-black text-sm w-6 text-center">{i + 4}</span>
                       <div className="w-16 h-16 rounded-xl bg-zinc-100 overflow-hidden flex-shrink-0">

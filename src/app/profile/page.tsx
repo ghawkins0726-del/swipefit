@@ -63,16 +63,16 @@ function SocialSheet({
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[75vh] flex flex-col">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#161616] rounded-t-3xl shadow-2xl max-h-[75vh] flex flex-col">
         {/* Handle + title */}
-        <div className="relative flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EBEBEB]">
-          <div className="w-8 h-1 bg-[#EBEBEB] rounded-full absolute top-3 left-1/2 -translate-x-1/2" />
-          <h2 className="font-black text-[#0A0A0A] text-lg capitalize">{mode}</h2>
+        <div className="relative flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#2a2a2a]">
+          <div className="w-8 h-1 bg-[#262626] rounded-full absolute top-3 left-1/2 -translate-x-1/2" />
+          <h2 className="font-black text-white text-lg capitalize">{mode}</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 bg-[#F5F4F0] rounded-full flex items-center justify-center"
+            className="w-8 h-8 bg-[#1c1c1c] rounded-full flex items-center justify-center"
           >
-            <X size={14} className="text-[#0A0A0A]" />
+            <X size={14} className="text-white" />
           </button>
         </div>
 
@@ -84,8 +84,8 @@ function SocialSheet({
             </div>
           ) : list.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <Users size={32} className="text-[#EBEBEB] mb-3" />
-              <p className="text-[#0A0A0A] font-bold text-sm">No {mode} yet</p>
+              <Users size={32} className="text-[#3a3a3a] mb-3" />
+              <p className="text-white font-bold text-sm">No {mode} yet</p>
             </div>
           ) : (
             list.map(person => (
@@ -101,14 +101,14 @@ function SocialSheet({
 
                 {/* Name */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-[#0A0A0A] text-sm truncate">{person.name}</p>
+                  <p className="font-bold text-white text-sm truncate">{person.name}</p>
                 </div>
 
                 {/* Right: Message button */}
                 <Link
                   href={`/messages/item-direct/${person.userId}`}
                   onClick={onClose}
-                  className="flex items-center gap-1.5 bg-[#0A0A0A] text-white text-xs font-bold px-3 py-2 rounded-xl"
+                  className="flex items-center gap-1.5 bg-[#E63946] text-white text-xs font-bold px-3 py-2 rounded-xl"
                 >
                   <MessageSquare size={12} />
                   Message
@@ -242,7 +242,7 @@ export default function ProfilePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#0A0A0A] gap-4 px-8 text-center">
         <p className="text-white font-black text-lg">Couldn&apos;t load profile</p>
-        <p className="text-white/40 text-sm">There was a problem connecting. Check your connection and try again.</p>
+        <p className="text-white/70 text-sm">There was a problem connecting. Check your connection and try again.</p>
         <button
           onClick={() => { setLoading(true); fetch('/api/profile').then(r => r.json()).then(d => { if (d?.user) { setData(d); setNameInput(d.user.name ?? ''); setBioInput(d.user.bio ?? ''); } }).catch(() => {}).finally(() => setLoading(false)); }}
           className="bg-[#E63946] text-white font-black px-6 py-3 rounded-2xl text-sm"
@@ -327,19 +327,19 @@ export default function ProfilePage() {
                   onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
                   maxLength={40} />
                 <button onClick={saveName} className="text-[#E63946]"><Check size={16} /></button>
-                <button onClick={() => { setNameInput(user.name); setEditingName(false); }} className="text-white/40"><X size={14} /></button>
+                <button onClick={() => { setNameInput(user.name); setEditingName(false); }} className="text-white/70"><X size={14} /></button>
               </div>
             ) : (
               <button onClick={() => setEditingName(true)} className="flex items-center gap-1.5 group">
                 <h1 className="font-black text-white text-2xl tracking-tight">{user.name}</h1>
                 {isVerified(user.id) && <VerifiedBadge size="md" />}
-                <Edit2 size={13} className="text-white/30 group-hover:text-white/70 transition-colors" />
+                <Edit2 size={13} className="text-white/62 group-hover:text-white/70 transition-colors" />
               </button>
             )}
           </div>
 
           {/* Handle (Clerk username) */}
-          {handleAt && <p className="text-white/40 text-sm mt-0.5 font-medium">{handleAt}</p>}
+          {handleAt && <p className="text-white/70 text-sm mt-0.5 font-medium">{handleAt}</p>}
 
           {/* Co-founder badge */}
           {isCofounder(user.id) && (
@@ -358,7 +358,7 @@ export default function ProfilePage() {
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
                 <span className="text-white font-black text-xs">{ratingAverage.toFixed(1)}</span>
-                <span className="text-white/40 text-xs">· {ratingCount} review{ratingCount === 1 ? '' : 's'}</span>
+                <span className="text-white/70 text-xs">· {ratingCount} review{ratingCount === 1 ? '' : 's'}</span>
               </span>
             )}
           </div>
@@ -373,7 +373,7 @@ export default function ProfilePage() {
               const inner = (
                 <>
                   <span className="text-white font-black text-xl leading-none">{s.n}</span>
-                  <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">{s.label}</span>
+                  <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest mt-1">{s.label}</span>
                 </>
               );
               return s.href ? (
@@ -404,18 +404,18 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2">
                   <button onClick={saveBio} className="bg-[#E63946] text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest">Save</button>
                   <button onClick={() => { setBioInput(user.bio ?? ''); setEditingBio(false); }}
-                    className="text-white/40 text-xs font-bold">Cancel</button>
-                  <span className="text-white/30 text-[10px] ml-2">{bioInput.length}/160</span>
+                    className="text-white/70 text-xs font-bold">Cancel</button>
+                  <span className="text-white/62 text-[10px] ml-2">{bioInput.length}/160</span>
                 </div>
               </div>
             ) : user.bio ? (
               <button onClick={() => setEditingBio(true)} className="text-white/70 text-sm leading-relaxed text-center">
                 {user.bio}
-                <Edit2 size={11} className="inline ml-1.5 text-white/30 align-text-bottom" />
+                <Edit2 size={11} className="inline ml-1.5 text-white/62 align-text-bottom" />
               </button>
             ) : (
               <button onClick={() => setEditingBio(true)}
-                className="text-white/40 text-sm italic flex items-center gap-1.5 mx-auto">
+                className="text-white/70 text-sm italic flex items-center gap-1.5 mx-auto">
                 <Edit2 size={11} /> Add a bio
               </button>
             )}
@@ -463,7 +463,7 @@ export default function ProfilePage() {
           <button key={id}
             onClick={() => setTab(id)}
             className={`flex-1 flex flex-col items-center gap-1 py-3.5 transition-colors relative ${
-              tab === id ? 'text-white' : 'text-white/30'
+              tab === id ? 'text-white' : 'text-white/62'
             }`}
           >
             <Icon size={20} strokeWidth={tab === id ? 2.4 : 1.8} />
@@ -476,7 +476,7 @@ export default function ProfilePage() {
       </div>
 
       {/* ── Tab content (light bg from here down) ── */}
-      <div className="flex-1 bg-[#F5F4F0] px-3 pt-3 pb-28">
+      <div className="flex-1 bg-[#1c1c1c] px-3 pt-3 pb-28">
 
         {/* LISTINGS */}
         {tab === 'listings' && (
@@ -488,12 +488,12 @@ export default function ProfilePage() {
             <div className="grid grid-cols-3 gap-1">
               {listings.map(item => (
                 <Link key={item.id} href={`/item/${item.id}`}
-                  className="relative aspect-[3/4] bg-[#EBEBEB] overflow-hidden active:opacity-80 transition-opacity">
+                  className="relative aspect-[3/4] bg-[#262626] overflow-hidden active:opacity-80 transition-opacity">
                   <img src={item.images?.[0]} alt={item.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-end justify-between">
                     <span className="text-white font-black text-sm leading-none drop-shadow-lg">${item.price}</span>
-                    {item.sold && <span className="bg-white text-[#0A0A0A] text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full">Sold</span>}
+                    {item.sold && <span className="bg-[#161616] text-white text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full">Sold</span>}
                   </div>
                   <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                     <Heart size={8} className="fill-white" />
@@ -515,7 +515,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-3 gap-1">
               {liked.map(item => (
                 <Link key={item.id} href={`/item/${item.id}`}
-                  className="relative aspect-[3/4] bg-[#EBEBEB] overflow-hidden active:opacity-80 transition-opacity">
+                  className="relative aspect-[3/4] bg-[#262626] overflow-hidden active:opacity-80 transition-opacity">
                   <img src={item.images?.[0]} alt={item.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-end justify-between">
@@ -538,11 +538,11 @@ export default function ProfilePage() {
           ) : (
             <div className="grid grid-cols-3 gap-1">
               {wardrobe.map(({ order, item, resellListing }) => (
-                <div key={order.id} className="relative aspect-[3/4] bg-[#EBEBEB] overflow-hidden">
+                <div key={order.id} className="relative aspect-[3/4] bg-[#262626] overflow-hidden">
                   {item?.images?.[0] ? (
                     <img src={item.images[0]} alt={item?.title ?? ''} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#EBEBEB]">
+                    <div className="w-full h-full flex items-center justify-center bg-[#262626]">
                       <Package2 size={24} className="text-[#AAAAAA]" />
                     </div>
                   )}
@@ -602,10 +602,10 @@ function EmptyState({
 }: { icon: React.ElementType; title: string; sub: string; children?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center text-center py-16 px-6">
-      <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-sm">
-        <Icon size={28} className="text-[#EBEBEB]" />
+      <div className="w-16 h-16 bg-[#161616] rounded-3xl flex items-center justify-center mb-4 shadow-sm">
+        <Icon size={28} className="text-[#3a3a3a]" />
       </div>
-      <p className="font-black text-[#0A0A0A] text-base">{title}</p>
+      <p className="font-black text-white text-base">{title}</p>
       <p className="text-[#AAAAAA] text-sm mt-1 max-w-xs">{sub}</p>
       {children}
     </div>
