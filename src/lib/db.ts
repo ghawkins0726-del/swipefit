@@ -2,6 +2,7 @@
  * Database layer — Neon serverless Postgres.
  * Works in Vercel serverless functions and local dev (after `vercel env pull`).
  */
+import { randomUUID } from 'crypto';
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { Item, SwipeRecord, UserProfile } from './types';
 import { Offer, Notification, Message, Order, ConversationPreview, TasteProfile, ItemClassification, PriceTier, ResellListing, ResellPriceHistory } from './db-types';
@@ -364,6 +365,15 @@ async function _runInitDb(): Promise<void> {
   `;
   await db`CREATE INDEX IF NOT EXISTS idx_waitlist_referral ON waitlist_signups(referral_code)`;
   await db`CREATE INDEX IF NOT EXISTS idx_waitlist_referred_by ON waitlist_signups(referred_by)`;
+  // Monotonic join order assigned atomically by a sequence — the source of truth
+  // for waitlist position. (COUNT(*)+1 races under concurrent signups and hands
+  // out duplicate positions; a sequence never does.)
+  await db`CREATE SEQUENCE IF NOT EXISTS waitlist_join_seq`;
+  await db`ALTER TABLE waitlist_signups ADD COLUMN IF NOT EXISTS join_order BIGINT NOT NULL DEFAULT nextval('waitlist_join_seq')`;
+  // Launch gating: which signups have been sent a Clerk sign-up invitation.
+  await db`ALTER TABLE waitlist_signups ADD COLUMN IF NOT EXISTS invited BOOLEAN NOT NULL DEFAULT FALSE`;
+  await db`ALTER TABLE waitlist_signups ADD COLUMN IF NOT EXISTS invited_at BIGINT`;
+  await db`CREATE INDEX IF NOT EXISTS idx_waitlist_invited ON waitlist_signups(invited, join_order)`;
 
   // ── Coin flip ────────────────────────────────────────────────────────────
   await db`
@@ -2110,9 +2120,40 @@ export async function getReferralCount(referralCode: string): Promise<number> {
   return Number(rows[0]?.c ?? 0);
 }
 
+// Referral perk, bounded so it can't be farmed to the top with disposable
+// signups: each *counted* referral skips you up REFERRAL_BOOST spots, and only
+// the first MAX_COUNTED_REFERRALS count. (Was 100/uncapped — 50 throwaway
+// signups took anyone to #1.)
+const REFERRAL_BOOST = 25;
+const MAX_COUNTED_REFERRALS = 10;
+
 function effectivePosition(position: number, referralCount: number): number {
-  // Each referral skips you up 100 spots; never below 1.
-  return Math.max(1, position - referralCount * 100);
+  const counted = Math.min(referralCount, MAX_COUNTED_REFERRALS);
+  return Math.max(1, position - counted * REFERRAL_BOOST);
+}
+
+/**
+ * Canonical form of an email for de-duplication. Lowercase, trim, drop any
+ * "+tag" subaddress, and strip dots from gmail/googlemail local parts (Gmail
+ * ignores them) so `a.b+x@gmail.com` and `ab@gmail.com` collapse to one signup.
+ * Prevents the referral mechanic from being farmed with address variants.
+ */
+function normalizeEmail(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  const at = trimmed.lastIndexOf('@');
+  if (at === -1) return trimmed;
+  let local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  local = local.split('+')[0];
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    local = local.replace(/\./g, '');
+  }
+  return `${local}@${domain}`;
+}
+
+/** Collision-resistant referral code (8 hex chars from a UUID). */
+function generateReferralCode(): string {
+  return randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
 }
 
 /** Look up a waitlist entry by referral code, with live referral count + effective position. */
@@ -2122,7 +2163,9 @@ export async function getWaitlistEntry(referralCode: string): Promise<WaitlistEn
   if (rows.length === 0) return null;
   const r = rows[0];
   const referralCount = await getReferralCount(referralCode);
-  const position = Number(r.position);
+  // join_order (sequence-assigned) is the canonical position; the legacy
+  // `position` column is no longer written.
+  const position = Number(r.join_order);
   return {
     id: r.id as string,
     email: r.email as string,
@@ -2138,13 +2181,14 @@ export async function getWaitlistEntry(referralCode: string): Promise<WaitlistEn
 /** Look up a waitlist entry by email (for idempotent re-signups). */
 export async function getWaitlistEntryByEmail(email: string): Promise<WaitlistEntry | null> {
   const db = sql();
-  const rows = await db`SELECT referral_code FROM waitlist_signups WHERE email = ${email.toLowerCase()}`;
+  const rows = await db`SELECT referral_code FROM waitlist_signups WHERE email = ${normalizeEmail(email)}`;
   if (rows.length === 0) return null;
   return getWaitlistEntry(rows[0].referral_code as string);
 }
 
 /**
- * Join the waitlist. Idempotent on email — re-signing up returns the existing entry.
+ * Join the waitlist. Idempotent on the normalized email — re-signing up (or a
+ * concurrent double-submit) returns the existing entry instead of erroring.
  * referredBy is the referral code of whoever invited them (validated to exist).
  */
 export async function joinWaitlist(
@@ -2153,11 +2197,7 @@ export async function joinWaitlist(
   utm: { source?: string | null; medium?: string | null; campaign?: string | null },
 ): Promise<WaitlistEntry> {
   const db = sql();
-  const normalized = email.toLowerCase().trim();
-
-  // Idempotent: if they're already on the list, return their existing entry.
-  const existing = await getWaitlistEntryByEmail(normalized);
-  if (existing) return existing;
+  const normalized = normalizeEmail(email);
 
   // Only honor a referral code that actually exists.
   let validReferrer: string | null = null;
@@ -2166,20 +2206,63 @@ export async function joinWaitlist(
     if (refRows.length > 0) validReferrer = referredBy;
   }
 
-  const id = `wl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const referralCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const id = `wl_${randomUUID()}`;
+  const referralCode = generateReferralCode();
   const now = Date.now();
-  const count = await getWaitlistCount();
-  const position = count + 1;
 
-  await db`
+  // Atomic insert-or-noop. position is left 0 (legacy column, NOT NULL) — the
+  // real position comes from the sequence-backed join_order default. ON CONFLICT
+  // makes concurrent/duplicate signups a no-op rather than a unique-violation 500.
+  const inserted = await db`
     INSERT INTO waitlist_signups (id, email, referral_code, referred_by, position, utm_source, utm_medium, utm_campaign, created_at)
-    VALUES (${id}, ${normalized}, ${referralCode}, ${validReferrer}, ${position},
+    VALUES (${id}, ${normalized}, ${referralCode}, ${validReferrer}, 0,
             ${utm.source ?? null}, ${utm.medium ?? null}, ${utm.campaign ?? null}, ${now})
+    ON CONFLICT (email) DO NOTHING
+    RETURNING referral_code
   `;
 
-  return {
-    id, email: normalized, referralCode, referredBy: validReferrer,
-    position, effectivePosition: position, referralCount: 0, createdAt: now,
-  };
+  // No row inserted → already on the list (or lost the race). Return the winner.
+  const code = inserted.length > 0
+    ? (inserted[0].referral_code as string)
+    : (await db`SELECT referral_code FROM waitlist_signups WHERE email = ${normalized}`)[0]?.referral_code as string | undefined;
+
+  if (!code) throw new Error('WAITLIST_JOIN_FAILED');
+  return (await getWaitlistEntry(code))!;
+}
+
+// ─── Launch gating: waitlist → Clerk invitations ──────────────────────────────
+
+/**
+ * The next `limit` un-invited signups, in the order they should be let in:
+ * by effective position (referral skips honored), then raw join order. Returns
+ * both the id (to mark invited) and email (to send the Clerk invitation).
+ */
+export async function getUninvitedBatch(limit: number): Promise<{ id: string; email: string }[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT w.id, w.email,
+      GREATEST(1, w.join_order - LEAST(
+        (SELECT COUNT(*) FROM waitlist_signups r WHERE r.referred_by = w.referral_code),
+        ${MAX_COUNTED_REFERRALS}
+      ) * ${REFERRAL_BOOST}) AS eff
+    FROM waitlist_signups w
+    WHERE w.invited = FALSE
+    ORDER BY eff ASC, w.join_order ASC
+    LIMIT ${limit}
+  `;
+  return rows.map(r => ({ id: r.id as string, email: r.email as string }));
+}
+
+/** Mark the given signups as invited. */
+export async function markWaitlistInvited(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = sql();
+  await db`UPDATE waitlist_signups SET invited = TRUE, invited_at = ${Date.now()} WHERE id = ANY(${ids})`;
+}
+
+/** Count of signups not yet invited (for the admin release endpoint's summary). */
+export async function getUninvitedCount(): Promise<number> {
+  const db = sql();
+  const rows = await db`SELECT COUNT(*)::int AS c FROM waitlist_signups WHERE invited = FALSE`;
+  return Number(rows[0]?.c ?? 0);
 }

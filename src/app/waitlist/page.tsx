@@ -6,20 +6,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '@/components/Logo';
 
 /* ── Incentive ladder ─────────────────────────────────────────────────────── */
+// Total spots before the doors close — single source of truth for the scarcity
+// copy below (was hardcoded in three places).
+const DOORS_CLOSE_AT = 5000;
+
 interface Tier {
   cap: number;            // upper position bound for this tier
   emoji: string;
   name: string;
+  label: string;          // position-range label shown on the tier card
   perks: string[];
 }
 const TIERS: Tier[] = [
-  { cap: 100,  emoji: '🏆', name: 'Premium Member',
+  { cap: 100,  emoji: '🏆', name: 'Premium Member', label: 'First 100',
     perks: ['Premium-member badge (in-app)', 'Premium free for life', 'Direct line to the founder'] },
-  { cap: 1000, emoji: '💸', name: 'Free Seller Fees Forever',
+  { cap: 1000, emoji: '💸', name: 'Free Seller Fees Forever', label: 'First 1,000',
     perks: ['0% seller fees forever (not 10%)', 'Premium free for life', 'First dibs on Daily Drop'] },
-  { cap: 5000, emoji: '⭐', name: 'Early Access+',
+  { cap: 5000, emoji: '⭐', name: 'Early Access+', label: '1,001–5,000',
     perks: ['Premium free for 1 year', 'Early app access'] },
-  { cap: Infinity, emoji: '🎟️', name: 'Early Access',
+  { cap: Infinity, emoji: '🎟️', name: 'Early Access', label: '5,000+',
     perks: ['Standard early access'] },
 ];
 function tierFor(position: number): Tier {
@@ -117,7 +122,7 @@ function WaitlistInner() {
     } catch { /* clipboard blocked */ }
   }
 
-  const spotsLeft = total != null ? Math.max(0, 5000 - total) : null;
+  const spotsLeft = total != null ? Math.max(0, DOORS_CLOSE_AT - total) : null;
 
   return (
     <div className="min-h-[100dvh] bg-black text-white relative overflow-hidden">
@@ -157,7 +162,7 @@ function WaitlistInner() {
                 </div>
                 {spotsLeft != null && spotsLeft > 0 && (
                   <p className="text-xs mt-1.5 font-bold uppercase tracking-widest" style={{ color: '#E63946' }}>
-                    You&apos;re early — doors close at 5,000
+                    You&apos;re early — doors close at {DOORS_CLOSE_AT.toLocaleString()}
                   </p>
                 )}
               </div>
@@ -202,7 +207,7 @@ function WaitlistInner() {
                         <span className="text-base">{t.emoji}</span>
                         <span className="font-black text-sm">{t.name}</span>
                         <span className="text-[10px] ml-auto font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                          {t.cap === 100 ? 'First 100' : t.cap === 1000 ? 'First 1,000' : t.cap === 5000 ? '1,001–5,000' : '5,000+'}
+                          {t.label}
                         </span>
                       </div>
                       <ul className="space-y-0.5">
@@ -284,7 +289,7 @@ function WaitlistInner() {
               </button>
 
               <p className="text-[11px] mt-6" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                {total != null ? `${total.toLocaleString()} people waiting · ` : ''}Doors close at 5,000
+                {total != null ? `${total.toLocaleString()} people waiting · ` : ''}Doors close at {DOORS_CLOSE_AT.toLocaleString()}
               </p>
             </motion.div>
           )}

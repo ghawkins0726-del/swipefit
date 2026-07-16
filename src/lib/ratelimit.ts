@@ -24,34 +24,43 @@ function makeRedis(): Redis | null {
 
 const redis = makeRedis();
 
+/** N requests per minute, or null when Redis isn't configured (dev passes through). */
+function makeLimiter(requests: number, prefix: string): Ratelimit | null {
+  return redis
+    ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(requests, '1 m'), prefix })
+    : null;
+}
+
 // ── Per-route limiters ────────────────────────────────────────────────────────
 
 /** Messages: 30 per minute per user */
-export const messagesLimiter = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(30, '1 m'), prefix: 'rl:messages' })
-  : null;
+export const messagesLimiter = makeLimiter(30, 'rl:messages');
 
 /** Offers: 10 per minute per user */
-export const offersLimiter = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '1 m'), prefix: 'rl:offers' })
-  : null;
+export const offersLimiter = makeLimiter(10, 'rl:offers');
 
 /** Swipes: 300 per minute per user (fast swipers are legit, bots do thousands) */
-export const swipeLimiter = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(300, '1 m'), prefix: 'rl:swipe' })
-  : null;
+export const swipeLimiter = makeLimiter(300, 'rl:swipe');
 
 /** Profile updates: 10 per minute per user */
-export const profileLimiter = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '1 m'), prefix: 'rl:profile' })
-  : null;
+export const profileLimiter = makeLimiter(10, 'rl:profile');
 
 /** AI chat: 20 per minute per user (each call hits Claude API) */
-export const aiLimiter = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '1 m'), prefix: 'rl:ai' })
-  : null;
+export const aiLimiter = makeLimiter(20, 'rl:ai');
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+/** Waitlist join: 5 per minute per IP (public, unauthenticated — keyed on IP, not user) */
+export const waitlistLimiter = makeLimiter(5, 'rl:waitlist');
+
+/** Waitlist reads (status/count): 30 per minute per IP */
+export const waitlistReadLimiter = makeLimiter(30, 'rl:waitlist-read');
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Best-effort client IP for keying public (unauthenticated) limiters. */
+export function clientIp(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for');
+  return fwd?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'anon';
+}
 
 /**
  * Check the given limiter for the given identifier.
@@ -60,10 +69,9 @@ export const aiLimiter = redis
 export async function checkRateLimit(
   limiter: Ratelimit | null,
   identifier: string,
-  _req?: NextRequest,
 ): Promise<NextResponse | null> {
   if (!limiter) return null; // no Redis configured — pass through
-  const { success, limit, remaining, reset } = await limiter.limit(identifier);
+  const { success, limit, reset } = await limiter.limit(identifier);
   if (!success) {
     return NextResponse.json(
       { error: 'Too many requests — slow down and try again shortly.' },
